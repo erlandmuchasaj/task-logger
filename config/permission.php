@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+use Spatie\Permission\DefaultTeamResolver;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+
+
 use App\Domain\Identity\Enums\RoleName;
 use App\Domain\Identity\Permissions;
 
@@ -26,10 +31,6 @@ $employee = [
 
     Permissions::BANK_HOLIDAYS_VIEW,
 ];
-
-use Spatie\Permission\DefaultTeamResolver;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 
 return [
     /**

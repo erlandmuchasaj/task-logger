@@ -2,14 +2,21 @@
 
 declare(strict_types=1);
 
+use App\Domain\Clients\Data\ProjectData;
+use App\Domain\Clients\Enums\ProjectStatus;
+use App\Domain\Clients\Enums\ProjectType;
+use App\Domain\Clients\Models\ClientTechnologyRate;
+use App\Domain\Clients\Models\Customer;
 use App\Domain\Identity\Enums\EmploymentType;
 use App\Domain\Identity\Enums\RoleName;
 use App\Domain\Identity\Models\User;
 use App\Domain\MasterData\Models\Country;
 use App\Domain\MasterData\Models\Department;
+use App\Domain\MasterData\Models\Technology;
 use App\Domain\People\Data\EmployeeData;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 /*
@@ -88,4 +95,46 @@ function employeeData(array $overrides = []): EmployeeData
     ], $overrides);
 
     return new EmployeeData(...$values);
+}
+
+/**
+ * A client with an hourly rate per technology (SPEC example: .NET 24/h, Angular 20/h, Ionic 18/h).
+ *
+ * @param  array<string, int>  $rates  technology name => hourly rate in minor units
+ * @return array{0: Customer, 1: array<string, Technology>}
+ */
+function clientWithRates(array $rates = ['Angular' => 2000, '.NET' => 2400, 'Ionic' => 1800], string $from = '2025-01-01', array $customer = []): array
+{
+    $client = Customer::factory()->create($customer);
+    $technologies = [];
+
+    foreach ($rates as $name => $minor) {
+        $technologies[$name] = Technology::query()->firstOrCreate(['name' => $name]);
+        ClientTechnologyRate::factory()->create([
+            'customer_id' => $client->id, 'technology_id' => $technologies[$name]->id, 'rate_minor' => $minor, 'effective_from' => $from,
+        ]);
+    }
+
+    return [$client, $technologies];
+}
+
+/** Valid project input for a client. $hours maps technology id to estimated hours. */
+function projectData(Customer $client, array $hours, array $overrides = []): ProjectData
+{
+    $values = array_merge([
+        'customerId' => $client->id,
+        'type' => ProjectType::Standalone,
+        'name' => 'Website',
+        'description' => null,
+        'managerId' => User::factory()->withRole(RoleName::Admin)->create()->id,
+        'startDate' => Carbon::parse('2026-01-01'),
+        'endDate' => Carbon::parse('2026-12-31'),
+        'canLogDirectly' => false,
+        'status' => ProjectStatus::Active,
+        'color' => null,
+        'technologies' => $hours,
+        'memberIds' => [],
+    ], $overrides);
+
+    return new ProjectData(...$values);
 }

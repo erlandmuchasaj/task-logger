@@ -91,6 +91,8 @@ Cross-table rules that MySQL cannot express (task technology ∈ project technol
 
 Money note (D-34): `amount_minor` is an integer in the currency's ISO 4217 minor unit. The exponent comes from a table in `App\Domain\Shared\Money` (ALL 2, EUR 2, JPY 0, KWD 3); ICU is not used because it disagrees with ISO for the lek.
 
+M3 built as designed: tasks reference `(project_id, technology_id)` on `project_technology` (composite key, BR-10); `projects` has no priority column (D-02); `estimated_hours` and `budget_minor` are computed snapshots; `customers` and `projects` and `tasks` soft delete.
+
 ## 3. Access patterns
 
 | Pattern | Query | Support |

@@ -24,7 +24,7 @@ function colleague(): User
     EmployeeProfile::factory()->create([
         'user_id' => $user->id, 'phone' => '+355692123456', 'date_of_birth' => '1990-07-21',
         'address' => '12 Secret Street', 'university' => 'Hidden University', 'source_of_hire' => 'SecretReferral',
-        'description' => 'PrivateNote', 'metadata' => ['locker' => '4711'],
+        'description' => 'PrivateNote', 'metadata' => ['locker' => 'LOCKER-4711-PRIVATE'],
     ]);
     EmergencyContact::factory()->create(['user_id' => $user->id, 'name' => 'Ana Contact', 'phone' => '+355692123457']);
     UserSkill::create(['user_id' => $user->id, 'technology_id' => Technology::factory()->create(['name' => 'Laravel'])->id, 'level' => 8]);
@@ -34,7 +34,7 @@ function colleague(): User
 
 const PRIVATE_VALUES = [
     'marta.private@example.test', '+355692123456', '1990-07-21', '12 Secret Street', 'Hidden University',
-    'SecretReferral', 'PrivateNote', '4711', 'Ana Contact', '+355692123457', '2024-03-04', 'full_time', 'Full Time',
+    'SecretReferral', 'PrivateNote', 'LOCKER-4711-PRIVATE', 'Ana Contact', '+355692123457', '2024-03-04', 'full_time', 'Full Time',
 ];
 
 it('BR-26 the directory query selects only the public columns', function () {

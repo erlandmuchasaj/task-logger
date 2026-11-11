@@ -133,3 +133,17 @@ Built: employee management (create, edit account, role, skills), private HR reco
 - **Avatars** are stored on the `public` disk under `avatars/`; run `php artisan storage:link` on each environment.
 - **Phones.** Stored as E.164; national format (`0692123456`) is accepted only when the employee has a country (`propaganistas/laravel-phone`).
 - **Deferred:** W-01 step 4 (leave grant on the start date) arrives with M5; offboarding-driven deactivation and anonymisation arrive in M6 (the ban action here is reused).
+
+## 11. M3 outcome (2026-11-12)
+
+Built: clients with hourly rate history, projects with technologies, estimates and members, fixed costs, computed budget, tasks with labels, and the Filament screens (Clients, Projects, Tasks, rates tab, fixed costs tab).
+
+- **Budget (D-04, BR-13, BR-14).** `BudgetCalculator` is integer-only: hours in hundredths, rate at the project start date via `ClientRates::forDate()`, half-up rounding per technology line, plus fixed costs. `ComputeProjectBudget` stores the `estimated_hours` and `budget_minor` snapshot and throws when a technology has no rate on the start date, so the surrounding transaction rolls back (D-36). It runs after every change to technologies, estimates, start date, fixed costs and rates.
+- **BR-10 is enforced twice.** Actions validate with friendly messages; the database also enforces it with a composite foreign key from `tasks (project_id, technology_id)` to `project_technology`. A technology used by a task cannot be removed from its project.
+- **BR-30 (project manager is an admin).** The role literal lives in exactly one file, `ProjectManagerEligibility`, because the rule is about who may be picked, not about access; the architecture test allow-lists only that file. The role-change half goes through a contract (`BlocksRoleChange`, tagged `role-change-guards`) so Identity does not depend on Clients: `AssignUserRole` refuses to move a manager off the admin role.
+- **Visibility (D-05).** Rates, the payment plan and the budget need `clients.view_rates`; the Customer and Project screens, lists and infolists hide them, and the tests search the rendered HTML. Employees and HR see only tasks assigned to them; superadmin, admin and assistant see all.
+- **Task status (BR-35).** `TaskPolicy::changeStatus`: `tasks.change_status`, or `tasks.change_status_own` for the assignee, or the creator of a task made for someone else (the creator rule still needs `tasks.create`).
+- **Audit.** Every M3 model is logged, including the project technology and member rows; label changes on a task are logged as `labels_changed`.
+- **UI notes.** Relation managers on View screens are editable for people who may manage them (Filament defaults them to read-only). Filament returns enum-backed selects as enum cases in modals; actions accept both.
+- **Test environment.** `phpunit.xml` pins its own `APP_KEY`; a run failed once when something outside the project rewrote `.env` mid-run.
+- **Deferred.** The currency lock also counts logged work from M4 (`Customer::currencyIsLocked()` is the hook). Exports of clients, projects and tasks (assistant) arrive with M4.

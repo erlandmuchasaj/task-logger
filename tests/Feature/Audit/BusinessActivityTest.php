@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Domain\Clients\Models\ClientTechnologyRate;
+use App\Domain\Clients\Models\Customer;
+use App\Domain\Clients\Models\FixedCost;
+use App\Domain\Clients\Models\Project;
 use App\Domain\Identity\Enums\RoleName;
 use App\Domain\Identity\Models\User;
 use App\Domain\MasterData\Models\BankHoliday;
@@ -16,6 +20,7 @@ use App\Domain\People\Enums\SalaryStatus;
 use App\Domain\People\Models\EmergencyContact;
 use App\Domain\People\Models\EmployeeProfile;
 use App\Domain\People\Models\Salary;
+use App\Domain\Work\Models\Task;
 use Spatie\Activitylog\Models\Activity;
 
 // model => [attribute to change, new value]
@@ -31,6 +36,11 @@ $models = [
     User::class => ['position', 'Engineer'],
     EmployeeProfile::class => ['address', '1 New Street'],
     EmergencyContact::class => ['relationship', 'cousin'],
+    Customer::class => ['company_name', 'Renamed Co'],
+    ClientTechnologyRate::class => ['rate_minor', 3100],
+    Project::class => ['name', 'Renamed project'],
+    FixedCost::class => ['name', 'Renamed cost'],
+    Task::class => ['name', 'Renamed task'],
     Salary::class => ['status', SalaryStatus::Superseded], // the only column a salary row may change (BR-29)
 ];
 

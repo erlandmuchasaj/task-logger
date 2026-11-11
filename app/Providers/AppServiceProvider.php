@@ -4,6 +4,16 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Domain\Clients\Models\ClientTechnologyRate;
+use App\Domain\Clients\Models\Customer;
+use App\Domain\Clients\Models\FixedCost;
+use App\Domain\Clients\Models\Project;
+use App\Domain\Clients\Policies\ClientTechnologyRatePolicy;
+use App\Domain\Clients\Policies\CustomerPolicy;
+use App\Domain\Clients\Policies\FixedCostPolicy;
+use App\Domain\Clients\Policies\ProjectPolicy;
+use App\Domain\Clients\Support\ProjectManagerRoleGuard;
+use App\Domain\Identity\Actions\AssignUserRole;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Policies\ActivityPolicy;
 use App\Domain\MasterData\Models\BankHoliday;
@@ -25,6 +35,8 @@ use App\Domain\MasterData\Policies\TechnologyPolicy;
 use App\Domain\People\Models\Salary;
 use App\Domain\People\Policies\SalaryPolicy;
 use App\Domain\People\Policies\UserPolicy;
+use App\Domain\Work\Models\Task;
+use App\Domain\Work\Policies\TaskPolicy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -37,7 +49,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // BR-30: other modules may veto a role change (e.g. a project manager must stay an admin).
+        $this->app->tag([ProjectManagerRoleGuard::class], 'role-change-guards');
+        $this->app->when(AssignUserRole::class)->needs('$guards')->giveTagged('role-change-guards');
     }
 
     /**
@@ -57,6 +71,11 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(User::class, UserPolicy::class);
         Gate::policy(Salary::class, SalaryPolicy::class);
         Gate::policy(Activity::class, ActivityPolicy::class);
+        Gate::policy(Customer::class, CustomerPolicy::class);
+        Gate::policy(ClientTechnologyRate::class, ClientTechnologyRatePolicy::class);
+        Gate::policy(Project::class, ProjectPolicy::class);
+        Gate::policy(FixedCost::class, FixedCostPolicy::class);
+        Gate::policy(Task::class, TaskPolicy::class);
 
         // Catch N+1 queries early outside production (NFR-09).
         Model::preventLazyLoading(! $this->app->isProduction());

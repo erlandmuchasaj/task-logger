@@ -11,6 +11,10 @@ it('never authorises by role name (permission-first, FR-02)', function () {
         if (! $file->isFile() || $file->getExtension() !== 'php') {
             continue;
         }
+        // BR-30 is a data rule (who may be picked as a project manager), kept in this single file.
+        if (str_ends_with($file->getPathname(), 'Clients/Support/ProjectManagerEligibility.php')) {
+            continue;
+        }
         $code = file_get_contents($file->getPathname());
         if (preg_match('/->(hasRole|hasAnyRole|hasAllRoles)\(|[\'"]role:|@role\b|@hasrole\b/i', $code)) {
             $offenders[] = $file->getPathname();

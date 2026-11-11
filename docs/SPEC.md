@@ -299,6 +299,23 @@ Each entry: what the source says, the default this spec implements, and whether 
 - Default: the number of decimals comes from an ISO 4217 table in code (ALL 2, EUR 2, JPY 0, KWD 3, CLF 4). ICU reports the Albanian lek with 0 decimals, which contradicts ISO and would misread every ALL amount.
 - Confirm: no.
 
+**D-35 — What cannot change after creation `[ASSUMED]`.**
+
+- Source: silent. Rates, budgets and (from M4) logs are tied to a project's client and to a task's project.
+- Default: the client of an existing project and the project of an existing task cannot change. A task's technology can change within its project. Clients are never hard-deleted (deactivate them, BR-31).
+- Confirm: yes.
+
+**D-36 — Budget needs a rate on the start date; rounding `[ASSUMED]`.**
+
+- Source: D-04 prices hours at the client rate effective on the project start date; it does not say what happens when there is none.
+- Default: a technology can only be added to a project if the client has a rate for it on the start date, and any change (rate, technology, estimate, start date, fixed cost) that would leave a technology without one is refused and rolled back. Each technology line rounds half up to the minor unit. Estimated hours are decimals with at most 2 digits.
+- Confirm: yes.
+
+**D-37 — Delete guards `[DERIVED]`.**
+
+- Default: a project that still has tasks cannot be deleted (cancel it instead); a task with sub-tasks cannot be deleted; a technology used by a task cannot be removed from its project. Deletes are soft. End date is optional (recurring and pay-as-you-go projects); start date is required because it prices the budget.
+- Confirm: no.
+
 ### 3.2 Confirm before coding
 
 1. D-14 and D-05: what employees and assistants may see, and whether an employee sees their own HR record. HR and admin access is now set by the owner.
@@ -311,6 +328,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 8. D-24, D-25: invoicing, multiple assignees and MCP (conflicts with IDEA.md).
 9. D-28: whether employee-role managers can approve leave.
 10. D-31 and D-33: the salary status rules, and whether employees may edit any of their own data.
+11. D-35 and D-36: what is immutable after creation, and the budget rule when no rate exists on the start date.
 
 Answered by the owner and already applied: D-04 (budget includes fixed costs), D-07 (both manager and HR approve), D-08 (weekend holidays are handled manually by HR), D-10 (hr, admin and superadmin manage the HR record, salaries, offboardings, expenses and settings; assignees change their own task status), D-15 (2-month retention).
 

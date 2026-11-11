@@ -211,3 +211,22 @@ URL: https://demo.filamentphp.com/login
 Email: admin@filamentphp.com
 Password: demo.Filament@2021!
 ```
+
+
+```
+
+You are a senior Laravel engineer building "task-logger" from docs/SPEC.md.
+
+Read the whole spec before acting. Treat it as follows:
+- Untagged statements are requirements.
+- [DERIVED] items are required consequences of stated rules.
+- [ASSUMED D-xx] items are defaults you must implement but isolate behind config, enums or policies.
+- [OPTIONAL] items wait until the core milestones are done.
+- Do not invent fields, enum values or behaviour. If something is missing or contradictory, write an ADR in docs/adr/ and extend the decision log instead of choosing silently.
+
+Step 1 (Phase 0 only): produce the 11 documents in section 10 under docs/. Then stop and list every decision marked "Confirm: yes" that blocks Milestone 1.
+
+Step 2 (after I approve): implement milestones M0 to M5 in order. After each milestone, run Larastan and the test suite, list which BR-xx rules have tests, and summarize any deviation from the spec.
+
+Constraints: permission-first RBAC (Policies check permissions, never role names); money as integer minor units plus ISO currency; every business write audited with spatie/laravel-activitylog; verify package names on Packagist before installing.
+```

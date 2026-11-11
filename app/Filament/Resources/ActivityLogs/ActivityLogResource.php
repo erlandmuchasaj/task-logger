@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\ActivityLogs;
 
+use App\Domain\Identity\Models\ActivityLog;
 use App\Domain\Identity\Models\User;
 use App\Filament\Resources\ActivityLogs\Pages\ListActivityLogs;
 use App\Filament\Resources\ActivityLogs\Pages\ViewActivityLog;
@@ -16,17 +17,17 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
-use Spatie\Activitylog\Models\Activity;
 use UnitEnum;
 
 /** The audit trail (BR-32): read-only, activity_logs.view (superadmin). Shows before and after values. */
 class ActivityLogResource extends Resource
 {
-    protected static ?string $model = Activity::class;
+    protected static ?string $model = ActivityLog::class;
 
     protected static ?string $slug = 'activity-log';
 
@@ -45,7 +46,7 @@ class ActivityLogResource extends Resource
     /** @return Builder<Model> */
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with('causer');
+        return parent::getEloquentQuery()->with(['causer', 'impersonator']);
     }
 
     public static function canCreate(): bool
@@ -60,18 +61,31 @@ class ActivityLogResource extends Resource
                 TextColumn::make('created_at')->dateTime()->sortable()->label('When'),
                 TextColumn::make('event')->badge()->searchable(),
                 TextColumn::make('subject_type')->label('Record')
-                    ->formatStateUsing(fn (?string $state, Activity $record): string => $state ? Str::headline(class_basename($state))." #{$record->subject_id}" : '-'),
+                    ->formatStateUsing(fn (?string $state, ActivityLog $record): string => $state ? Str::headline(class_basename($state))." #{$record->subject_id}" : '-'),
                 TextColumn::make('causer.name')->label('By')
-                    ->formatStateUsing(fn (?string $state, Activity $record): string => $record->causer instanceof User ? $record->causer->getFilamentName() : 'System'),
+                    ->formatStateUsing(fn (?string $state, ActivityLog $record): string => $record->causer instanceof User ? $record->causer->getFilamentName() : 'System'),
+                TextColumn::make('impersonator.name')->label('Impersonator')->placeholder('-')
+                    ->formatStateUsing(fn (?string $state, ActivityLog $record): ?string => $record->impersonator?->getFilamentName())
+                    ->badge()->color('warning'),
+                TextColumn::make('client_ip')->label('IP')->placeholder('-')->searchable()->toggleable(),
                 TextColumn::make('description')->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                SelectFilter::make('event')->options(fn (): array => Activity::query()->distinct()->orderBy('event')->pluck('event', 'event')->all()),
+                TernaryFilter::make('impersonated')->label('Impersonated')
+                    ->placeholder('All')->trueLabel('Only impersonated')->falseLabel('Not impersonated')
+                    ->queries(
+                        true: fn (Builder $query) => $query->whereNotNull('impersonator_id'),
+                        false: fn (Builder $query) => $query->whereNull('impersonator_id'),
+                        blank: fn (Builder $query) => $query,
+                    ),
+                SelectFilter::make('event')->options(fn (): array => ActivityLog::query()->distinct()->orderBy('event')->pluck('event', 'event')->all()),
                 SelectFilter::make('subject_type')->label('Record type')
-                    ->options(fn (): array => Activity::query()->whereNotNull('subject_type')->distinct()->pluck('subject_type')
+                    ->options(fn (): array => ActivityLog::query()->whereNotNull('subject_type')->distinct()->pluck('subject_type')
                         ->mapWithKeys(fn (string $t): array => [$t => Str::headline(class_basename($t))])->all()),
             ])
             ->recordActions([ViewAction::make()])
+            ->paginated([25, 50, 100])
+            ->defaultPaginationPageOption(25)
             ->defaultSort('id', 'desc');
     }
 
@@ -84,10 +98,14 @@ class ActivityLogResource extends Resource
                 TextEntry::make('created_at')->dateTime(),
                 TextEntry::make('event')->badge(),
                 TextEntry::make('causer.name')->label('By')
-                    ->formatStateUsing(fn (?string $state, Activity $record): string => $record->causer instanceof User ? $record->causer->getFilamentName() : 'System'),
+                    ->formatStateUsing(fn (?string $state, ActivityLog $record): string => $record->causer instanceof User ? $record->causer->getFilamentName() : 'System'),
                 TextEntry::make('subject_type')->label('Record')
-                    ->formatStateUsing(fn (?string $state, Activity $record): string => $state ? Str::headline(class_basename($state))." #{$record->subject_id}" : '-'),
+                    ->formatStateUsing(fn (?string $state, ActivityLog $record): string => $state ? Str::headline(class_basename($state))." #{$record->subject_id}" : '-'),
                 TextEntry::make('description'),
+                TextEntry::make('impersonator.name')->label('Impersonator (who was really acting)')->placeholder('Nobody')->badge()->color('warning')
+                    ->formatStateUsing(fn (?string $state, ActivityLog $record): ?string => $record->impersonator?->getFilamentName()),
+                TextEntry::make('client_ip')->label('IP address')->placeholder('-'),
+                TextEntry::make('user_agent')->label('User agent')->placeholder('-')->columnSpan(2),
             ]),
             Section::make('Changes (before and after)')->schema([
                 TextEntry::make('attribute_changes')->hiddenLabel()->formatStateUsing($json)->fontFamily('mono')->extraAttributes(['class' => 'whitespace-pre-wrap']),

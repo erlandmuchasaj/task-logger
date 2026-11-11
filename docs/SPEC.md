@@ -316,6 +316,12 @@ Each entry: what the source says, the default this spec implements, and whether 
 - Default: a project that still has tasks cannot be deleted (cancel it instead); a task with sub-tasks cannot be deleted; a technology used by a task cannot be removed from its project. Deletes are soft. End date is optional (recurring and pay-as-you-go projects); start date is required because it prices the budget.
 - Confirm: no.
 
+**D-38 — Audit context: IP, user agent and impersonator.**
+
+- Source: BR-32 requires actor, subject and before/after values. Impersonation is `[OPTIONAL]` (D-20): a superadmin acting as a user for support. The owner asked that the real person be recorded.
+- Default: every activity entry also stores `client_ip`, `user_agent` and `impersonator_id` (the person who is really acting; the causer stays the user being acted as). They are read from the HTTP request and the session key `impersonated_by` (the default of `lab404/laravel-impersonate`, configurable in `config/task-logger.php`). Outside a request (console, queued jobs) they are null. A stale or forged impersonator id is ignored so it can never break an audited write. IP address and user agent are personal data and are cleared on anonymisation (BR-28).
+- Confirm: no. Open: should queued jobs (exports) carry the originating IP and impersonator?
+
 ### 3.2 Confirm before coding
 
 1. D-14 and D-05: what employees and assistants may see, and whether an employee sees their own HR record. HR and admin access is now set by the owner.

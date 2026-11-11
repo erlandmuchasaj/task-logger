@@ -32,6 +32,12 @@ return [
         'grace_days' => 14,         // days users have to enrol once 2FA becomes required
     ],
 
+    // D-38: the session key that holds the impersonator's user id while someone acts as another user.
+    // Matches the default of lab404/laravel-impersonate ('impersonated_by'); keep them in sync.
+    'impersonation' => [
+        'session_key' => 'impersonated_by',
+    ],
+
     // Optional first superadmin created by SuperadminSeeder (local/bootstrap use).
     'superadmin' => [
         'email' => env('SUPERADMIN_EMAIL'),

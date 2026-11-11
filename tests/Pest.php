@@ -9,6 +9,7 @@ use App\Domain\Clients\Models\ClientTechnologyRate;
 use App\Domain\Clients\Models\Customer;
 use App\Domain\Identity\Enums\EmploymentType;
 use App\Domain\Identity\Enums\RoleName;
+use App\Domain\Identity\Models\ActivityLog;
 use App\Domain\Identity\Models\User;
 use App\Domain\MasterData\Models\Country;
 use App\Domain\MasterData\Models\Department;
@@ -16,6 +17,7 @@ use App\Domain\MasterData\Models\Technology;
 use App\Domain\People\Data\EmployeeData;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
@@ -137,4 +139,25 @@ function projectData(Customer $client, array $hours, array $overrides = []): Pro
     ], $overrides);
 
     return new ProjectData(...$values);
+}
+
+/** Makes the app see an HTTP request from an IP and browser, optionally with an impersonation in the session. */
+function asRequest(string $ip = '203.0.113.7', string $agent = 'Mozilla/5.0 (X11) TestBrowser/1.0', mixed $impersonatedBy = null): void
+{
+    $request = Request::create('/app/labels', 'POST', server: ['REMOTE_ADDR' => $ip, 'HTTP_USER_AGENT' => $agent]);
+
+    $session = app('session')->driver();
+    $session->start();
+    $session->flush(); // each request has its own session in real life
+    if ($impersonatedBy !== null) {
+        $session->put(config('task-logger.impersonation.session_key'), $impersonatedBy);
+    }
+    $request->setLaravelSession($session);
+
+    app()->instance('request', $request);
+}
+
+function latestActivity(string $event = 'created'): ActivityLog
+{
+    return ActivityLog::query()->where('event', $event)->latest('id')->firstOrFail();
 }

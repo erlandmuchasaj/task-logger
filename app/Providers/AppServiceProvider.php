@@ -14,8 +14,10 @@ use App\Domain\Clients\Policies\FixedCostPolicy;
 use App\Domain\Clients\Policies\ProjectPolicy;
 use App\Domain\Clients\Support\ProjectManagerRoleGuard;
 use App\Domain\Identity\Actions\AssignUserRole;
+use App\Domain\Identity\Models\ActivityLog;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Policies\ActivityPolicy;
+use App\Domain\Identity\Support\ActivityContext;
 use App\Domain\MasterData\Models\BankHoliday;
 use App\Domain\MasterData\Models\Country;
 use App\Domain\MasterData\Models\CountryLeavePolicy;
@@ -51,6 +53,9 @@ class AppServiceProvider extends ServiceProvider
     {
         // BR-30: other modules may veto a role change (e.g. a project manager must stay an admin).
         $this->app->tag([ProjectManagerRoleGuard::class], 'role-change-guards');
+        // One context per request: it caches the impersonator lookup for the audit trail (D-38).
+        $this->app->scoped(ActivityContext::class);
+
         $this->app->when(AssignUserRole::class)->needs('$guards')->giveTagged('role-change-guards');
     }
 
@@ -71,6 +76,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(User::class, UserPolicy::class);
         Gate::policy(Salary::class, SalaryPolicy::class);
         Gate::policy(Activity::class, ActivityPolicy::class);
+        Gate::policy(ActivityLog::class, ActivityPolicy::class);
         Gate::policy(Customer::class, CustomerPolicy::class);
         Gate::policy(ClientTechnologyRate::class, ClientTechnologyRatePolicy::class);
         Gate::policy(Project::class, ProjectPolicy::class);

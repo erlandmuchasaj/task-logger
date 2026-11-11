@@ -147,3 +147,11 @@ Built: clients with hourly rate history, projects with technologies, estimates a
 - **UI notes.** Relation managers on View screens are editable for people who may manage them (Filament defaults them to read-only). Filament returns enum-backed selects as enum cases in modals; actions accept both.
 - **Test environment.** `phpunit.xml` pins its own `APP_KEY`; a run failed once when something outside the project rewrote `.env` mid-run.
 - **Deferred.** The currency lock also counts logged work from M4 (`Customer::currencyIsLocked()` is the hook). Exports of clients, projects and tasks (assistant) arrive with M4.
+
+## 12. Audit context (D-38, after M3)
+
+- `activity_log` has `client_ip`, `user_agent` and `impersonator_id` (FK to users, null on delete). Its migration is dated after the users migration because of that foreign key.
+- `StampedLogActivityAction` (configured as `activitylog.actions.log_activity`) fills them from `ActivityContext` just before an entry is saved or buffered, so model events, hand-written `activity()` calls and buffered inserts are all covered. Values already set are kept. `App\Domain\Identity\Models\ActivityLog` is the configured model and adds the `impersonator` relation.
+- `ActivityContext` reads the session key `task-logger.impersonation.session_key` (`impersonated_by`, the lab404 default) from the request session or, when the request has none (Livewire), the session store. The impersonator id is checked against `users` once per request. Impersonation itself is still the optional M6 item; this is the recording side.
+- Known limits: queued jobs have no request, so exports will carry no IP or impersonator unless M4 passes the context through the job. Anonymisation (M6) must clear the two new personal-data columns.
+- The Activity Log screen shows the impersonator, IP and user agent and can filter to impersonated changes; page sizes are 25, 50 or 100.

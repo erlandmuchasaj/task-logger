@@ -98,11 +98,13 @@ HTTPS only, secure cookies, HSTS in non-local. Receipts on private disk with sig
 
 ## 6. Auditing (BR-32)
 
-`spatie/laravel-activitylog` (v5) on every business model; before/after values are stored in the `attribute_changes` column (not `properties`), with causer and subject. Edits to logs in a locked month always store before/after (BR-07). `activity_logs.view` is superadmin only. Activity log is **not** pruned. Properties may hold personal data → scrubbed on anonymisation.
+`spatie/laravel-activitylog` (v5) on every business model; before/after values are stored in the `attribute_changes` column (not `properties`), with causer and subject. Edits to logs in a locked month always store before/after (BR-07). `activity_logs.view` is superadmin only. Each entry also records the client IP, the user agent and, when someone is acting as another user, the impersonator (`impersonator_id`; D-38). The causer is the user acted as, so "who really did it" is never lost. Activity log is **not** pruned. Properties may hold personal data → scrubbed on anonymisation.
 
 ## 7. Retention and anonymisation (BR-28, D-15)
 
-Trigger: `offboarding.end_date + anonymize_after_months` (default 2). Replace name with `Former employee #id`, email with `anonymized-{id}@invalid.example`, clear profile, emergency contacts, avatar, metadata; scrub personal values in activity-log `attribute_changes` and `properties`; set `anonymized_at`. Keep ids, logs, leave, salary, performance rows. Job is idempotent.
+Trigger: `offboarding.end_date + anonymize_after_months` (default 2). Replace name with `Former employee #id`, email with `anonymized-{id}@invalid.example`, clear profile, emergency contacts, avatar, metadata; scrub personal values in activity-log `attribute_changes` and `properties`, and clear `client_ip` and `user_agent` on that user's entries; set `anonymized_at`. Keep ids, logs, leave, salary, performance rows. Job is idempotent.
+
+Behind a load balancer the client IP is only right if trusted proxies are configured (`bootstrap/app.php`, `trustProxies`); otherwise the proxy's address is stored.
 
 ## 8. Threat checklist (reviewed again in M7)
 

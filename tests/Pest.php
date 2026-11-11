@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Domain\Clients\Actions\CreateProject;
 use App\Domain\Clients\Data\ProjectData;
 use App\Domain\Clients\Enums\ProjectStatus;
 use App\Domain\Clients\Enums\ProjectType;
 use App\Domain\Clients\Models\ClientTechnologyRate;
 use App\Domain\Clients\Models\Customer;
+use App\Domain\Clients\Models\Project;
 use App\Domain\Identity\Enums\EmploymentType;
 use App\Domain\Identity\Enums\RoleName;
 use App\Domain\Identity\Models\ActivityLog;
@@ -15,6 +17,9 @@ use App\Domain\MasterData\Models\Country;
 use App\Domain\MasterData\Models\Department;
 use App\Domain\MasterData\Models\Technology;
 use App\Domain\People\Data\EmployeeData;
+use App\Domain\Work\Data\LogData;
+use App\Domain\Work\Enums\LogType;
+use App\Domain\Work\Models\Task;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -160,4 +165,36 @@ function asRequest(string $ip = '203.0.113.7', string $agent = 'Mozilla/5.0 (X11
 function latestActivity(string $event = 'created'): ActivityLog
 {
     return ActivityLog::query()->where('event', $event)->latest('id')->firstOrFail();
+}
+
+/**
+ * An employee who can log time: a client with an Angular rate, a project that allows direct logging with the
+ * employee as member, and a task assigned to the employee.
+ *
+ * @return array{employee: User, client: Customer, project: Project, technology: Technology, task: Task}
+ */
+function loggingSetup(int $rateMinor = 2000, string $rateFrom = '2025-01-01', ?User $employee = null): array
+{
+    $employee ??= User::factory()->withRole(RoleName::Employee)->create();
+    [$client, $tech] = clientWithRates(['Angular' => $rateMinor], $rateFrom);
+
+    $project = app(CreateProject::class)->handle(
+        User::factory()->withRole(RoleName::Superadmin)->create(),
+        projectData($client, [$tech['Angular']->id => '100'], ['canLogDirectly' => true, 'memberIds' => [$employee->id], 'startDate' => Carbon::parse($rateFrom)]),
+    )->load('customer');
+
+    $task = Task::factory()->create(['project_id' => $project->id, 'technology_id' => $tech['Angular']->id, 'assignee_id' => $employee->id]);
+
+    return ['employee' => $employee, 'client' => $client, 'project' => $project, 'technology' => $tech['Angular'], 'task' => $task];
+}
+
+/** A log on a task by default; pass projectId and technologyId (and taskId: null) for a direct log. */
+function logData(array $overrides = []): LogData
+{
+    return new LogData(...array_merge([
+        'date' => Carbon::parse('2026-03-10'),
+        'minutes' => 120,
+        'type' => LogType::NormalHours,
+        'description' => 'Worked on it',
+    ], $overrides));
 }

@@ -92,6 +92,16 @@ final readonly class Money
         return $groups;
     }
 
+    /** The amount as a plain decimal string without the currency ("1200.50"), for exports. */
+    public function toMajorString(): string
+    {
+        $digits = self::fractionDigits($this->currency);
+
+        return $digits === 0
+            ? (string) $this->minor
+            : intdiv($this->minor, 10 ** $digits).'.'.str_pad((string) ($this->minor % (10 ** $digits)), $digits, '0', STR_PAD_LEFT);
+    }
+
     public function format(): string
     {
         $digits = self::fractionDigits($this->currency);

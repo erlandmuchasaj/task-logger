@@ -157,7 +157,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 **D-10 — Permission defaults.**
 
 - Source: the role lists are partial. Nothing is said for hr, salaries, offboarding, labels, expenses, settings. The assistant can add master data but nothing about editing it.
-- Default: unspecified means denied. Owner answers: hr, admin and superadmin manage the private HR record, salaries, offboardings, expenses and settings; HR can also create bank holidays; an assignee can change the status of their own tasks. Superadmin holds every permission, assigned explicitly by the seeder (not via Gate::before) so the grid stays the single source of truth. Assistant gets create only on master data.
+- Default: unspecified means denied. Owner answers: hr, admin and superadmin manage the private HR record, salaries, offboardings, expenses and settings; HR can also create bank holidays; an assignee can change the status of their own tasks. Superadmin holds every permission, assigned explicitly by the seeder so the grid stays the single source of truth. (Amended by D-41: the superadmin additionally has root access through a before-gate.) Assistant gets create only on master data.
 - Confirm: partly answered. Still unspecified and therefore denied: labels (superadmin only), the assistant editing master data, and employee access to expenses.
 
 **D-11 — Log data model.**
@@ -322,6 +322,26 @@ Each entry: what the source says, the default this spec implements, and whether 
 - Default: every activity entry also stores `client_ip`, `user_agent` and `impersonator_id` (the person who is really acting; the causer stays the user being acted as). They are read from the HTTP request and the session key `impersonated_by` (the default of `lab404/laravel-impersonate`, configurable in `config/task-logger.php`). Outside a request (console, queued jobs) they are null. A stale or forged impersonator id is ignored so it can never break an audited write. IP address and user agent are personal data and are cleared on anonymisation (BR-28).
 - Confirm: no. Open: should queued jobs (exports) carry the originating IP and impersonator?
 
+**D-39 — Logging rules the spec leaves open `[ASSUMED]`.**
+
+- Source: D-11 allows back-dating until the month is locked; BR-07 lets admin and superadmin change logs in a locked month; the grid has no permission to edit someone else's log.
+- Default: no log can be dated in the future (judged on the person's own calendar day, BR-34). Any task assigned to you is a valid target (BR-02), and the screens offer your open tasks plus the one on the log being edited. A description is optional. `logs.edit_locked` holders can create their own logs in a locked month and correct anyone's logs there (month-close corrections); nobody can edit another person's log in an open month, because no permission grants it. Every change in a locked month is also recorded as a `locked_month_create`, `locked_month_edit` or `locked_month_delete` activity with the month and before/after values.
+- Confirm: yes. Should admin be able to edit other people's logs in open months (needs a new permission)? Should closed or cancelled tasks accept logs from the screen?
+
+**D-40 — Export format and retention.**
+
+- Source: BR-33 says exports run on the queue and respect permissions and field visibility. Format and retention are not stated.
+- Default: CSV (UTF-8 with byte order mark so Excel reads names), written to the private disk, downloadable only by the requester through the Exports screen for 7 days, then deleted by a daily job. Rate, amount, budget, currency and payment-plan columns need `clients.view_rates`. Cells starting with `=`, `+`, `-` or `@` get a leading apostrophe against spreadsheet formula injection. The permission is checked again when the job runs. The originating IP and impersonator travel with the job into the audit entry (D-38). Admin cannot export (the grid gives export to superadmin and assistant only).
+- Confirm: no. Is XLSX needed as well?
+
+**D-41 — Superadmin root access through a before-gate. Decided by the owner (2026-11-12).**
+
+- Source: D-10 said the superadmin holds every permission explicitly and not through `Gate::before`. The owner asked for a before-gate so the superadmin can always edit everything (for example any user's logs).
+- Default: a new permission `system.root`, held only by the superadmin role, makes a `Gate::before` grant every ability. It is keyed on the permission, not on a role name, so authorisation stays permission-first. The explicit grid is kept (the superadmin still holds every permission) and is still the source of truth for every other role. Data rules still apply to root: a root edit of a log must still satisfy BR-02, BR-04 and BR-06.
+- Not overridden by root, because the spec makes them impossible on purpose: the audit trail is read-only (BR-32); salary history is append-only (BR-29); users and clients are never hard-deleted (SPEC 5.0, BR-31); an export file belongs to the person who requested it (BR-33). Root falls through to the policy for those and is denied.
+- Consequence for D-39: the superadmin can now edit and delete any user's log in any month. Admin still cannot edit others' logs in an open month.
+- Confirm: yes. Should root also be able to change the immutable items above (for example delete audit entries)? Not recommended.
+
 ### 3.2 Confirm before coding
 
 1. D-14 and D-05: what employees and assistants may see, and whether an employee sees their own HR record. HR and admin access is now set by the owner.
@@ -334,7 +354,8 @@ Each entry: what the source says, the default this spec implements, and whether 
 8. D-24, D-25: invoicing, multiple assignees and MCP (conflicts with IDEA.md).
 9. D-28: whether employee-role managers can approve leave.
 10. D-31 and D-33: the salary status rules, and whether employees may edit any of their own data.
-11. D-35 and D-36: what is immutable after creation, and the budget rule when no rate exists on the start date.
+11. D-39: future dates, closed tasks, and whether admin may edit others' logs in open months.
+12. D-35 and D-36: what is immutable after creation, and the budget rule when no rate exists on the start date.
 
 Answered by the owner and already applied: D-04 (budget includes fixed costs), D-07 (both manager and HR approve), D-08 (weekend holidays are handled manually by HR), D-10 (hr, admin and superadmin manage the HR record, salaries, offboardings, expenses and settings; assignees change their own task status), D-15 (2-month retention).
 
@@ -473,6 +494,7 @@ Legend: ✔ stated in the source or by the owner after review. ✔\* derived or 
 | activity\_logs.view | ✔\* | — | — | — | — |
 | settings.manage | ✔ | ✔ | ✔ | — | — |
 | two\_factor.manage (D-26) | ✔ | — | — | — | — |
+| system.root (D-41) | ✔ | — | — | — | — |
 
 ## 5. Data model
 

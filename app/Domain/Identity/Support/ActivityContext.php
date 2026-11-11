@@ -30,8 +30,42 @@ final class ActivityContext
         $this->impersonators = new \WeakMap;
     }
 
+    /** @var array{client_ip?: ?string, user_agent?: ?string, impersonator_id?: ?int}|null context captured earlier (queued jobs) */
+    private ?array $override = null;
+
+    /**
+     * The context of the current request, to carry into a queued job (D-38).
+     *
+     * @return array{client_ip: ?string, user_agent: ?string, impersonator_id: ?int}
+     */
+    public function snapshot(): array
+    {
+        return ['client_ip' => $this->clientIp(), 'user_agent' => $this->userAgent(), 'impersonator_id' => $this->impersonatorId()];
+    }
+
+    /**
+     * Runs the callback with a context captured earlier, e.g. the request that queued an export.
+     *
+     * @param  array{client_ip?: ?string, user_agent?: ?string, impersonator_id?: ?int}  $context
+     */
+    public function using(array $context, \Closure $callback): mixed
+    {
+        $previous = $this->override;
+        $this->override = $context;
+
+        try {
+            return $callback();
+        } finally {
+            $this->override = $previous;
+        }
+    }
+
     public function clientIp(): ?string
     {
+        if ($this->override !== null) {
+            return $this->override['client_ip'] ?? null;
+        }
+
         $ip = $this->request()->ip();
 
         return filter_var($ip, FILTER_VALIDATE_IP) ? $ip : null;
@@ -39,6 +73,10 @@ final class ActivityContext
 
     public function userAgent(): ?string
     {
+        if ($this->override !== null) {
+            return $this->override['user_agent'] ?? null;
+        }
+
         $agent = $this->request()->userAgent();
 
         return $agent === null || $agent === '' ? null : Str::limit($agent, self::USER_AGENT_LIMIT, '');
@@ -47,6 +85,10 @@ final class ActivityContext
     /** The impersonator's user id, or null when nobody is impersonating (or the id is stale). */
     public function impersonatorId(): ?int
     {
+        if ($this->override !== null) {
+            return $this->override['impersonator_id'] ?? null;
+        }
+
         $request = $this->request();
 
         if (isset($this->impersonators[$request])) {

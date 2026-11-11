@@ -2,13 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Domain\Identity\Enums\RoleName;
+use App\Domain\Identity\Permissions;
 use Spatie\Permission\DefaultTeamResolver;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
-
-
-use App\Domain\Identity\Enums\RoleName;
-use App\Domain\Identity\Permissions;
 
 // Employee baseline: every role inherits it (D-09).
 $employee = [
@@ -35,12 +33,16 @@ $employee = [
 return [
     /**
      * Role => permissions. Permissions come first; roles are named bundles (SPEC 4.1).
-     * Superadmin holds every permission explicitly (D-10: no Gate::before bypass).
+     * Superadmin holds every permission explicitly and also system.root, which a before-gate turns into root access (D-41).
      * Every role inherits the employee baseline (D-09). Unspecified means denied.
      * performances.view is not granted to admin: the direct-manager read is a Policy rule (D-21).
      */
     'roles' => [
         RoleName::Superadmin->value => [
+            // Root access (D-41): a before-gate grants every ability to whoever holds this permission,
+            // except the few that stay governed by their policy (see RootAccess::POLICY_ONLY).
+            Permissions::SYSTEM_ROOT,
+
             Permissions::EMPLOYEES_VIEW_DIRECTORY,
             Permissions::EMPLOYEES_CREATE,
             Permissions::EMPLOYEES_UPDATE,

@@ -86,7 +86,7 @@ it('BR-10 a technology still used by a task cannot be removed from its project',
     app(UpdateProject::class)->handle(userWithRole(RoleName::Admin), $project, projectData($project->customer, [
         $project->technologyLines()->with('technology')->get()->first(fn ($l) => $l->technology->name === '.NET')->technology_id => '5',
     ], ['managerId' => $project->manager_id]));
-})->group('BR-10')->throws(ValidationException::class, 'Tasks still use');
+})->group('BR-10')->throws(ValidationException::class, 'still use');
 
 it('BR-30 the project manager must hold the admin role', function (RoleName $role) {
     [$client, $tech] = clientWithRates();

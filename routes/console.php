@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Exports\Actions\PruneExports;
 use App\Domain\People\Actions\ActivateDueSalaries;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -13,5 +14,10 @@ Artisan::command('inspire', function () {
 
 Schedule::call(fn () => app(ActivateDueSalaries::class)->handle())
     ->name('salaries.activate-due')
+    ->daily()
+    ->withoutOverlapping();
+
+Schedule::call(fn () => app(PruneExports::class)->handle())
+    ->name('exports.prune')
     ->daily()
     ->withoutOverlapping();

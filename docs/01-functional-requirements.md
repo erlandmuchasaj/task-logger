@@ -8,7 +8,7 @@ Numbered FR-xx, grouped by module. Each links to business rules (BR), workflows 
 - AC: Given a guest, when they visit any registration URL, then 404. Given superadmin, when creating a user with role, department, country, manager, position, employment type, start date, then the user exists, receives a set-password email `[ASSUMED]`, and an activity log row is written (BR-32).
 - AC: exactly one role is assigned (D-09); assigning two is rejected.
 
-**FR-02 Permission-first RBAC.** Permissions and roles come from a seeder derived from SPEC §4.4. Superadmin holds every permission explicitly (no `Gate::before`).
+**FR-02 Permission-first RBAC.** Permissions and roles come from a seeder derived from SPEC §4.4. Superadmin holds every permission explicitly and also `system.root`, which a before-gate turns into root access (D-41).
 - AC: grep of `app/` finds no `hasRole(` / `role:` checks for authorisation. A test iterates the grid and asserts each role's permission set equals the seeded set.
 
 **FR-03 Deactivate / ban.** Perm `employees.deactivate` (superadmin). Uses `cybercog/laravel-ban` (D-20).

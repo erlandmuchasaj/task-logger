@@ -155,3 +155,23 @@ Built: clients with hourly rate history, projects with technologies, estimates a
 - `ActivityContext` reads the session key `task-logger.impersonation.session_key` (`impersonated_by`, the lab404 default) from the request session or, when the request has none (Livewire), the session store. The impersonator id is checked against `users` once per request. Impersonation itself is still the optional M6 item; this is the recording side.
 - Known limits: queued jobs have no request, so exports will carry no IP or impersonator unless M4 passes the context through the job. Anonymisation (M6) must clear the two new personal-data columns.
 - The Activity Log screen shows the impersonator, IP and user agent and can filter to impersonated changes; page sizes are 25, 50 or 100.
+
+## 13. M4 outcome (2026-11-12)
+
+Built: logs (task and direct), the client rate snapshot, My Day with pinned tasks, month locks, queued CSV exports, and the Logs, Exports and Timesheet locks screens.
+
+- **BR-02 in two places.** `ValidatesLog::resolveTarget` applies the task-log and direct-log rules for the owner of the log; the database adds the same composite key as tasks (`logs (project_id, technology_id)` to `project_technology`). A technology used by tasks or logs cannot be removed from a project; a project with logs cannot be deleted; a client with logged work keeps its currency (`currencyIsLocked`).
+- **BR-04/BR-34.** The 24 hour cap sums the owner's logs for the date inside a transaction that locks the user row, so concurrent requests cannot both pass. "Today" is the user's own calendar day (country timezone).
+- **BR-06.** `ClientRates::forDate` supplies the snapshot; an edit re-snapshots only when date, project or technology changes. `Log::amount()` is hours times rate in integer minor units, half up.
+- **BR-07.** `LogPolicy` decides by permission and by whether the month is locked (`TimesheetLocks`). Corrections in a locked month produce `locked_month_*` activity entries in addition to the ordinary before/after audit (D-39).
+- **BR-33.** `RequestExport` stores the request context and queues `RunExport`, which re-checks the permission, streams in chunks of 500 to a temporary stream and writes to the private disk. The `Exporter` per type chooses the columns for the requester. `PruneExports` runs daily.
+- **D-38 carry-over.** `ActivityContext::snapshot()/using()` lets a queued job write its audit entry with the IP, user agent and impersonator of the request that queued it.
+- **Not built (out of the M4 list):** budget and overdue colour warnings (an IDEA.md item, not in SPEC), estimated vs logged reports (M7), notifications.
+- **Known limit.** Direct logging requires the project's client to have a rate on the log date, like task logging (BR-06); there is no way to log unpriced time.
+
+## 14. Root access (D-41, after M4)
+
+- `Permissions::SYSTEM_ROOT` (`system.root`) is in the superadmin's list in `config/permission.php`; the grid now has 66 permissions.
+- `AppServiceProvider` registers `Gate::before(RootAccess::check(...))`. `RootAccess` calls `hasPermissionTo` directly (not `can`), so the gate cannot recurse, and returns `true` or `null` (never `false`), so other roles are untouched and Spatie's own gate keeps working.
+- `RootAccess::POLICY_ONLY` lists the abilities that stay under their policy: activity log create/update/delete, salary update/delete, user and client delete/restore/forceDelete, export view/download/create/update/delete. Add to it whenever a policy deliberately returns `false` for everyone.
+- Data rules are not authorisation and still apply to root (validation in the actions).

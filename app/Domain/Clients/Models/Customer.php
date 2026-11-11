@@ -9,6 +9,7 @@ use App\Domain\MasterData\Models\Country;
 use App\Domain\MasterData\Models\PaymentPlan;
 use App\Domain\Shared\LogsBusinessActivity;
 use App\Domain\Shared\Priority;
+use App\Domain\Work\Models\Log;
 use Database\Factories\CustomerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -38,12 +39,11 @@ class Customer extends Model
         return ['priority' => Priority::class, 'is_active' => 'boolean'];
     }
 
-    /**
-     * The currency is fixed once rates exist (D-18). M4 extends this with "or logs exist".
-     */
+    /** The currency is fixed once the client has rates or logged work (D-18). */
     public function currencyIsLocked(): bool
     {
-        return $this->rates()->exists();
+        return $this->rates()->exists()
+            || Log::query()->withTrashed()->whereIn('project_id', $this->projects()->withTrashed()->select('id'))->exists();
     }
 
     public function displayName(): string

@@ -11,6 +11,7 @@ use App\Domain\Clients\Support\ClientRates;
 use App\Domain\Clients\Support\ProjectManagerEligibility;
 use App\Domain\Identity\Models\User;
 use App\Domain\MasterData\Models\Technology;
+use App\Domain\Work\Models\Log;
 use Illuminate\Validation\ValidationException;
 
 trait ValidatesProject
@@ -64,12 +65,14 @@ trait ValidatesProject
      */
     private function assertTechnologiesNotInUse(Project $project, array $keepTechnologyIds): void
     {
-        $used = $project->tasks()->withTrashed()->whereNotIn('technology_id', $keepTechnologyIds)->distinct()->pluck('technology_id');
+        $usedByTasks = $project->tasks()->withTrashed()->whereNotIn('technology_id', $keepTechnologyIds)->distinct()->pluck('technology_id');
+        $usedByLogs = Log::query()->withTrashed()->where('project_id', $project->getKey())->whereNotIn('technology_id', $keepTechnologyIds)->distinct()->pluck('technology_id');
+        $used = $usedByTasks->merge($usedByLogs)->unique();
 
         if ($used->isNotEmpty()) {
             $names = Technology::query()->whereIn('id', $used)->pluck('name')->implode(', ');
 
-            throw ValidationException::withMessages(['technologies' => "Tasks still use: {$names}. Move or delete those tasks first."]);
+            throw ValidationException::withMessages(['technologies' => "Tasks or logged time still use: {$names}. Move or delete those first."]);
         }
     }
 }

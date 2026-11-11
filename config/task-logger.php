@@ -32,6 +32,12 @@ return [
         'grace_days' => 14,         // days users have to enrol once 2FA becomes required
     ],
 
+    // BR-33: exports run on the queue and are written to the private disk.
+    'exports' => [
+        'disk' => 'local',
+        'keep_days' => 7,       // files are deleted this many days after completion
+    ],
+
     // D-38: the session key that holds the impersonator's user id while someone acts as another user.
     // Matches the default of lab404/laravel-impersonate ('impersonated_by'); keep them in sync.
     'impersonation' => [

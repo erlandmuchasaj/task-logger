@@ -20,6 +20,7 @@ use App\Domain\People\Enums\SalaryStatus;
 use App\Domain\People\Models\EmergencyContact;
 use App\Domain\People\Models\EmployeeProfile;
 use App\Domain\People\Models\Salary;
+use App\Domain\Work\Models\Log;
 use App\Domain\Work\Models\Task;
 use Spatie\Activitylog\Models\Activity;
 
@@ -41,6 +42,7 @@ $models = [
     Project::class => ['name', 'Renamed project'],
     FixedCost::class => ['name', 'Renamed cost'],
     Task::class => ['name', 'Renamed task'],
+    Log::class => ['description', 'Edited description'],
     Salary::class => ['status', SalaryStatus::Superseded], // the only column a salary row may change (BR-29)
 ];
 

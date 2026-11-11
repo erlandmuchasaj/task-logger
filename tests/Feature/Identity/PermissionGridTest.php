@@ -26,19 +26,11 @@ it('D-09 every role inherits the employee baseline', function (RoleName $role) {
     expect(array_diff(PermissionCatalog::employeeBaseline(), $held))->toBe([]);
 })->with(RoleName::cases());
 
-it('D-10 superadmin holds every permission explicitly, not through a Gate bypass', function () {
+it('D-10 D-41 superadmin still holds every permission explicitly, and system.root on top', function () {
     $superadmin = Role::findByName('superadmin');
 
-    expect($superadmin->permissions()->count())->toBe(Permission::count());
-
-    // Revoking one permission must really deny it: nothing like Gate::before grants it behind the grid.
-    $user = userWithRole(RoleName::Superadmin);
-    expect($user->can(Permissions::LABELS_MANAGE))->toBeTrue();
-
-    $superadmin->revokePermissionTo(Permissions::LABELS_MANAGE);
-    $user->forgetCachedPermissions();
-
-    expect($user->fresh()->can(Permissions::LABELS_MANAGE))->toBeFalse();
+    expect($superadmin->permissions()->count())->toBe(Permission::count())
+        ->and($superadmin->hasPermissionTo(Permissions::SYSTEM_ROOT))->toBeTrue();
 });
 
 it('D-10 unspecified means denied', function () {

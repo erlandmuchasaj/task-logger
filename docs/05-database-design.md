@@ -93,6 +93,8 @@ Money note (D-34): `amount_minor` is an integer in the currency's ISO 4217 minor
 
 M3 built as designed: tasks reference `(project_id, technology_id)` on `project_technology` (composite key, BR-10); `projects` has no priority column (D-02); `estimated_hours` and `budget_minor` are computed snapshots; `customers` and `projects` and `tasks` soft delete.
 
+M4 built as designed: `logs` (CHECK duration 1 to 1440 minutes, composite key to `project_technology`, soft deletes), `timesheet_locks` (unique month, unlock keeps the row), plus an `exports` table (type, status, filters, request context, private file path, expiry).
+
 ## 3. Access patterns
 
 | Pattern | Query | Support |

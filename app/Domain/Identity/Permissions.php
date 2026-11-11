@@ -168,6 +168,9 @@ final class Permissions
     /** Two Factor */
     public const TWO_FACTOR_MANAGE = 'two_factor.manage';
 
+    /** System */
+    public const SYSTEM_ROOT = 'system.root';
+
     /**
      * @return list<string>
      */

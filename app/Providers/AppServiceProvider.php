@@ -13,11 +13,14 @@ use App\Domain\Clients\Policies\CustomerPolicy;
 use App\Domain\Clients\Policies\FixedCostPolicy;
 use App\Domain\Clients\Policies\ProjectPolicy;
 use App\Domain\Clients\Support\ProjectManagerRoleGuard;
+use App\Domain\Exports\Models\Export;
+use App\Domain\Exports\Policies\ExportPolicy;
 use App\Domain\Identity\Actions\AssignUserRole;
 use App\Domain\Identity\Models\ActivityLog;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Policies\ActivityPolicy;
 use App\Domain\Identity\Support\ActivityContext;
+use App\Domain\Identity\Support\RootAccess;
 use App\Domain\MasterData\Models\BankHoliday;
 use App\Domain\MasterData\Models\Country;
 use App\Domain\MasterData\Models\CountryLeavePolicy;
@@ -37,8 +40,13 @@ use App\Domain\MasterData\Policies\TechnologyPolicy;
 use App\Domain\People\Models\Salary;
 use App\Domain\People\Policies\SalaryPolicy;
 use App\Domain\People\Policies\UserPolicy;
+use App\Domain\Work\Models\Log;
 use App\Domain\Work\Models\Task;
+use App\Domain\Work\Models\TimesheetLock;
+use App\Domain\Work\Policies\LogPolicy;
 use App\Domain\Work\Policies\TaskPolicy;
+use App\Domain\Work\Policies\TimesheetLockPolicy;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -64,6 +72,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // D-41: root access for whoever holds system.root (the superadmin), except abilities that stay under their policy.
+        Gate::before(fn (Authenticatable $user, string $ability, array $arguments = []): ?bool => RootAccess::check($user, $ability, $arguments));
+
         // Domain models live outside app/Models, so policies are registered explicitly.
         Gate::policy(Country::class, CountryPolicy::class);
         Gate::policy(CountryLeavePolicy::class, CountryLeavePolicyPolicy::class);
@@ -82,6 +93,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Project::class, ProjectPolicy::class);
         Gate::policy(FixedCost::class, FixedCostPolicy::class);
         Gate::policy(Task::class, TaskPolicy::class);
+        Gate::policy(Log::class, LogPolicy::class);
+        Gate::policy(Export::class, ExportPolicy::class);
+        Gate::policy(TimesheetLock::class, TimesheetLockPolicy::class);
 
         // Catch N+1 queries early outside production (NFR-09).
         Model::preventLazyLoading(! $this->app->isProduction());

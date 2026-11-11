@@ -1,21 +1,19 @@
-# task-logger: Phase 1 design documents
+# task-logger — documentation
 
-Analysis and design only; no application code. Progress is tracked in [TODO.md](TODO.md). Assumptions are labelled A-nn and consolidated in [00-decisions.md](00-decisions.md).
+`SPEC.md` is the authoritative specification. The files below are the Phase 0 deliverables (SPEC §10). The earlier draft is in `archive/phase1-draft/` (superseded; its D-xx/BR-xx IDs differ).
 
 | # | Document | Purpose |
 |---|---|---|
-| 00 | [Decisions](00-decisions.md) | Outcome of the requirements grilling plus the assumption register |
-| 01 | [Business requirements](01-business-requirements.md) | Why, scope, stakeholders, risks |
-| 02 | [Functional requirements](02-functional-requirements.md) | FR IDs with acceptance criteria |
-| 03 | [Non-functional requirements](03-non-functional-requirements.md) | Measurable quality targets |
-| 04 | [Domain analysis](04-domain-analysis.md) | Aggregates, workflows, business rules BR-01..30 |
-| 05 | [Architecture](05-architecture.md) | Modular monolith, package verdicts |
-| 06 | [Database design](06-database-design.md) | Tables, constraints, Mermaid ERD |
-| 07 | [API / MCP design](07-api-mcp-design.md) | MCP tools, tokens, errors |
-| 08 | [Security](08-security.md) | Permissions, roles, policies, audit |
-| 09 | [Project organization](09-project-organization.md) | Layout, standards, CI/CD |
-| 10 | [Scalability and performance](10-scalability-performance.md) | Load model, caching, queues |
-| 11 | [Testing strategy](11-testing-strategy.md) | Test levels, must-test rules |
-| 12 | [Implementation roadmap](12-implementation-roadmap.md) | Build slices and milestones |
+| 00 | [Business requirements](00-business-requirements.md) | Goals, scope, non-goals, actors, source conflicts |
+| 01 | [Functional requirements](01-functional-requirements.md) | FR-xx with acceptance criteria, linked to BR and workflows |
+| 02 | [Non-functional requirements](02-non-functional-requirements.md) | Measurable targets |
+| 03 | [Domain analysis](03-domain-analysis.md) | Entities, enums, state machines |
+| 04 | [Architecture](04-architecture.md) | Modular monolith, package verification |
+| 05 | [Database design](05-database-design.md) | ERD, constraints, indexes, migration order |
+| 06 | [API design](06-api-design.md) | Internal contracts; no public API in v1 |
+| 07 | [Security](07-security.md) | AuthN/AuthZ, permission grid, privacy, audit |
+| 08 | [Project organisation](08-project-organization.md) | Standards, branching, CI/CD |
+| 09 | [Scalability](09-scalability.md) | Load assumptions, bottlenecks |
+| 10 | [Testing strategy](10-testing-strategy.md) | Test plans and BR traceability matrix |
 
-Reading order: 00, 01, 02, 04, 05, 06, then the rest.
+ADRs: [adr/](adr/) (0001–0009). Decision log: SPEC §3 (D-01…D-30).

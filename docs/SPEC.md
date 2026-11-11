@@ -240,6 +240,43 @@ Each entry: what the source says, the default this spec implements, and whether 
 - Employee actions request PTO and create a request for days off are the same leave request flow.
 - Employee `role` and the Spatie role are the same thing.
 
+**D-24 — SPEC.md is authoritative (ADR-0003).**
+
+- Source: IDEA.md, PRD.md, TRD.md and the earlier Phase 1 draft disagree with this spec (multiple assignees, invoicing, Finance role, MCP, extra packages).
+- Default: this spec wins. The earlier draft is archived in `docs/archive/phase1-draft/`. Conflicts are listed in `docs/00-business-requirements.md` §7.
+- Confirm: yes. Is invoicing really out, and are multiple assignees really out?
+
+**D-25 — MCP and public API deferred (ADR-0004).**
+
+- Source: IDEA.md calls an MCP for coding agents important; D-22 says no public API in v1.
+- Default: no API or MCP in v1. Actions and DTOs stay transport-agnostic.
+- Confirm: yes.
+
+**D-26 — Authentication (ADR-0005).**
+
+- Default: email and password, no self-registration, password reset. TOTP 2FA recommended for superadmin, admin and hr. SSO out of v1.
+- Confirm: yes.
+
+**D-27 — Navigation (ADR-0006).**
+
+- Default: Filament navigation. `spatie/laravel-navigation` is not installed (last release 2024-09-20, no Laravel 13 declaration).
+- Confirm: no.
+
+**D-28 — Manager authority by relationship (ADR-0007).**
+
+- Default: manager-stage approval needs `leave_requests.approve_direct_reports` and `manager_id` equal to the actor. Direct manager reads performance reviews by relationship (D-21).
+- Confirm: yes. May an employee-role user who manages others approve the manager stage?
+
+**D-29 — Offboarding deactivates login as a system effect (ADR-0008).**
+
+- Default: `CompleteOffboarding` bans the user under `offboardings.manage`; `employees.deactivate` stays superadmin-only.
+- Confirm: no.
+
+**D-30 — HR record visibility follows the grid (ADR-0009).**
+
+- Default: superadmin, admin and hr (matches D-14). Section 8 wording "for superadmin" is superseded.
+- Confirm: no.
+
 ### 3.2 Confirm before coding
 
 1. D-14 and D-05: what employees and assistants may see, and whether an employee sees their own HR record. HR and admin access is now set by the owner.
@@ -249,6 +286,8 @@ Each entry: what the source says, the default this spec implements, and whether 
 5. D-17: whether employees can submit or see expenses, and whether expenses ship in v1.
 6. D-10: labels and whether the assistant can edit master data.
 7. D-22: headcount and expected volume.
+8. D-24, D-25: invoicing, multiple assignees and MCP (conflicts with IDEA.md).
+9. D-26 and D-28: 2FA, and whether employee-role managers can approve leave.
 
 Answered by the owner and already applied: D-04 (budget includes fixed costs), D-07 (both manager and HR approve), D-08 (weekend holidays are handled manually by HR), D-10 (hr, admin and superadmin manage the HR record, salaries, offboardings, expenses and settings; assignees change their own task status), D-15 (2-month retention).
 

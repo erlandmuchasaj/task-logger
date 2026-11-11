@@ -1,0 +1,791 @@
+# task-logger — Agent-Ready Specification
+
+*Restructured from the owner’s original brief for use by coding agents. Nothing from the source has been dropped. Anything that is not literally in the source carries a tag so it can be reviewed.*
+
+## 0. Read this first
+
+### 0.1 Tag legend
+
+- **No tag** — stated in the source brief.
+- `[DERIVED]` — not stated, but logically required to implement something that is.
+- `[ASSUMED D-xx]` — default chosen where the source is ambiguous, contradictory or silent. Implement it, keep it isolated (config, enum, policy or one class) and expect it may change. D-xx points to the Decision Log in section 3.
+- `[OPTIONAL]` — source wording is soft (can, maybe, possibly). Build after the core milestones.
+- `[PROPOSED]` — a process suggestion, not product behaviour.
+
+### 0.2 Agent operating rules
+
+1. Complete the Phase 0 deliverables (section 10) before writing application code. Store them under `docs/`.
+2. Permission-first: define permissions, then roles as bundles of permissions. Application code checks permissions through Policies and Gates, never role names.
+3. Do not invent fields, enum values or behaviour. If something is missing, write an ADR in `docs/adr/` and extend the Decision Log. Do not pick silently.
+4. Money is integer minor units plus an ISO 4217 currency. Never floats.
+5. Names in the source are examples. Use Laravel conventions (plural snake\_case tables, singular models, `{model}_id` foreign keys, backed enums). The original name is kept in parentheses where a field was renamed.
+6. Every business rule (BR-xx, section 6) needs at least one automated test that cites its ID.
+7. Every create, update and delete on a business model is written to the activity log.
+8. Source typos are normalised: marital, spouse, planning, recurring, status, offboardings, Tirane.
+9. Verify package names and version compatibility on Packagist and in the Filament docs before installing. Do not trust names from memory.
+10. A decision marked Confirm: yes must not block you. Implement the stated default and continue.
+
+## 1. Product overview
+
+### 1.1 Summary
+
+task-logger is a web application where employees of a company manually log working hours against tasks (or directly against eligible projects). Admins manage clients, projects and tasks. The superadmin manages master data, people and leave. Beyond time logging the app covers employee HR data, leave (PTO and sick leave) with country-specific rules and bank holidays, performance reviews, offboarding and optional expenses.
+
+Source scope sentence: users, user skills, roles and permissions, clients, projects, tasks, logs, PTO request management, etc.
+
+### 1.2 Business goals
+
+- Record who worked how long, on which project, task and technology, and of which type (normal, extra, replacement, other).
+- Compare estimated vs logged hours per project and technology, and value logged work at the client hourly rate that applied when it was logged.
+- Manage employees across countries: national holidays, leave entitlements, currencies.
+- Keep an audit trail. Retain business history after an employee leaves and anonymise personal data after a retention period.
+
+### 1.3 Non-goals for v1 (all stated)
+
+- Invoicing. Payment plans are client metadata only (maybe V2).
+- Multiple languages. English only for the first release.
+- Manager approval of time logs. Not required.
+- Automatic or timer-based logging. Logging is manual.
+- Multiple assignees per task. One assignee only.
+
+### 1.4 Actors
+
+`superadmin`, `admin`, `hr` (D-06), `assistant`, `employee`. Details in section 4.
+
+## 2. Stack and infrastructure
+
+### 2.1 Stack
+
+| Layer | Choice | Notes |
+| --- | --- | --- |
+| Backend | Laravel | Latest stable at project start. PHP version per Laravel requirement. Pin in composer.json. |
+| UI | Livewire, Alpine.js, Tailwind CSS | The TALL stack. |
+| Admin panel | Filament | Source says an admin panel generator like Filament. Use the latest stable major that supports the chosen Laravel and check every plugin for compatibility. |
+| Database | MySQL | InnoDB, utf8mb4. |
+| Cache, queue, session | Redis | `[DERIVED]` Source lists Redis without a role. |
+| Process manager | Supervisor | `[DERIVED]` Keeps queue workers (and the scheduler, or Horizon if adopted) running. |
+
+### 2.2 Scheduled and queued work `[DERIVED]`
+
+- Annual leave grant on 1 January in each country’s timezone (BR-18).
+- Move approved leave to `taken` after its end date (BR-19).
+- Anonymise personal data 2 months after the offboarding end date (BR-28).
+- Queued exports (BR-33).
+- `[OPTIONAL]` Notifications to approvers and employees on leave submission and decision.
+
+### 2.3 Packages
+
+The source says: packages that can be used but not limited to, not all required; other well-maintained, up-to-date packages are allowed.
+
+| Source name | Package to install (verify) | Purpose here | Scope |
+| --- | --- | --- | --- |
+| barryvdh/laravel-debugbar | `barryvdh/laravel-debugbar` | Request and query debugging | dev only |
+| 404labfr/laravel-impersonate | `lab404/laravel-impersonate` | Superadmin acts as a user for support (D-20) | `[OPTIONAL]` |
+| cybercog/laravel-ban | `cybercog/laravel-ban` | Ban or deactivate users (D-20) | prod |
+| nomaduro/larastan | `larastan/larastan` | Static analysis | dev, CI |
+| barryvdh/laravel-ide-helper | `barryvdh/laravel-ide-helper` | IDE metadata | dev only |
+| propaganistas/laravel-phone | `propaganistas/laravel-phone` | Validate and normalise phone numbers to E.164 | prod |
+| spatie/laravel-activitylog | `spatie/laravel-activitylog` | The ActivityLog entity and audit trail | prod |
+| spatie/laravel-permissions | `spatie/laravel-permission` | Roles and permissions, permission-first | prod |
+| spatie/laravel-sluggable | `spatie/laravel-sluggable` | Slugs for projects and departments | prod |
+| spatie/laravel-settings | `spatie/laravel-settings` | App settings: carry-over toggle, retention period | prod |
+| spatie/laravel-navigation | `spatie/laravel-navigation` | Navigation | prod |
+| Filament Admin | `filament/filament` | Admin panel | prod |
+
+Three source names look mistyped (`404labfr`, `nomaduro`, `laravel-permissions`). The middle column is my best reading. Verify before install.
+
+## 3. Decision log
+
+Each entry: what the source says, the default this spec implements, and whether the owner should confirm it. Section 3.2 lists the confirmations that matter most.
+
+### 3.1 Decisions
+
+**D-01 — Area and Skill become one `technologies` table.**
+
+- Source: Area and Skill are separate entities. The FAQ says they can be merged into one technologies table: users link with a level, clients with a rate, projects with estimated hours.
+- Default: one `technologies` table with pivots `technology_user` (level), `client_technology_rates` (rate, effective\_from) and `project_technology` (estimated\_hours). The UI label is Technologies. Level scale 1–10 (the source examples use 7–10).
+- Confirm: yes. Keeping two tables would only change names.
+
+**D-02 — Priority lives on the client only.**
+
+- Source: Project lists `priority`. The FAQ says priority is per client rather than per project.
+- Default: `customers.priority` only. No `projects.priority`. Task priority is unaffected.
+- Confirm: yes.
+
+**D-03 — Salary and leave balance are not columns on users.**
+
+- Source: User lists `salary` and `total_days_off`. The same brief keeps salaries in a separate history table and defines leave by country policy with proration.
+- Default: no `users.salary` (use `salaries`). No `users.total_days_off` (use the leave ledger, BR-18).
+- Confirm: no.
+
+**D-04 — Project budget is computed.**
+
+- Source: Project has `budget` and `estimated_hours`. The FAQ says the budget is based on hours and rate.
+- Default: `estimated_hours` = sum of `project_technology.estimated_hours`. Budget = sum of (estimated\_hours × client rate effective on the project start\_date), stored as an integer snapshot in the client currency and recomputed whenever technologies, estimates, rates or fixed costs change. Fixed costs are included (owner answer): budget = hours × rate plus the sum of the project’s fixed costs. Fixed costs must use the client’s currency.
+- Confirm: fixed costs are included (owner answer). The rate date (project start\_date) is still the default; confirm if another date applies.
+
+**D-05 — What an employee may see.**
+
+- Source: employees see only their tasks and logs, but also can view tasks, logs, projects and customers. Employees can see all employees. The FAQ splits a public profile from a private HR record.
+- Default: own tasks and own logs only. All projects and customers read-only. Colleagues’ public profile only. Hourly rates, payment plan and budget are hidden from everyone except superadmin and admin (permission `clients.view_rates`). Assistant exports omit those columns.
+- Confirm: yes.
+
+**D-06 — HR is a role.**
+
+- Source: HR is an admin in the HR department, or a new role `hr`.
+- Default: new role `hr`. The HR department stays plain organisational data.
+- Confirm: yes.
+
+**D-07 — Leave approval chain.**
+
+- Source: leave is approved by the direct manager and HR. LeaveRequest has a single reviewer. Superadmin can approve.
+- Default: two stages, direct manager then HR, recorded in `leave_request_approvals`. The request becomes `approved` when both approve. Any rejection sets `rejected` and requires a note. Superadmin may decide at any stage. A requester with no manager skips the manager stage. `reviewed_by`, `reviewed_at`, `review_note` on `leave_requests` hold the final decision.
+- Confirm: no. The owner confirmed that both the direct manager and HR must approve.
+
+**D-08 — Leave policy vocabulary.**
+
+- Source: country policy with effective dates, confirmed entitlement, proration, carry-over and expiry. In some countries holidays exclude weekends and are carried over. Later: grant on 1 January prorated by start date, no carry-over (setting).
+- Default: carry-over of leave between years is a per-country policy option, off by default (this matches no carry-over as a setting). A bank holiday that falls on a weekend has no automatic effect and is not shifted. Where a country observes it on the Monday (Albania, for a Sunday holiday), HR creates the Monday holiday as its own bank holiday entry (owner answer). Confirmed entitlement means a grant entry written to the ledger after the policy is applied. The working week defaults to Monday–Friday and is configurable per country.
+- Confirm: no for the weekend-holiday question (answered by the owner). Leave carry-over between years stays off unless a country policy turns it on.
+
+**D-09 — One role per user.**
+
+- Source: User has a `role`.
+- Default: exactly one Spatie role per user, enforced in the application. Every role inherits the employee baseline permissions.
+- Confirm: yes.
+
+**D-10 — Permission defaults.**
+
+- Source: the role lists are partial. Nothing is said for hr, salaries, offboarding, labels, expenses, settings. The assistant can add master data but nothing about editing it.
+- Default: unspecified means denied. Owner answers: hr, admin and superadmin manage the private HR record, salaries, offboardings, expenses and settings; HR can also create bank holidays; an assignee can change the status of their own tasks. Superadmin holds every permission, assigned explicitly by the seeder (not via Gate::before) so the grid stays the single source of truth. Assistant gets create only on master data.
+- Confirm: partly answered. Still unspecified and therefore denied: labels (superadmin only), the assistant editing master data, and employee access to expenses.
+
+**D-11 — Log data model.**
+
+- Source: Log has `hours`, `minutes`, `date` (created\_at may serve), `project_id`, `task_id`. The FAQ adds a rate snapshot per entry and a month lock.
+- Default: `duration_minutes` (the UI accepts hours and minutes). An explicit work `date` (backdating allowed until the month is locked). `technology_id` (from the task, or chosen for direct logs). `rate_minor` and `rate_currency` snapshot.
+- Confirm: yes. Is backdating allowed?
+
+**D-12 — Project membership.**
+
+- Source: only assigned project members can log directly to a project. No membership entity is defined.
+- Default: `project_user` pivot managed by superadmin and admin. Task assignment does not add a member automatically.
+- Confirm: yes.
+
+**D-13 — Timesheet lock.**
+
+- Source (FAQ): No timesheet lock? Superadmin locks a month; edits to locked entries need an admin and are activity-logged. Read as: a lock exists.
+- Default: `timesheet_locks` per calendar month, global. Employees cannot create, edit or delete logs dated in a locked month. Admin or superadmin can, and each change is logged with before and after values. Superadmin can unlock (logged).
+- Confirm: yes.
+
+**D-14 — Privacy split.**
+
+- Source: public profile = name, role, department, skills, avatar. Private HR record is policy-guarded, superadmin only.
+- Default: Directory shows name, surname, position, department, skills, avatar. Everything else is the private HR record, enforced per field: email, phone, date of birth, gender, address, education, marital status, emergency contacts, source of hire, health insurance, employment type, start date, manager, country, description, metadata. Superadmin, admin and hr can read and edit it (owner answer: the HR record is managed by HR, admin and superadmin; this widens the superadmin-only FAQ line).
+- Confirm: yes. Should the employee see their own record? Should email be public?
+
+**D-15 — Anonymisation.**
+
+- Source: retain business and audit history, anonymise email, phone and any other personal data after a specific period.
+- Default: setting `anonymize_after_months` in spatie/laravel-settings, default 2 (owner answer: personal data such as name, email and phone is kept for 2 months, then anonymised). Trigger: offboarding `end_date` plus 2 months. Replace name with `Former employee #id`, email with `anonymized-{id}@invalid.example`, clear private profile, emergency contacts, avatar and metadata, and scrub personal values in activity log properties. Keep ids, logs, leave, salary and performance rows. Set `users.anonymized_at`.
+- Confirm: no for the period. Still open: whether the 2 months start at the offboarding end date (the default) and whether salary and performance rows are retained (default: retained).
+
+**D-16 — Filament panel layout.**
+
+- Source: TALL plus Filament. Employees use the app too.
+- Default: one Filament panel for all roles, visibility via policies. Custom pages: My Day (daily log form with pinned tasks) and Leave Calendar.
+- Confirm: no. Record as an ADR in Phase 0.
+
+**D-17 — Expenses are optional and unscoped.**
+
+- Source: we can also add employee expenses. No role capabilities are defined.
+- Default: `[OPTIONAL]`, last milestone. Managed by hr, admin and superadmin (owner answer). Employees have no expense access until defined. One currency per expense (lines carry a currency column, validated equal).
+- Confirm: yes. Should employees submit or view their own expenses? Does this ship in v1?
+
+**D-18 — Customer country and currency.**
+
+- Source: customer has `country`. Money is stored in ISO currency per client. Currency is based on country.
+- Default: `customers.country_id` foreign key. `currency_code` defaults to the country currency and is fixed once rates or logs exist.
+- Confirm: yes.
+
+**D-19 — Enumerations with unstated values.**
+
+- Source: project\_type (enum or FK, with etc.), gender, marital status, source of hire, task statuses and labels (with etc.), leave types, salary status, offboarding status.
+- Default: PHP backed string enums. Values are listed in section 5. Leave types and labels are lookup tables seeded with the source values and extensible. Source of hire is a free string.
+- Confirm: yes.
+
+**D-20 — Impersonation and ban.**
+
+- Source: packages listed, behaviour undefined.
+- Default: impersonation is `[OPTIONAL]`, superadmin only, logged. Ban or deactivation through `cybercog/laravel-ban` when offboarding completes or an admin deactivates a user.
+- Confirm: yes.
+
+**D-21 — Performance review authorship vs visibility.**
+
+- Source: reviews are filled by admin or superadmin. They are visible only to superadmin, HR and the managing person.
+- Default: create — superadmin and admin. View — superadmin, hr and the employee’s direct manager. An admin who is not the manager can create but not read back. Implemented literally.
+- Confirm: yes. Should the author be able to view what they wrote? Should HR create?
+
+**D-22 — Scale and API surface.**
+
+- Source: the workflow asks for API design and load estimates. No numbers are given.
+- Default: v1 has no public REST API (Livewire and Filament only). Define internal contracts (Actions, DTOs). In Phase 0 the agent writes explicit capacity assumptions (headcount, clients, logs per day) for the owner to confirm.
+- Confirm: yes.
+
+**D-23 — Duplicates merged (no confirmation needed).**
+
+- Project `client` and `customer_id` are one field: `customer_id`.
+- `customer` and `client` are synonyms: table `customers`, UI label Clients.
+- Project `deadline (start_date - end_date)` becomes two date columns.
+- Employee actions request PTO and create a request for days off are the same leave request flow.
+- Employee `role` and the Spatie role are the same thing.
+
+### 3.2 Confirm before coding
+
+1. D-14 and D-05: what employees and assistants may see, and whether an employee sees their own HR record. HR and admin access is now set by the owner.
+2. D-21: performance review visibility (implemented literally: superadmin, hr, direct manager).
+3. D-11 and D-04: whether backdating logs is allowed, and which rate date prices the budget.
+4. D-15: whether the 2 months run from the offboarding end date, and whether salary and performance rows are retained.
+5. D-17: whether employees can submit or see expenses, and whether expenses ship in v1.
+6. D-10: labels and whether the assistant can edit master data.
+7. D-22: headcount and expected volume.
+
+Answered by the owner and already applied: D-04 (budget includes fixed costs), D-07 (both manager and HR approve), D-08 (weekend holidays are handled manually by HR), D-10 (hr, admin and superadmin manage the HR record, salaries, offboardings, expenses and settings; assignees change their own task status), D-15 (2-month retention).
+
+## 4. Roles and permissions
+
+### 4.1 Principles
+
+- Permission-first (stated): when creating roles and permissions, use a permission grid and start from permissions. Roles are only named bundles.
+- Permission names are `resource.action`, for example `logs.export`. Scoped variants are `view_any` and `view_own`. `[ASSUMED D-10]`
+- Data-dependent rules (own record, direct manager, project member) live in Policies on top of the permission check.
+- Every role inherits the employee baseline permissions. `[ASSUMED D-09]`
+- Unspecified means denied. `[ASSUMED D-10]`
+
+### 4.2 Roles
+
+- `superadmin`
+- `admin`
+- `hr` `[ASSUMED D-06]` (source also allows admin plus HR department)
+- `assistant`
+- `employee` (source: employees)
+
+### 4.3 Capabilities as stated in the source
+
+**superadmin**
+
+- Create new users and employees.
+- Create new clients.
+- Create new projects.
+- Create PTO requests for an employee and approve them.
+- Create payment plans. They are used when creating clients, to say when the client pays: 30 days after invoice, end of the month, prepayment, 15 days after invoice, and so on.
+- Create departments. They are used when creating users to group them.
+- Create countries. They are used when creating a user, so that a company operating internationally knows which country an employee belongs to and therefore which national holidays apply. When creating a country, set the PTO days per year and the sick leave days per year for that country.
+- Create skills. They are used when creating employees. One employee can have many skills, each with a level (John: Angular 10, Laravel 7; Janet: .Net 8, Angular 9). Many-to-many between employees and skills.
+- Create areas. They are used when creating customers and projects and work like skills per employee. A client is linked to many areas and each carries an hourly rate for that client (.Net 24/h, Angular 20/h, Ionic 18/h). When creating a project for that client, only the client’s areas are offered. The project selects the subset it consists of and sets estimated hours per area (Angular 230h, .Net 330h).
+- Create new tasks: select the project and the area of the task, give an estimate, assign to an employee, add a title and description. The employee sees it in their task list after login and can log hours to it.
+- Create vacation days: all national (bank) holidays for all countries by selecting country, date and name, so they show in the calendar.
+- Create a day off directly for an employee. Example: the employee did not come to work and has no platform access, informs the admin, and the day is recorded and deducted from their PTO or sick leave.
+- Export the list of all logs.
+
+**admin**
+
+- Create, edit, activate and deactivate customers.
+- CRUD and change status of projects.
+- CRUD and change status of tasks.
+- Assign tasks.
+- Log hours for their own tasks.
+- Request days off for themselves.
+- See the list of all logs and their own logs.
+- See the list of all tasks and only the tasks assigned to them.
+
+**employee**
+
+- See all employees and view them.
+- See only their own tasks and their own logs.
+- Add new logs to their tasks.
+- Request PTO for approval.
+- Create a request for days off.
+- View projects.
+- View customers.
+- View tasks.
+- View logs.
+
+**assistant**
+
+- Add skills, areas, countries, departments.
+- View and export projects.
+- View and export customers.
+- View and export tasks.
+- View and export logs.
+
+**hr** (from the FAQ)
+
+- Approves leave together with the direct manager.
+- Can see performance reviews.
+
+**Owner clarifications (after the first review)**
+
+- hr, admin and superadmin manage the private HR record, salaries, offboardings, expenses and settings.
+- HR can create bank holidays, for example the Monday observed for a holiday that falls on a Sunday.
+- An assignee can change the status of their own tasks. The creator of a task (the manager) can change statuses of tasks they created for other users. Admin and superadmin can change any task.
+- A leave request is approved only when both the direct manager and HR approve it.
+
+### 4.4 Permission grid
+
+Legend: ✔ stated in the source or by the owner after review. ✔\* derived or assumed (D-05, D-09, D-10). — denied. `add` = create only.
+
+| Permission | superadmin | admin | hr | assistant | employee |
+| --- | --- | --- | --- | --- | --- |
+| employees.view\_directory | ✔\* | ✔\* | ✔\* | ✔\* | ✔ |
+| employees.create / update / deactivate | ✔ | — | — | — | — |
+| employees.view\_hr\_record / update\_hr\_record | ✔ | ✔ | ✔ | — | — |
+| salaries.view / manage | ✔ | ✔ | ✔ | — | — |
+| offboardings.view / manage | ✔ | ✔ | ✔ | — | — |
+| employees.impersonate `[OPTIONAL]` | ✔\* | — | — | — | — |
+| performances.create | ✔ | ✔ | — | — | — |
+| performances.view | ✔ | direct manager only | ✔ | — | — |
+| clients.view | ✔\* | ✔ | ✔\* | ✔ | ✔ |
+| clients.create / update / activate / deactivate | ✔ | ✔ | — | — | — |
+| clients.export | ✔\* | — | — | ✔ | — |
+| clients.view\_rates (rates, payment plan) | ✔\* | ✔\* | — | — | — |
+| payment\_plans.manage | ✔ | — | — | — | — |
+| projects.view | ✔\* | ✔ | ✔\* | ✔ | ✔ |
+| projects.create | ✔ | ✔ | — | — | — |
+| projects.update / delete / change\_status | ✔\* | ✔ | — | — | — |
+| projects.export | ✔\* | — | — | ✔ | — |
+| projects.manage\_members | ✔\* | ✔\* | — | — | — |
+| fixed\_costs.manage | ✔ | — | — | — | — |
+| tasks.view\_any | ✔\* | ✔ | — | ✔ | — |
+| tasks.view\_own | ✔\* | ✔ | ✔\* | ✔\* | ✔ |
+| tasks.create / update / delete | ✔ | ✔ | — | — | — |
+| tasks.change\_status (any task) | ✔ | ✔ | — | — | — |
+| tasks.change\_status\_own (assignee; creator via policy, BR-35) | ✔\* | ✔\* | ✔\* | ✔\* | ✔ |
+| tasks.assign | ✔ | ✔ | — | — | — |
+| tasks.export | ✔\* | — | — | ✔ | — |
+| labels.manage | ✔\* | — | — | — | — |
+| logs.view\_any | ✔\* | ✔ | — | ✔ | — |
+| logs.view\_own | ✔\* | ✔ | ✔\* | ✔\* | ✔ |
+| logs.create\_own | ✔\* | ✔ | ✔\* | ✔\* | ✔ |
+| logs.update\_own / delete\_own | ✔\* | ✔\* | ✔\* | ✔\* | ✔\* |
+| logs.export | ✔ | — | — | ✔ | — |
+| logs.edit\_locked | ✔\* | ✔ | — | — | — |
+| timesheets.lock | ✔ | — | — | — | — |
+| leave\_requests.create\_own | ✔\* | ✔ | ✔\* | ✔\* | ✔ |
+| leave\_requests.view\_own | ✔\* | ✔\* | ✔\* | ✔\* | ✔\* |
+| leave\_requests.view\_any | ✔\* | — | ✔\* | — | — |
+| leave\_requests.approve (any request, HR stage) | ✔ | — | ✔ | — | — |
+| leave\_requests.approve\_direct\_reports (manager stage) | ✔\* | ✔\* | ✔\* | — | — |
+| leave\_requests.create\_for\_others (direct day off) | ✔ | — | — | — | — |
+| leave\_types.manage, country\_leave\_policies.manage | ✔\* | — | — | — | — |
+| bank\_holidays.manage | ✔ | — | ✔ | — | — |
+| bank\_holidays.view (calendar) | ✔\* | ✔\* | ✔\* | ✔\* | ✔\* |
+| countries.manage | ✔ | — | — | add | — |
+| departments.manage | ✔ | — | — | add | — |
+| technologies.manage | ✔ | — | — | add | — |
+| expenses.\* `[OPTIONAL]` | ✔ | ✔ | ✔ | — | — |
+| activity\_logs.view | ✔\* | — | — | — | — |
+| settings.manage | ✔ | ✔ | ✔ | — | — |
+
+## 5. Data model
+
+### 5.0 Conventions
+
+- Primary key `id` (unsigned bigint). `created_at` and `updated_at` on every table. `created_by` is a foreign key to `users`.
+- Soft deletes on users, customers, projects, tasks, logs and leave\_requests so business history survives. `[ASSUMED]` (source: retain business and audit history)
+- Enums are PHP backed string enums with Filament labels.
+- Money: `*_minor` unsigned bigint plus `currency_code` char(3), ISO 4217 (BR-12).
+- Dates: `datetime` columns in UTC. `date` columns are calendar dates in the relevant country’s timezone.
+- Phones in E.164 (propaganistas/laravel-phone). Files (avatars, receipts) are path columns; receipts on a private disk.
+- Index every foreign key. Composite indexes are listed per table.
+- Table and column names are examples (source note). Names below follow Laravel convention.
+
+### 5.1 Reference data
+
+**countries** (Country)
+
+- `name`, `code` (ISO 3166-1 alpha-2, e.g. AL, unique), `prefix` (phone prefix, e.g. +355), `timezone` (IANA, e.g. Europe/Tirane), `currency_code` (ISO 4217, e.g. ALL; Kosovo uses EUR, Albania uses ALL).
+- Source fields `days_off per year` and `sick leave` are entered on the country form but stored in `country_leave_policies` so they can change over time. `[ASSUMED D-08]`
+- `working_days` (set of weekdays, default Monday–Friday) `[DERIVED]`. There is no automatic weekend-holiday rule: HR adds an observed Monday as its own bank holiday (D-08).
+- The source says etc.: add further country attributes only through the decision log.
+
+**country\_leave\_policies** `[DERIVED]` (FAQ: policy by country with effective dates, proration, carry-over and expiry)
+
+- `country_id`, `leave_type_id`, `days_per_year` decimal(4,1), `effective_from` date, `proration` enum `none` or `by_start_date` (default `by_start_date`), `carry_over_enabled` bool default false, `carry_over_max_days` nullable, `carry_over_expires_after_months` nullable.
+- The active policy for a date is the row with the latest `effective_from` on or before that date. Unique (`country_id`, `leave_type_id`, `effective_from`).
+
+**leave\_types** (lookup behind `leave_type_id`)
+
+- Seeded: `annual_leave`, `sick_leave`, `personal_leave`, `unpaid_leave`, `parental_leave`.
+- `affects_balance` bool: true for annual and sick, false for the others until the owner says otherwise `[ASSUMED D-19]`. `is_active`.
+
+**bank\_holidays** (BankHoliday)
+
+- `name`, `start_date`, `end_date` (equal to start for a single day), `country_id`, `description`.
+- Constraint: end\_date on or after start\_date. Index (`country_id`, `start_date`).
+
+**departments** (Department)
+
+- `parent_id` (self, nullable), `name`, `slug` (spatie/laravel-sluggable), `description`, `color`, `is_active`.
+
+**technologies** (Skill and Area merged, D-01)
+
+- `name` (unique), `description`.
+- Original Area columns: id, name, description. Original Skill columns: id, name, description. Identical, so nothing is lost.
+
+**payment\_plans** (PaymentPlan)
+
+- `days`, `description`, plus (source says etc.) `name` and `type` enum `days_after_invoice`, `end_of_month`, `prepayment` `[ASSUMED]`.
+- Source examples: 30 days after invoice, end of the month, prepayment, 15 days after invoice. Metadata only: no invoice is generated.
+
+**labels**
+
+- `name` (unique). Seeded: Bug, Feature, Design, Testing, Refactoring, Enhancement, Documentation (source says etc., so extensible). Optional `color`.
+
+### 5.2 People
+
+**users** (User, the employees) — operational columns
+
+- `name`, `surname`, `email` (unique, login), `password`, `country_id`, `department_id`, `position` (job\_title), `manager_id` (self FK, nullable, the line manager), `employment_type` enum `full_time`, `part_time`, `contractor`, `freelance`, `intern`, `start_date`, `avatar_path`, `anonymized_at`. Active or banned state via `cybercog/laravel-ban`.
+- Role via spatie/laravel-permission, one role per user (D-09). Skills via `technology_user`.
+- Not on this table: salary (see `salaries`) and total\_days\_off (see the leave ledger), per D-03.
+- Visibility is enforced per field, not per table (D-14). The Directory shows only name, surname, position, department, skills and avatar.
+
+**employee\_profiles** (private HR record, 1:1 with users) `[ASSUMED D-14]`
+
+- `user_id`, `date_of_birth`, `phone` (E.164), `gender` enum `male`, `female`, `other`, `undisclosed`, `address`, `university`, `field_of_study`, `marital_status` enum `single`, `married`, `divorced`, `widowed`, `other`, `source_of_hire` (string), `has_health_insurance` bool, `description`, `metadata` JSON (key to value pairs, edited with a Filament KeyValue field).
+- Source: maybe create other tables such as users, profiles, skills\_users for normalisation. This is that split.
+
+**emergency\_contacts**
+
+- `user_id`, `name`, `phone` (E.164), `relationship` (string: spouse, brother, sister, and so on). Many per user.
+
+**technology\_user** (skills with level)
+
+- `user_id`, `technology_id`, `level` tinyint 1–10. Unique (`user_id`, `technology_id`).
+
+**salaries** (Salary)
+
+- `user_id`, `created_by`, `amount_minor`, `currency_code`, `effective_date`, `status` enum `pending`, `active`, `superseded` `[ASSUMED D-19]`, `description`.
+- History is append-only. The current salary is the latest `active` row with effective\_date on or before today. Index (`user_id`, `effective_date`).
+
+**offboardings** (EmployeeOffBoarding)
+
+- `user_id`, `created_by`, `end_date`, `equipment_returned` bool (whether the person returned the work laptop or other equipment issued by the company), `resignation_letter_signed` bool, `description`, `status` enum `pending`, `in_progress`, `completed`, `cancelled` `[ASSUMED D-19]`.
+- At most one non-cancelled offboarding per user `[DERIVED]`.
+
+**performances** (Performance)
+
+- `user_id` (the employee), `created_by` (performed\_by), `score` tinyint 1–10 (performance value), `notes` (description), `review_date` `[DERIVED]`.
+- Read access is restricted (BR-27).
+
+### 5.3 Clients and projects
+
+**customers** (Customer, also called client)
+
+- `created_by`, `name`, `surname`, `email`, `country_id`, `phone` (E.164), `address`, `company_name`, `priority` enum `low`, `medium`, `high`, `critical`, `payment_plan_id`, `currency_code` (D-18), `avatar_path`, `is_active` (activate and deactivate).
+- Technologies come from `client_technology_rates`.
+
+**client\_technology\_rates** (FAQ: track hourly rate changes)
+
+- `customer_id`, `technology_id`, `rate_minor` (per hour), `effective_from` date. Unique (`customer_id`, `technology_id`, `effective_from`).
+- The currency is `customers.currency_code`. The rate for a date is the row with the latest `effective_from` on or before that date.
+- A client’s technologies (the old client-to-area many-to-many) are the technologies with at least one rate row. Source example: .Net 24/h, Angular 20/h, Ionic 18/h.
+
+**projects** (Project)
+
+- `created_by`, `customer_id`, `project_type` enum `standalone`, `recurring`, `pay_as_you_go` (source: maybe an enum list or an FK table, etc.; D-19), `name`, `slug` (sluggable, unique), `description`, `manager_id` (FK users; must hold the role admin), `start_date`, `end_date` (source: deadline), `can_log_directly_to_project` bool, `status` enum `planning`, `active`, `on_hold`, `completed`, `cancelled`, `color`.
+- Computed: `estimated_hours` and `budget_minor` (D-04). No `priority` (D-02).
+- Technologies via `project_technology`. Members via `project_user`.
+
+**project\_technology**
+
+- `project_id`, `technology_id`, `estimated_hours` decimal(8,2). The technology must be one of the client’s technologies (source: only the client’s areas are offered). Example: Angular 230h, .Net 330h.
+
+**project\_user** (project members) `[DERIVED]` (FAQ: only assigned project members can log directly)
+
+- `project_id`, `user_id`. Unique pair.
+
+**fixed\_costs** (FixedCost)
+
+- `project_id`, `name`, `date` (the month it applies to, stored as the first day of that month `[ASSUMED]`), `amount_minor`, `currency_code` (must equal the client’s), `created_by` (superadmin).
+- A project has many fixed costs. Example: Management, 100 EUR, for September.
+
+### 5.4 Work
+
+**tasks** (Task)
+
+- `created_by`, `name`, `description`, `project_id`, `technology_id` (source: area; exactly one, must be in `project_technology`), `status` enum `backlog`, `todo`, `in_progress`, `in_review`, `completed`, `cancelled` (source: etc., so extensible), `priority` enum `low`, `medium`, `high`, `critical`, `estimated_hours` (source: hours), `assignee_id` (source: user\_id; one assignee), `parent_id` (self, nullable, default null), `force_to_log` bool, `due_date`.
+- Labels via `label_task`. Indexes (`assignee_id`, `status`) and (`project_id`, `status`).
+- `assignee_id` is nullable so a task can sit in Backlog before assignment `[ASSUMED D-19]`.
+
+**logs** (Log)
+
+- `user_id` (who logged), `date` (work date), `project_id`, `task_id` (nullable), `technology_id`, `duration_minutes` (source: hours and minutes), `log_type` enum `normal_hours`, `extra_hours`, `replacement_hours`, `others`, `description`, `rate_minor`, `rate_currency` (snapshot, BR-06). `created_at` records when it was entered.
+- Exactly one of two shapes (BR-02): a task log, or a direct project log.
+- Indexes (`user_id`, `date`), (`project_id`, `date`), (`task_id`).
+
+**timesheet\_locks** `[DERIVED D-13]`
+
+- `month` (first day of month, unique), `locked_by`, `locked_at`, `unlocked_by` nullable, `unlocked_at` nullable.
+
+### 5.5 Leave
+
+**leave\_requests** (LeaveRequest)
+
+- `user_id` (employee), `created_by`, `leave_type_id`, `start_date`, `end_date`, `start_day_part` and `end_day_part` enum `full`, `am`, `pm` `[DERIVED]` (half-day support), `days_requested` decimal(4,1) (computed, BR-16), `reason`, `status` enum `pending`, `approved`, `rejected`, `taken`, `cancelled`, `reviewed_by`, `reviewed_at`, `review_note` (required when rejected).
+- Index (`user_id`, `start_date`).
+
+**leave\_request\_approvals** `[ASSUMED D-07]`
+
+- `leave_request_id`, `stage` enum `manager`, `hr`, `reviewer_id`, `decision` enum `approved`, `rejected`, `decided_at`, `note`.
+
+**leave\_ledger\_entries** `[DERIVED]` (replaces total\_days\_off)
+
+- `user_id`, `leave_type_id`, `entry_type` enum `grant`, `adjustment`, `carry_over`, `deduction`, `reversal`, `expiry`, `days` signed decimal(4,1), `effective_on` date, `expires_on` nullable, `leave_request_id` nullable, `note`, `created_by`.
+- Balance = sum of non-expired `days`. Index (`user_id`, `leave_type_id`).
+
+### 5.6 Expenses `[OPTIONAL D-17]`
+
+**expenses** (Expense; source: we can also add employee expenses)
+
+- `user_id` (the employee), `created_by` (the admin or manager creating it), `project_id` (optional), `category` enum `travel`, `meals`, `supplies`, `equipment`, `software`, `other`, `description`, `number` (auto-generated, e.g. EXP-000001, unique, generated race-safely), `receipt_path` (file upload, private disk), `notes`, `status` enum `draft`, `submitted`, `approved`, `rejected`, `reimbursed`.
+- The total is the sum of its lines.
+
+**expense\_lines** (ExpenseLine; one expense has many lines, like a cart)
+
+- `expense_id`, `description`, `quantity`, `unit_price_minor`, `amount_minor` (quantity × unit price), `currency_code`, `date`.
+
+### 5.7 Audit
+
+**activity\_log** (ActivityLog, spatie/laravel-activitylog)
+
+- Default package table. Log all business models: users, profiles, salaries, offboardings, performances, customers, rates, projects, tasks, logs, leave, holidays, locks, expenses.
+- Edits to logs in a locked month store before and after values (BR-07). Properties may contain personal data and are scrubbed on anonymisation (BR-28).
+
+### 5.8 Relationship summary
+
+- users 1–1 employee\_profiles. users 1–N emergency\_contacts, salaries, offboardings, performances, leave\_requests, leave\_ledger\_entries, logs.
+- users N–1 departments, countries and users (manager). users N–M technologies (level).
+- customers N–1 payment\_plans and countries. customers N–M technologies (rate with effective\_from).
+- projects N–1 customers and users (manager). projects N–M technologies (estimated\_hours) and users (members). projects 1–N fixed\_costs, tasks, logs.
+- tasks N–1 projects, technologies, users (assignee) and tasks (parent). tasks N–M labels.
+- logs N–1 users, projects, tasks (nullable) and technologies.
+- leave\_requests N–1 users and leave\_types. leave\_requests 1–N leave\_request\_approvals.
+- countries 1–N bank\_holidays, country\_leave\_policies, users, customers.
+- expenses 1–N expense\_lines. expenses N–1 users and projects (nullable).
+
+## 6. Business rules
+
+Each rule has an ID for traceability and testing (operating rule 6).
+
+### 6.1 Time logging
+
+- **BR-01** Logging is manual. Time logs need no manager approval.
+- **BR-02** A log is exactly one of: (a) a task log: the task is assigned to the logging user, and project and technology come from the task; (b) a direct log: `task_id` is null, the project has `can_log_directly_to_project = true`, the user is a project member (D-12), and the technology is one of the project’s technologies.
+- **BR-03** The log form has a checkbox for direct logging. Unchecked: the user’s own tasks are listed. Checked: only projects that allow direct logging and where the user is a member are listed.
+- **BR-04** Duration must be greater than zero. Input is hours and minutes (minutes 0–59), stored as `duration_minutes`. One user’s total for one date may not exceed 24 hours. `[DERIVED]`
+- **BR-05** `log_type` is one of normal\_hours, extra\_hours, replacement\_hours, others.
+- **BR-06** Rate snapshot: when a log is created, copy the client’s rate for that technology effective on the log date into `rate_minor` and `rate_currency`. Later rate changes never alter existing logs. If no rate exists for that date, creation is blocked with a clear message. `[ASSUMED D-11]`
+- **BR-07** Month lock (D-13): the superadmin locks a month. Employees cannot create, edit or delete logs dated in a locked month. Admin or superadmin can, and each such change is activity-logged with before and after values.
+- **BR-08** Force to log: a task with `force_to_log = true` is pinned in its assignee’s daily log form every day until the task is closed (completed or cancelled). Blocking day submission is not specified. `[DERIVED]`
+- **BR-09** One assignee per task. An assigned task appears in the employee’s task list after login and they can log hours to it.
+- **BR-10** A task’s technology must belong to the task’s project. A project’s technologies must belong to the project’s client.
+- **BR-11** Task `parent_id` is optional, must reference a task in the same project, and may not create a cycle. `[ASSUMED]`
+
+* **BR-35** Task status changes are allowed to the task’s assignee (own tasks), to the task’s creator for tasks they created for other users, and to superadmin and admin for any task. The Task policy checks `tasks.change_status` (any task) or `tasks.change_status_own` (assignee), or the creator rule. “Manager” is read as the task’s creator. `[ASSUMED D-10]`
+
+### 6.2 Money and projects
+
+- **BR-12** Money is stored as integer minor units with an ISO currency, per client and per salary. Reports group by currency. No conversion between currencies in v1. `[DERIVED]`
+- **BR-13** Project budget is computed from estimated hours and client rate, plus the project’s fixed costs (D-04).
+- **BR-14** Fixed costs are added by the superadmin to a project for a specific month. They count toward the project budget and use the client’s currency.
+- **BR-15** Payment plans are client metadata only. No invoices are generated in v1.
+
+### 6.3 Leave
+
+- **BR-16** Day counting: `days_requested` counts working days only between start and end inclusive. Skip the country’s weekend days and the employee’s country bank holidays. A half day (am or pm) counts 0.5. Computed on the server, never trusted from input. A holiday that falls on a weekend has no effect on the count; HR adds the observed Monday as its own holiday (D-08).
+- **BR-17** Half days: the first and last day can each be full, am or pm. A single-day request carries one part.
+- **BR-18** Entitlement: on 1 January (country timezone) a grant ledger entry is written per user and balance-affecting leave type from the active country policy, prorated by start date. For an employee who joins during the year, the grant for that year is written on the start date, prorated by remaining days. `[ASSUMED]` Policies have effective dates. Carry-over and expiry follow the country policy; carry-over is off by default (setting). Prorated values round to the nearest 0.5 day. `[ASSUMED D-08]`
+- **BR-19** Status flow: pending to approved, rejected or cancelled. Approved to taken or cancelled. Rejected, taken and cancelled are final. A scheduled job moves approved to taken after the end date. Cancelling an approved request that is not yet taken writes a reversal ledger entry.
+- **BR-20** Approvals follow D-07. An approver may not approve their own request. Superadmin may decide at any stage.
+- **BR-21** Rejection requires `review_note`.
+- **BR-22** Direct day off: the superadmin can create a leave request for an employee (created\_by = superadmin) that skips approval, is stored as approved and is deducted from PTO or sick leave. Use case: the employee did not come to work and has no platform access.
+- **BR-23** No two active (pending or approved) requests for the same user may overlap. `[DERIVED]`
+- **BR-24** For balance-affecting types, a request cannot exceed the available balance (balance minus pending). A superadmin direct day off may override with a note. `[ASSUMED]`
+- **BR-25** Bank holidays are created by the superadmin or HR per country (country, date or date range, name) and shown on the calendar together with leave. They feed BR-16. Holidays are not shifted automatically: where a country observes a weekend holiday on the Monday (for example Albania), HR creates the Monday holiday as its own entry.
+
+### 6.4 People and governance
+
+- **BR-26** Privacy split (D-14): the Directory exposes only public fields. A test must prove private fields never appear in any directory query, resource, export or API response for users who lack employees.view\_hr\_record (everyone except superadmin, admin and hr).
+- **BR-27** Performance reviews are visible only to superadmin, HR and the employee’s direct manager (D-21).
+- **BR-28** Offboarding and anonymisation (D-15): personal data is anonymised 2 months after the offboarding end date. `equipment_returned` only records whether the person returned the laptop or other company equipment. Completing an offboarding deactivates login.
+- **BR-29** Salary history is append-only, with an ISO currency per salary, and is visible only to superadmin, admin and hr (D-10).
+- **BR-30** A project manager must hold the role admin. Validate on save and when a role changes.
+- **BR-31** A deactivated customer cannot receive new projects, tasks or logs. Existing history stays. `[DERIVED]`
+- **BR-32** Audit: every business write is recorded in the activity log with actor, subject and before and after values.
+- **BR-33** Exports: the superadmin exports all logs. The assistant exports projects, customers, tasks and logs (D-05: rate columns omitted). Exports run on the queue and respect the same permissions and field visibility as the screen.
+- **BR-34** Time zones: store UTC. Leave and holiday date logic uses the employee’s country timezone. `[DERIVED]`
+
+## 7. Workflows
+
+Each workflow names the actor, the steps and the rules that apply.
+
+**W-01 Employee onboarding** (superadmin)
+
+1. Make sure departments, countries (with their leave policy) and technologies exist. The assistant may add these too.
+2. Create the user: role, department, country, manager, position, employment type, start date, avatar, skills with levels, private profile, emergency contacts, metadata.
+3. Create the initial salary row (amount, currency, effective date). Superadmin, admin or hr can manage salaries.
+4. The system writes the leave grant for the year of joining (BR-18).
+5. No self-registration. Only the superadmin creates users. `[DERIVED]` The new user receives a set-password link by email. `[ASSUMED]`
+
+**W-02 Client and project setup** (superadmin; admin for customers and projects)
+
+1. Superadmin creates payment plans (metadata).
+2. Create the customer: contact, company, country, priority, payment plan, currency, avatar, technologies with hourly rates and effective\_from.
+3. Create the project: customer, type, name (slug), description, manager (role admin only), start and end date, status, color, `can_log_directly_to_project`, members (D-12), and technologies chosen only from the client’s list with estimated hours each.
+4. The budget is computed (D-04).
+5. The superadmin may add fixed costs for a specific month.
+
+**W-03 Task and logging** (superadmin or admin creates; employee logs)
+
+1. Create the task: project, technology (from the project), estimate, assignee, title, description, priority, labels, due date, optional parent, optional `force_to_log`.
+2. The assignee sees the task in their task list after login. Pinned tasks appear in the daily log form (BR-08).
+3. The employee logs hours: date, task, hours and minutes, log type, description. The rate snapshot is taken (BR-06).
+4. Status changes (BR-35): the assignee can change the status of their own tasks. The creator of a task (the manager) can change statuses of tasks they created for other users. Admin and superadmin can change any task.
+
+**W-04 Direct project logging** (employee, admin)
+
+1. In the log form tick the direct-logging checkbox.
+2. Pick a project where direct logging is enabled and the user is a member, then a project technology (BR-02, BR-03).
+3. Enter date, duration, type, description. The rate snapshot is taken.
+
+**W-05 Leave request** (employee or admin for themselves)
+
+1. Create the request: type, start and end date, day parts, reason. The server computes `days_requested` (BR-16), checks overlap (BR-23) and balance (BR-24).
+2. The direct manager approves or rejects (BR-20). Rejection needs a note (BR-21).
+3. HR approves or rejects.
+4. On final approval a deduction ledger entry is written and the leave shows on the calendar.
+5. After the end date a job sets the status to `taken` (BR-19).
+
+**W-06 Direct day off** (superadmin)
+
+1. Pick the employee, type (PTO or sick), dates and a note.
+2. The request is stored as approved and the balance is deducted (BR-22).
+
+**W-07 Holidays** (superadmin or HR)
+
+1. Select the country, date (or range) and name.
+2. The holiday shows on the calendar and is excluded from leave counting for that country’s employees (BR-25, BR-16).
+
+**W-08 Month close** (superadmin)
+
+1. Export the logs for the month (BR-33).
+2. Lock the month (BR-07). Later edits need an admin and are activity-logged.
+
+**W-09 Performance review** (superadmin or admin)
+
+1. Select the employee, enter the score 1–10, notes and review date.
+2. Only superadmin, HR and the direct manager can read it (BR-27).
+
+**W-10 Offboarding** (superadmin, admin or hr)
+
+1. Create the offboarding: end date, equipment returned, resignation letter signed, description, status.
+2. On completion the login is deactivated.
+3. Two months after the end date the anonymisation job runs (BR-28).
+
+## 8. UI surfaces (Filament) `[DERIVED]`
+
+**Resources**
+
+- Employees: Directory view for everyone, HR record tabs for superadmin. Relation managers for skills, salaries, emergency contacts.
+- Offboardings, Performances.
+- Customers with a rates relation manager. Payment Plans.
+- Projects with relation managers for technologies, members and fixed costs.
+- Tasks, Logs, Leave Requests.
+- Bank Holidays, Countries (with leave policies), Departments, Technologies, Labels, Timesheet Locks, Activity Log, Settings.
+- Expenses `[OPTIONAL]`.
+
+**Custom pages**
+
+- My Day: the daily log form with pinned tasks and the direct-logging toggle (BR-03, BR-08).
+- Leave Calendar: bank holidays and leave in one calendar (source: holidays show in the calendar). Choose a maintained calendar plugin compatible with the chosen Filament major, or build an Alpine component.
+- My Leave: balances and requests.
+
+**Optional**
+
+- A screen to view the role-by-permission grid. The seeded grid in section 4.4 is mandatory, an editing UI is not. `[OPTIONAL]`
+- Widgets: estimated vs logged hours per project and technology, leave balance. `[OPTIONAL]`
+
+## 9. Non-functional requirements
+
+The source lists headings only. Below is what the source implies, plus what the agent must still define in Phase 0.
+
+- **Security.** Authentication through the Filament login, no self-registration, password reset. Two-factor and SSO are undecided: record an ADR. Authorisation through permissions, policies and field-level rules (BR-26). Data protection: HTTPS only, private disk for receipts, evaluate encrypted casts for private profile fields. `[PROPOSED]` Auditing through the activity log (BR-32). Retention and anonymisation (BR-28).
+- **Performance and scalability.** Load is unknown (D-22): the agent writes assumptions for headcount, clients and logs per day. Expected hot paths: log lists and exports, project reports, leave balance. Use indexes from section 5, paginate, queue exports, prevent N+1 queries. `[PROPOSED]`
+- **Reliability.** Supervisor-managed queue workers and scheduler, failed-job handling, idempotent scheduled jobs (leave grant, anonymisation).
+- **Maintainability.** Larastan in CI. Laravel Pint and branch protection are proposals. `[PROPOSED]` ide-helper and debugbar are dev only.
+- **Testing.** Unit tests for leave day counting, proration, rate selection and budget. Integration tests for policies, the privacy split and the month lock. End-to-end tests for the main flows. Performance tests for log lists and exports on seeded data. Each BR-xx has at least one test.
+- **Localisation.** English only for v1. Use translation helpers for strings so a later language is cheap. `[PROPOSED]`
+- **Time and money.** UTC storage, country timezones for date logic (BR-34), integer money (BR-12).
+
+## 10. Phase 0: deliverables to produce before coding
+
+Source workflow: initially define the items below. Write each as a file in `docs/`, reuse sections 1–9 of this document, and list every open point as a question for the owner.
+
+| # | Deliverable | What it must contain | Output file |
+| --- | --- | --- | --- |
+| 1 | Business requirements | Goals, scope, non-goals, stakeholders (sections 1, 3) | docs/00-business-requirements.md |
+| 2 | Functional requirements | Numbered requirements per role and workflow with acceptance criteria (sections 4, 7) | docs/01-functional-requirements.md |
+| 3 | Non-functional requirements | Section 9 turned into measurable targets | docs/02-non-functional-requirements.md |
+| 4 | Domain analysis | Entities, workflows and relationships (sections 5, 7) | docs/03-domain-analysis.md |
+| 5 | Architecture | Decide modular monolith or microservices. TALL plus Filament points to a modular monolith. `[ASSUMED]` Module boundaries, ADR | docs/04-architecture.md, docs/adr/ |
+| 6 | Database design | ERD, constraints, indexes, expected access patterns, migration order | docs/05-database-design.md |
+| 7 | API design | Contracts, versioning, communication. v1 has no public API (D-22): define internal contracts | docs/06-api-design.md |
+| 8 | Security | Authentication, authorisation, data protection, auditing | docs/07-security.md |
+| 9 | Project organisation | Coding standards, branching strategy, environments, CI/CD | docs/08-project-organization.md |
+| 10 | Scalability and performance | Load estimate, potential bottlenecks | docs/09-scalability.md |
+| 11 | Testing | Unit, integration, end-to-end and performance test plans | docs/10-testing-strategy.md |
+
+## 11. Suggested milestones `[PROPOSED]`
+
+A milestone is done when the tests for its business rules pass.
+
+1. **M0 Foundation:** repository, CI, Laravel and Filament install, packages, Phase 0 documents.
+2. **M1 RBAC and master data:** permission catalog and seeder, roles, countries with leave policies, departments, technologies, payment plans, labels, bank holidays, settings.
+3. **M2 People:** users, private profiles, emergency contacts, skills, salaries, Directory, privacy split, activity log.
+4. **M3 Clients, projects, tasks:** customers with rates, projects with technologies and members, fixed costs, tasks.
+5. **M4 Time logging:** logs, direct logging, rate snapshot, My Day, force to log, month lock, exports.
+6. **M5 Leave:** day counting, ledger, approvals, calendar, direct day off.
+7. **M6 Performance and offboarding:** reviews, offboarding, anonymisation job, ban, impersonation `[OPTIONAL]`.
+8. **M7 Reporting and hardening:** estimated vs logged reports, performance tests, security review.
+9. **M8 Expenses** `[OPTIONAL]`.
+
+## 12. Reference
+
+Filament demo, for studying panels, resources and relation managers (public demo credentials taken from the source):
+
+- GitHub: https://github.com/filamentphp/demo
+- URL: https://demo.filamentphp.com/login
+- Email: admin@filamentphp.com
+- Password: demo.Filament@2021!
+
+## Appendix A. Source coverage checklist
+
+Every block of the original brief and where it now lives.
+
+- Application description, stack, infrastructure: sections 1 and 2.
+- Superadmin, admin, employees, assistant capabilities: section 4.3. HR from the FAQ: D-06.
+- Permission grid instruction: sections 4.1 and 4.4.
+- User, Salary, EmployeeOffBoarding, Performance: section 5.2.
+- Customer, PaymentPlan, Project, FixedCost: sections 5.1 and 5.3.
+- Task, Log: section 5.4.
+- BankHoliday, Country, Department, Area, Skill: section 5.1 (D-01).
+- LeaveRequest: section 5.5.
+- Expense, ExpenseLine: section 5.6.
+- ActivityLog: section 5.7.
+- Naming-is-an-example note: section 5.0.
+- FAQ, in source order: manual logging and no log approval (BR-01); English only (1.3); only assigned members log directly (BR-02, D-12); one assignee (BR-09); leave approved by manager and HR (D-07); HR role (D-06); country leave policy (BR-18, D-08); weekend and carried-over holidays (D-08); currency by country (5.1, D-18); budget from hours and rate (D-04); payment plans are metadata (BR-15); priority per client (D-02); performance visibility (BR-27); equipment boolean (5.2, BR-28); anonymisation (BR-28, D-15); merged technologies (D-01); rate history and snapshot (5.3, BR-06); working-day leave counting (BR-16 to BR-18); privacy split (D-14, BR-26); timesheet lock (D-13, BR-07); force to log (BR-08); invoicing non-goal (1.3); integer money (BR-12).
+- Package list: section 2.3.
+- Workflow list (initially define): section 10.
+- Filament demo: section 12.

@@ -2,6 +2,8 @@ includes:
     - vendor/larastan/larastan/extension.neon
 
 parameters:
+    # Read the literal arrays in our casts() methods so date, enum and array casts are typed.
+    parseModelCastsMethod: true
     level: 6
     paths:
         - app

@@ -43,8 +43,37 @@ it('BR-12 reports group by currency without conversion', function () {
         ->and($groups['ALL']->minor)->toBe(5000);
 })->group('BR-12');
 
-it('BR-12 formats using the currency exponent from ICU', function () {
+it('BR-12 formats using the ISO 4217 currency exponent', function () {
     expect(Money::of(2450, 'EUR')->format())->toBe('EUR 24.50')
         ->and(Money::of(2450, 'JPY')->format())->toBe('JPY 2450')
         ->and(Money::of(5, 'EUR')->format())->toBe('EUR 0.05');
+})->group('BR-12');
+
+it('BR-12 parses typed amounts into minor units without floats', function (string $input, string $currency, int $minor) {
+    expect(Money::fromMajor($input, $currency)->minor)->toBe($minor);
+})->group('BR-12')->with([
+    ['1500', 'EUR', 150000],
+    ['1500.5', 'EUR', 150050],
+    ['1500,50', 'EUR', 150050],
+    ['0.07', 'EUR', 7],
+    ['1500', 'JPY', 1500],
+    ['1.234', 'KWD', 1234],
+    ['19.99', 'USD', 1999],
+]);
+
+it('BR-12 rejects malformed or too precise amounts', function (string $input, string $currency) {
+    Money::fromMajor($input, $currency);
+})->group('BR-12')->throws(InvalidArgumentException::class)->with([
+    ['abc', 'EUR'], ['-5', 'EUR'], ['1.234', 'EUR'], ['10.5', 'JPY'], ['', 'EUR'],
+]);
+
+it('BR-12 minor units follow ISO 4217, not ICU: the Albanian lek has 2 decimals', function () {
+    expect(Money::fractionDigits('ALL'))->toBe(2)
+        ->and(Money::fractionDigits('EUR'))->toBe(2)
+        ->and(Money::fractionDigits('JPY'))->toBe(0)
+        ->and(Money::fractionDigits('ISK'))->toBe(0)
+        ->and(Money::fractionDigits('KWD'))->toBe(3)
+        ->and(Money::fractionDigits('CLF'))->toBe(4)
+        ->and(Money::fromMajor('1200.50', 'ALL')->minor)->toBe(120050)
+        ->and(Money::of(120050, 'ALL')->format())->toBe('ALL 1200.50');
 })->group('BR-12');

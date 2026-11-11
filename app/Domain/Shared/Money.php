@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Domain\Shared;
 
 use InvalidArgumentException;
-use NumberFormatter;
 
 /**
  * Money as integer minor units plus an ISO 4217 currency (BR-12, SPEC rule 4). Never floats.
@@ -33,6 +32,24 @@ final readonly class Money
     public static function of(int $minor, string $currency): self
     {
         return new self($minor, $currency);
+    }
+
+    /**
+     * Parses a decimal amount typed by a person ("1500.50") into minor units, without floats.
+     * The number of decimals follows the currency (JPY 0, EUR 2, KWD 3).
+     */
+    public static function fromMajor(string $amount, string $currency): self
+    {
+        $digits = self::fractionDigits($currency);
+        $amount = trim($amount);
+
+        if (! preg_match('/^\d+(?:[.,]\d{1,'.max($digits, 1).'})?$/', $amount) || ($digits === 0 && preg_match('/[.,]/', $amount))) {
+            throw new InvalidArgumentException("[{$amount}] is not a valid {$currency} amount.");
+        }
+
+        [$whole, $fraction] = array_pad(preg_split('/[.,]/', $amount) ?: [], 2, '');
+
+        return new self((int) ($whole.str_pad($fraction, $digits, '0')), $currency);
     }
 
     public function add(self $other): self
@@ -75,17 +92,29 @@ final readonly class Money
         return $groups;
     }
 
-    public function format(string $locale = 'en'): string
+    public function format(): string
     {
-        // ISO 4217 minor-unit exponent comes from ICU (JPY 0, EUR 2, KWD 3).
-        $digits = (new NumberFormatter($locale.'@currency='.$this->currency, NumberFormatter::CURRENCY))
-            ->getAttribute(NumberFormatter::FRACTION_DIGITS);
+        $digits = self::fractionDigits($this->currency);
 
         $major = intdiv($this->minor, 10 ** $digits).($digits > 0
             ? '.'.str_pad((string) ($this->minor % (10 ** $digits)), $digits, '0', STR_PAD_LEFT)
             : '');
 
         return $this->currency.' '.$major;
+    }
+
+    /**
+     * ISO 4217 minor-unit exponent (JPY 0, EUR 2, KWD 3). Taken from the ISO table, not from ICU: ICU
+     * reports the Albanian lek (ALL) with 0 decimals while ISO 4217 says 2.
+     */
+    public static function fractionDigits(string $currency): int
+    {
+        return match (strtoupper($currency)) {
+            'BIF', 'CLP', 'DJF', 'GNF', 'ISK', 'JPY', 'KMF', 'KRW', 'PYG', 'RWF', 'UGX', 'UYI', 'VND', 'VUV', 'XAF', 'XOF', 'XPF' => 0,
+            'BHD', 'IQD', 'JOD', 'KWD', 'LYD', 'OMR', 'TND' => 3,
+            'CLF', 'UYW' => 4,
+            default => 2,
+        };
     }
 
     private function assertSameCurrency(self $other): void

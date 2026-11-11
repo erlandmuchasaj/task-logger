@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Domain\Identity\Models\User;
+use App\Domain\Identity\Policies\ActivityPolicy;
 use App\Domain\MasterData\Models\BankHoliday;
 use App\Domain\MasterData\Models\Country;
 use App\Domain\MasterData\Models\CountryLeavePolicy;
@@ -20,9 +22,13 @@ use App\Domain\MasterData\Policies\LabelPolicy;
 use App\Domain\MasterData\Policies\LeaveTypePolicy;
 use App\Domain\MasterData\Policies\PaymentPlanPolicy;
 use App\Domain\MasterData\Policies\TechnologyPolicy;
+use App\Domain\People\Models\Salary;
+use App\Domain\People\Policies\SalaryPolicy;
+use App\Domain\People\Policies\UserPolicy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Spatie\Activitylog\Models\Activity;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -48,6 +54,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Technology::class, TechnologyPolicy::class);
         Gate::policy(PaymentPlan::class, PaymentPlanPolicy::class);
         Gate::policy(Label::class, LabelPolicy::class);
+        Gate::policy(User::class, UserPolicy::class);
+        Gate::policy(Salary::class, SalaryPolicy::class);
+        Gate::policy(Activity::class, ActivityPolicy::class);
 
         // Catch N+1 queries early outside production (NFR-09).
         Model::preventLazyLoading(! $this->app->isProduction());

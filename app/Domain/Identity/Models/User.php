@@ -7,6 +7,11 @@ namespace App\Domain\Identity\Models;
 use App\Domain\Identity\Enums\EmploymentType;
 use App\Domain\MasterData\Models\Country;
 use App\Domain\MasterData\Models\Department;
+use App\Domain\MasterData\Models\Technology;
+use App\Domain\People\Models\EmergencyContact;
+use App\Domain\People\Models\EmployeeProfile;
+use App\Domain\People\Models\Salary;
+use App\Domain\People\Models\UserSkill;
 use App\Domain\Shared\LogsBusinessActivity;
 use Cog\Contracts\Ban\Bannable as BannableContract;
 use Cog\Laravel\Ban\Traits\Bannable;
@@ -20,7 +25,9 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -130,5 +137,35 @@ class User extends Authenticatable implements BannableContract, FilamentUser, Ha
     public function directReports(): HasMany
     {
         return $this->hasMany(self::class, 'manager_id');
+    }
+
+    /** @return HasOne<EmployeeProfile, $this> */
+    public function profile(): HasOne
+    {
+        return $this->hasOne(EmployeeProfile::class);
+    }
+
+    /** @return HasMany<EmergencyContact, $this> */
+    public function emergencyContacts(): HasMany
+    {
+        return $this->hasMany(EmergencyContact::class);
+    }
+
+    /** @return HasMany<UserSkill, $this> */
+    public function skills(): HasMany
+    {
+        return $this->hasMany(UserSkill::class);
+    }
+
+    /** @return BelongsToMany<Technology, $this> */
+    public function technologies(): BelongsToMany
+    {
+        return $this->belongsToMany(Technology::class)->withPivot('level');
+    }
+
+    /** @return HasMany<Salary, $this> */
+    public function salaries(): HasMany
+    {
+        return $this->hasMany(Salary::class);
     }
 }

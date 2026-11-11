@@ -277,6 +277,28 @@ Each entry: what the source says, the default this spec implements, and whether 
 - Default: superadmin, admin and hr (matches D-14). Section 8 wording "for superadmin" is superseded.
 - Confirm: no.
 
+**D-31 — Salary statuses (refines D-19).**
+
+- Source: salary `status` is pending, active or superseded; the current salary is the latest active row on or before today. The values and transitions are not defined.
+- Default: after every insert the history is settled: rows dated in the future are `pending`; of the rest the latest is `active` and every earlier one `superseded`. A daily job activates pending rows when their date arrives. A back-dated row goes to history and never replaces the current salary. Only `status` ever changes on a row (BR-29).
+- Confirm: yes.
+
+**D-32 — The last superadmin is protected `[DERIVED]`.**
+
+- Default: the last active superadmin cannot be demoted or deactivated, and nobody can deactivate themselves.
+- Confirm: no.
+
+**D-33 — Self-service profile is read-only for name and email (refines D-14).**
+
+- Default: on their own Profile page a user changes their password and two-factor setup; name and email are shown but only the superadmin changes them (they are HR data). Users have no right over their own HR record.
+- Confirm: yes. Should employees edit their own name, phone or emergency contacts?
+
+**D-34 — Minor units follow ISO 4217, not ICU.**
+
+- Source: money is integer minor units plus an ISO 4217 currency (BR-12).
+- Default: the number of decimals comes from an ISO 4217 table in code (ALL 2, EUR 2, JPY 0, KWD 3, CLF 4). ICU reports the Albanian lek with 0 decimals, which contradicts ISO and would misread every ALL amount.
+- Confirm: no.
+
 ### 3.2 Confirm before coding
 
 1. D-14 and D-05: what employees and assistants may see, and whether an employee sees their own HR record. HR and admin access is now set by the owner.
@@ -288,6 +310,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 7. D-22: headcount and expected volume.
 8. D-24, D-25: invoicing, multiple assignees and MCP (conflicts with IDEA.md).
 9. D-28: whether employee-role managers can approve leave.
+10. D-31 and D-33: the salary status rules, and whether employees may edit any of their own data.
 
 Answered by the owner and already applied: D-04 (budget includes fixed costs), D-07 (both manager and HR approve), D-08 (weekend holidays are handled manually by HR), D-10 (hr, admin and superadmin manage the HR record, salaries, offboardings, expenses and settings; assignees change their own task status), D-15 (2-month retention).
 

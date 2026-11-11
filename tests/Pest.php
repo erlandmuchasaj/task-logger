@@ -2,8 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Domain\Identity\Enums\EmploymentType;
 use App\Domain\Identity\Enums\RoleName;
 use App\Domain\Identity\Models\User;
+use App\Domain\MasterData\Models\Country;
+use App\Domain\MasterData\Models\Department;
+use App\Domain\People\Data\EmployeeData;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -61,4 +65,27 @@ function something()
 function userWithRole(RoleName $role): User
 {
     return User::factory()->withRole($role)->create();
+}
+
+/** Valid W-01 account data for a new employee in Albania. */
+function employeeData(array $overrides = []): EmployeeData
+{
+    $country = Country::query()->where('code', 'AL')->first() ?? Country::factory()->albania()->create();
+
+    $values = array_merge([
+        'name' => 'Jane',
+        'surname' => 'Doe',
+        'email' => 'jane.doe@example.test',
+        'role' => RoleName::Employee,
+        'countryId' => $country->id,
+        'departmentId' => Department::factory()->create()->id,
+        'position' => 'Engineer',
+        'managerId' => null,
+        'employmentType' => EmploymentType::FullTime,
+        'startDate' => now()->startOfDay(),
+        'avatarPath' => null,
+        'skills' => [],
+    ], $overrides);
+
+    return new EmployeeData(...$values);
 }

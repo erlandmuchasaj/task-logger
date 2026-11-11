@@ -89,6 +89,8 @@ Columns follow SPEC §5.1–§5.6 exactly; this section lists constraints and in
 
 Cross-table rules that MySQL cannot express (task technology ∈ project technologies; project technology ∈ client rates; manager has role admin; fixed-cost currency = client currency) are enforced in Actions and covered by tests (BR-10, BR-30, BR-14). Composite-FK enforcement is possible for the first two (`project_technology` composite key referenced from `tasks`) and is recommended: tasks reference `(project_id, technology_id)` on `project_technology` `[PROPOSED]`.
 
+Money note (D-34): `amount_minor` is an integer in the currency's ISO 4217 minor unit. The exponent comes from a table in `App\Domain\Shared\Money` (ALL 2, EUR 2, JPY 0, KWD 3); ICU is not used because it disagrees with ISO for the lek.
+
 ## 3. Access patterns
 
 | Pattern | Query | Support |

@@ -118,3 +118,18 @@ Deviations and findings:
 
 - **Permissions are class constants** (`Permissions::LABELS_MANAGE`), modelled on the owner's other project: one `Permissions` class, the role map in `config/permission.php`. Roles stay a `RoleName` enum because they are only assigned, never checked. Policies, resources and tests use the constants; an architecture test fails on any permission string literal in `app/`. A role entry naming a non-constant throws.
 - **2FA (ADR-0005, D-26).** New `SecuritySettings` (global on/off, required, grace days, required-since), `TwoFactorPolicy` (grace logic, falls back to config defaults if the settings table is not migrated yet), `EnforceTwoFactorGracePeriod` middleware, the Two-factor authentication page (permission `two_factor.manage`, superadmin only) and a grace-period banner. Filament's profile page and built-in app authentication provide enrolment and the login challenge. New permission `two_factor.manage` brings the grid to 65 permissions.
+
+## 10. M2 outcome (2026-11-12)
+
+Built: employee management (create, edit account, role, skills), private HR record and emergency contacts, salaries (append-only), the public Directory, deactivate and reactivate, 2FA reset, set-password link, locked-down Profile page, Activity Log viewer, daily salary activation job.
+
+- **Two separate surfaces for people (D-14, BR-26).** `DirectoryResource` is built on `App\Domain\People\Support\Directory::query()`, which selects only `id, name, surname, position, department_id, avatar_path` and eager-loads department and technologies. Every directory screen or future export must start from it. `EmployeeResource` is the management surface and is invisible to employee and assistant.
+- **Permissions by slice, not by role.** The Edit screen shows tabs by permission and saves each part through its own action, which re-checks its own permission: `UpdateEmployee` needs `employees.update` (superadmin), `UpdateHrRecord` needs `employees.update_hr_record` (superadmin, admin, hr), `RecordSalary` needs `salaries.manage`. An HR user who tampers with account fields changes nothing (tested).
+- **Actions record the actor.** Actions that take an `$actor` run inside `CauserResolver::withCauser`, so the audit trail names them even when called from a job or console.
+- **Bug found by tests:** `Eloquent\Collection::except()` filters by model primary key, not by the collection key; `SyncSkills` used it by technology id and deleted the wrong rows. Fixed with `reject()`.
+- **Money exponent (D-34).** `Money::fractionDigits()` is an ISO 4217 table. ICU gives the Albanian lek 0 decimals.
+- **Larastan:** `parseModelCastsMethod: true` in `phpstan.neon`, otherwise date, enum and array casts defined in `casts()` are typed as `string`.
+- **Set-password link.** `config/auth.php` password reset `expire` is 4320 minutes (72 hours), which also applies to ordinary resets. Password reset is enabled on the panel.
+- **Avatars** are stored on the `public` disk under `avatars/`; run `php artisan storage:link` on each environment.
+- **Phones.** Stored as E.164; national format (`0692123456`) is accepted only when the employee has a country (`propaganistas/laravel-phone`).
+- **Deferred:** W-01 step 4 (leave grant on the start date) arrives with M5; offboarding-driven deactivation and anonymisation arrive in M6 (the ban action here is reused).

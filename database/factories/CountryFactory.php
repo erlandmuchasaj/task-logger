@@ -15,12 +15,20 @@ class CountryFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->unique()->country(),
-            'code' => fake()->unique()->lexify('??'),
+            'name' => fake()->unique()->country().' '.fake()->unique()->numberBetween(1, 99999),
+            'code' => fake()->unique()->regexify('[B-Z][A-Z]'), // never AL: tests use albania() for a real region
             'prefix' => '+'.fake()->numberBetween(1, 999),
             'timezone' => 'Europe/Tirane',
             'currency_code' => 'EUR',
             'working_days' => [1, 2, 3, 4, 5],
         ];
+    }
+
+    /** A real region, so national-format phone numbers validate. */
+    public function albania(): static
+    {
+        return $this->state(fn () => [
+            'name' => 'Albania', 'code' => 'AL', 'prefix' => '+355', 'timezone' => 'Europe/Tirane', 'currency_code' => 'ALL',
+        ]);
     }
 }

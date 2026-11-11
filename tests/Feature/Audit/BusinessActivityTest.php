@@ -12,6 +12,10 @@ use App\Domain\MasterData\Models\Label;
 use App\Domain\MasterData\Models\LeaveType;
 use App\Domain\MasterData\Models\PaymentPlan;
 use App\Domain\MasterData\Models\Technology;
+use App\Domain\People\Enums\SalaryStatus;
+use App\Domain\People\Models\EmergencyContact;
+use App\Domain\People\Models\EmployeeProfile;
+use App\Domain\People\Models\Salary;
 use Spatie\Activitylog\Models\Activity;
 
 // model => [attribute to change, new value]
@@ -25,6 +29,9 @@ $models = [
     CountryLeavePolicy::class => ['days_per_year', 25],
     BankHoliday::class => ['name', 'Renamed'],
     User::class => ['position', 'Engineer'],
+    EmployeeProfile::class => ['address', '1 New Street'],
+    EmergencyContact::class => ['relationship', 'cousin'],
+    Salary::class => ['status', SalaryStatus::Superseded], // the only column a salary row may change (BR-29)
 ];
 
 it('BR-32 records create, update and delete with causer, subject and before/after values', function (string $model, string $attribute, mixed $new) {
@@ -42,6 +49,10 @@ it('BR-32 records create, update and delete with causer, subject and before/afte
         ->and($updated->attribute_changes)->toHaveKeys(['attributes', 'old'])
         ->and($updated->attribute_changes['attributes'])->toHaveKey($attribute)
         ->and($updated->attribute_changes['old'])->toHaveKey($attribute);
+
+    if ($model === Salary::class) {
+        return; // salary rows are never deleted (BR-29): there is no delete to audit
+    }
 
     $record->delete();
     $deleted = Activity::where('event', 'deleted')->where('subject_type', $record->getMorphClass())->where('subject_id', $record->id)->sole();

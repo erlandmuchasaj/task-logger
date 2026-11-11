@@ -83,6 +83,8 @@ Permissions are string constants in `App\Domain\Identity\Permissions` (`Permissi
 
 Notes carried from SPEC: assistant `logs.create_own` and task/log own permissions are `✔*` derived from the employee baseline (D-09). The grid note that the **Assistant has `add` only** is implemented as permissions `countries.create`, `departments.create`, `technologies.create` separate from `.manage` (`.manage` = update/delete) `[ASSUMED D-10]`.
 
+`UserPolicy` (People) abilities, all permission-only: `viewAny`/`view`/`viewHrRecord` (`employees.view_hr_record`), `create` (`employees.create`), `updateAccount` (`employees.update`), `updateHrRecord` (`employees.update_hr_record`), `viewSalaries`/`manageSalaries`, `deactivate` (`employees.deactivate`), `resetTwoFactor` (`two_factor.manage`). Users are never hard-deleted. A user has no extra right over their own HR record (D-14 default).
+
 ## 4. Field-level privacy (BR-26, D-14)
 
 - Directory queries select an explicit public column list (name, surname, position, department, skills, avatar). A `DirectoryUserResource` is the only shape served to users lacking `employees.view_hr_record`.

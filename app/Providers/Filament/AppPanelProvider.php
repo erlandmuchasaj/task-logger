@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers\Filament;
 
 use App\Domain\Identity\Support\TwoFactorPolicy;
+use App\Filament\Pages\Auth\EditProfile;
 use App\Http\Middleware\EnforceTwoFactorGracePeriod;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Http\Middleware\Authenticate;
@@ -34,7 +35,8 @@ class AppPanelProvider extends PanelProvider
             ->id('app')
             ->path('app')
             ->login()
-            ->profile()
+            ->passwordReset()
+            ->profile(EditProfile::class)
             // ADR-0005 / D-26: providers appear only while the superadmin has 2FA switched on.
             // "Required" is enforced by EnforceTwoFactorGracePeriod (after the grace period), not by
             // Filament's all-or-nothing isRequired flag.

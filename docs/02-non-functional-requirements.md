@@ -5,7 +5,7 @@ Turns SPEC §9 into measurable targets. Numbers are `[PROPOSED]` until the owner
 | ID | Area | Target | How measured |
 |---|---|---|---|
 | NFR-01 | Auth | Login via Filament; no self-registration route exists; password reset by email token; passwords hashed (bcrypt/argon per Laravel default) | Feature test: registration URL 404 |
-| NFR-02 | Auth | 2FA available for privileged roles (see ADR-0005) `[PROPOSED]` | Decision gate before M1 completion |
+| NFR-02 | Auth | TOTP 2FA, superadmin-controlled: global on/off, required-for-all, grace period default 14 days (ADR-0005, D-26) | Feature tests: login challenge, grace period, redirect |
 | NFR-03 | Authz | 100% of Filament resources, pages and actions guarded by a Policy or Gate on a permission; zero role-name checks in `app/` | CI grep + policy tests |
 | NFR-04 | Privacy | Zero private-profile fields reachable by users without `employees.view_hr_record` (BR-26) | Dedicated test over directory query, resource, export |
 | NFR-05 | Data protection | HTTPS only in non-local env; HSTS; receipts on private disk; evaluate encrypted casts for DOB, address, phone `[PROPOSED]` | Config test, ADR if encryption adopted |
@@ -29,7 +29,7 @@ Turns SPEC §9 into measurable targets. Numbers are `[PROPOSED]` until the owner
 
 ## Open questions for the owner
 
-1. Is 2FA required for superadmin/admin/hr, and is SSO ever expected?
+1. Is SSO ever expected?
 2. Confirm RPO/RTO and backup retention.
 3. Confirm the performance targets once headcount and volume are known (09-scalability.md).
 4. Is encryption of private profile columns at rest required?

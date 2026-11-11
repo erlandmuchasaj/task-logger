@@ -2,11 +2,214 @@
 
 declare(strict_types=1);
 
+use App\Domain\Identity\Enums\RoleName;
+use App\Domain\Identity\Permissions;
+
+// Employee baseline: every role inherits it (D-09).
+$employee = [
+    Permissions::EMPLOYEES_VIEW_DIRECTORY,
+
+    Permissions::CLIENTS_VIEW,
+
+    Permissions::PROJECTS_VIEW,
+
+    Permissions::TASKS_VIEW_OWN,
+    Permissions::TASKS_CHANGE_STATUS_OWN,
+
+    Permissions::LOGS_VIEW_OWN,
+    Permissions::LOGS_CREATE_OWN,
+    Permissions::LOGS_UPDATE_OWN,
+    Permissions::LOGS_DELETE_OWN,
+
+    Permissions::LEAVE_REQUESTS_CREATE_OWN,
+    Permissions::LEAVE_REQUESTS_VIEW_OWN,
+
+    Permissions::BANK_HOLIDAYS_VIEW,
+];
+
 use Spatie\Permission\DefaultTeamResolver;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 return [
+    /**
+     * Role => permissions. Permissions come first; roles are named bundles (SPEC 4.1).
+     * Superadmin holds every permission explicitly (D-10: no Gate::before bypass).
+     * Every role inherits the employee baseline (D-09). Unspecified means denied.
+     * performances.view is not granted to admin: the direct-manager read is a Policy rule (D-21).
+     */
+    'roles' => [
+        RoleName::Superadmin->value => [
+            Permissions::EMPLOYEES_VIEW_DIRECTORY,
+            Permissions::EMPLOYEES_CREATE,
+            Permissions::EMPLOYEES_UPDATE,
+            Permissions::EMPLOYEES_DEACTIVATE,
+            Permissions::EMPLOYEES_VIEW_HR_RECORD,
+            Permissions::EMPLOYEES_UPDATE_HR_RECORD,
+
+            Permissions::SALARIES_VIEW,
+            Permissions::SALARIES_MANAGE,
+
+            Permissions::OFFBOARDINGS_VIEW,
+            Permissions::OFFBOARDINGS_MANAGE,
+
+            Permissions::PERFORMANCES_CREATE,
+            Permissions::PERFORMANCES_VIEW,
+
+            Permissions::CLIENTS_VIEW,
+            Permissions::CLIENTS_CREATE,
+            Permissions::CLIENTS_UPDATE,
+            Permissions::CLIENTS_ACTIVATE,
+            Permissions::CLIENTS_DEACTIVATE,
+            Permissions::CLIENTS_EXPORT,
+            Permissions::CLIENTS_VIEW_RATES,
+
+            Permissions::PAYMENT_PLANS_MANAGE,
+
+            Permissions::PROJECTS_VIEW,
+            Permissions::PROJECTS_CREATE,
+            Permissions::PROJECTS_UPDATE,
+            Permissions::PROJECTS_DELETE,
+            Permissions::PROJECTS_CHANGE_STATUS,
+            Permissions::PROJECTS_EXPORT,
+            Permissions::PROJECTS_MANAGE_MEMBERS,
+
+            Permissions::FIXED_COSTS_MANAGE,
+
+            Permissions::TASKS_VIEW_ANY,
+            Permissions::TASKS_VIEW_OWN,
+            Permissions::TASKS_CREATE,
+            Permissions::TASKS_UPDATE,
+            Permissions::TASKS_DELETE,
+            Permissions::TASKS_CHANGE_STATUS,
+            Permissions::TASKS_CHANGE_STATUS_OWN,
+            Permissions::TASKS_ASSIGN,
+            Permissions::TASKS_EXPORT,
+
+            Permissions::LABELS_MANAGE,
+
+            Permissions::LOGS_VIEW_ANY,
+            Permissions::LOGS_VIEW_OWN,
+            Permissions::LOGS_CREATE_OWN,
+            Permissions::LOGS_UPDATE_OWN,
+            Permissions::LOGS_DELETE_OWN,
+            Permissions::LOGS_EXPORT,
+            Permissions::LOGS_EDIT_LOCKED,
+
+            Permissions::TIMESHEETS_LOCK,
+
+            Permissions::LEAVE_REQUESTS_CREATE_OWN,
+            Permissions::LEAVE_REQUESTS_VIEW_OWN,
+            Permissions::LEAVE_REQUESTS_VIEW_ANY,
+            Permissions::LEAVE_REQUESTS_APPROVE,
+            Permissions::LEAVE_REQUESTS_APPROVE_DIRECT_REPORTS,
+            Permissions::LEAVE_REQUESTS_CREATE_FOR_OTHERS,
+
+            Permissions::LEAVE_TYPES_MANAGE,
+
+            Permissions::COUNTRY_LEAVE_POLICIES_MANAGE,
+
+            Permissions::BANK_HOLIDAYS_MANAGE,
+            Permissions::BANK_HOLIDAYS_VIEW,
+
+            Permissions::COUNTRIES_CREATE,
+            Permissions::COUNTRIES_MANAGE,
+
+            Permissions::DEPARTMENTS_CREATE,
+            Permissions::DEPARTMENTS_MANAGE,
+
+            Permissions::TECHNOLOGIES_CREATE,
+            Permissions::TECHNOLOGIES_MANAGE,
+
+            Permissions::ACTIVITY_LOGS_VIEW,
+
+            Permissions::SETTINGS_MANAGE,
+
+            Permissions::TWO_FACTOR_MANAGE,
+        ],
+        RoleName::Admin->value => [
+            ...$employee,
+
+            Permissions::EMPLOYEES_VIEW_HR_RECORD,
+            Permissions::EMPLOYEES_UPDATE_HR_RECORD,
+
+            Permissions::SALARIES_VIEW,
+            Permissions::SALARIES_MANAGE,
+
+            Permissions::OFFBOARDINGS_VIEW,
+            Permissions::OFFBOARDINGS_MANAGE,
+
+            Permissions::PERFORMANCES_CREATE,
+
+            Permissions::CLIENTS_CREATE,
+            Permissions::CLIENTS_UPDATE,
+            Permissions::CLIENTS_ACTIVATE,
+            Permissions::CLIENTS_DEACTIVATE,
+            Permissions::CLIENTS_VIEW_RATES,
+
+            Permissions::PROJECTS_CREATE,
+            Permissions::PROJECTS_UPDATE,
+            Permissions::PROJECTS_DELETE,
+            Permissions::PROJECTS_CHANGE_STATUS,
+            Permissions::PROJECTS_MANAGE_MEMBERS,
+
+            Permissions::TASKS_VIEW_ANY,
+            Permissions::TASKS_CREATE,
+            Permissions::TASKS_UPDATE,
+            Permissions::TASKS_DELETE,
+            Permissions::TASKS_CHANGE_STATUS,
+            Permissions::TASKS_ASSIGN,
+
+            Permissions::LOGS_VIEW_ANY,
+            Permissions::LOGS_EDIT_LOCKED,
+
+            Permissions::LEAVE_REQUESTS_APPROVE_DIRECT_REPORTS,
+
+            Permissions::SETTINGS_MANAGE,
+        ],
+        RoleName::Hr->value => [
+            ...$employee,
+
+            Permissions::EMPLOYEES_VIEW_HR_RECORD,
+            Permissions::EMPLOYEES_UPDATE_HR_RECORD,
+
+            Permissions::SALARIES_VIEW,
+            Permissions::SALARIES_MANAGE,
+
+            Permissions::OFFBOARDINGS_VIEW,
+            Permissions::OFFBOARDINGS_MANAGE,
+
+            Permissions::PERFORMANCES_VIEW,
+
+            Permissions::LEAVE_REQUESTS_VIEW_ANY,
+            Permissions::LEAVE_REQUESTS_APPROVE,
+            Permissions::LEAVE_REQUESTS_APPROVE_DIRECT_REPORTS,
+
+            Permissions::BANK_HOLIDAYS_MANAGE,
+
+            Permissions::SETTINGS_MANAGE,
+        ],
+        RoleName::Assistant->value => [
+            ...$employee,
+
+            Permissions::CLIENTS_EXPORT,
+
+            Permissions::PROJECTS_EXPORT,
+
+            Permissions::TASKS_VIEW_ANY,
+            Permissions::TASKS_EXPORT,
+
+            Permissions::LOGS_VIEW_ANY,
+            Permissions::LOGS_EXPORT,
+
+            Permissions::COUNTRIES_CREATE,
+
+            Permissions::DEPARTMENTS_CREATE,
+
+            Permissions::TECHNOLOGIES_CREATE,
+        ],
+        RoleName::Employee->value => $employee,
+    ],
 
     'models' => [
 

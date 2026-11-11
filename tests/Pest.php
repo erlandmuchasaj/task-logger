@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Domain\Identity\Enums\RoleName;
+use App\Domain\Identity\Models\User;
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -18,6 +21,7 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    ->beforeEach(fn () => $this->seed(RolesAndPermissionsSeeder::class))
     ->in('Feature');
 
 pest()->extend(TestCase::class)->in('Architecture');
@@ -51,4 +55,10 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+/** A user holding exactly one role (D-09). Feature tests seed roles and permissions first. */
+function userWithRole(RoleName $role): User
+{
+    return User::factory()->withRole($role)->create();
 }

@@ -252,10 +252,10 @@ Each entry: what the source says, the default this spec implements, and whether 
 - Default: no API or MCP in v1. Actions and DTOs stay transport-agnostic.
 - Confirm: yes.
 
-**D-26 — Authentication (ADR-0005).**
+**D-26 — Authentication and two-factor (ADR-0005). Decided by the owner.**
 
-- Default: email and password, no self-registration, password reset. TOTP 2FA recommended for superadmin, admin and hr. SSO out of v1.
-- Confirm: yes.
+- Default: email and password, no self-registration, password reset. TOTP two-factor authentication through an authenticator app. The superadmin switches it on or off globally, can require it for all users, and sets a grace period (default 14 days, in config, changeable on the settings page). After the grace period users without 2FA must enrol before using the app. New permission `two_factor.manage`, superadmin only. SSO out of v1.
+- Confirm: no. Only the grace-period start rule is assumed (from when the requirement is switched on, or from the user's creation if later).
 
 **D-27 — Navigation (ADR-0006).**
 
@@ -287,7 +287,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 6. D-10: labels and whether the assistant can edit master data.
 7. D-22: headcount and expected volume.
 8. D-24, D-25: invoicing, multiple assignees and MCP (conflicts with IDEA.md).
-9. D-26 and D-28: 2FA, and whether employee-role managers can approve leave.
+9. D-28: whether employee-role managers can approve leave.
 
 Answered by the owner and already applied: D-04 (budget includes fixed costs), D-07 (both manager and HR approve), D-08 (weekend holidays are handled manually by HR), D-10 (hr, admin and superadmin manage the HR record, salaries, offboardings, expenses and settings; assignees change their own task status), D-15 (2-month retention).
 
@@ -425,6 +425,7 @@ Legend: ✔ stated in the source or by the owner after review. ✔\* derived or 
 | expenses.\* `[OPTIONAL]` | ✔ | ✔ | ✔ | — | — |
 | activity\_logs.view | ✔\* | — | — | — | — |
 | settings.manage | ✔ | ✔ | ✔ | — | — |
+| two\_factor.manage (D-26) | ✔ | — | — | — | — |
 
 ## 5. Data model
 

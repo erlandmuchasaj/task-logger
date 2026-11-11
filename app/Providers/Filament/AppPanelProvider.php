@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Providers\Filament;
 
+use App\Domain\Identity\Support\TwoFactorPolicy;
+use App\Http\Middleware\EnforceTwoFactorGracePeriod;
+use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -12,6 +15,7 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
 use Filament\Widgets\FilamentInfoWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -30,6 +34,16 @@ class AppPanelProvider extends PanelProvider
             ->id('app')
             ->path('app')
             ->login()
+            ->profile()
+            // ADR-0005 / D-26: providers appear only while the superadmin has 2FA switched on.
+            // "Required" is enforced by EnforceTwoFactorGracePeriod (after the grace period), not by
+            // Filament's all-or-nothing isRequired flag.
+            ->multiFactorAuthentication(
+                fn (): array => app(TwoFactorPolicy::class)->isEnabled()
+                    ? [AppAuthentication::make()->recoverable()->brandName((string) config('app.name'))]
+                    : [],
+            )
+            ->renderHook(PanelsRenderHook::CONTENT_START, fn () => view('filament.hooks.two-factor-banner'))
             ->colors([
                 'primary' => Color::Amber,
             ])
@@ -56,6 +70,7 @@ class AppPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                EnforceTwoFactorGracePeriod::class,
             ]);
     }
 }

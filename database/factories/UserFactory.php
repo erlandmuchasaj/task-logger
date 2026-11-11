@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
-use App\Models\User;
+use App\Domain\Identity\Actions\AssignUserRole;
+use App\Domain\Identity\Enums\RoleName;
+use App\Domain\Identity\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -27,7 +29,8 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
+            'name' => fake()->firstName(),
+            'surname' => fake()->lastName(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
@@ -43,5 +46,11 @@ class UserFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
         ]);
+    }
+
+    /** Requires RolesAndPermissionsSeeder to have run. */
+    public function withRole(RoleName $role): static
+    {
+        return $this->afterCreating(fn (User $user) => app(AssignUserRole::class)->handle($user, $role));
     }
 }

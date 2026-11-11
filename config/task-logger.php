@@ -23,4 +23,18 @@ return [
     // D-01: technology level scale.
     'technology_level_min' => 1,
     'technology_level_max' => 10,
+
+    // ADR-0005 / D-26: two-factor authentication (TOTP). These are the seed defaults; the superadmin
+    // changes them live on the Two-factor settings page (security settings group).
+    'two_factor' => [
+        'enabled' => true,          // global switch: users may enrol in 2FA
+        'required' => false,        // when true, every user must enrol after the grace period
+        'grace_days' => 14,         // days users have to enrol once 2FA becomes required
+    ],
+
+    // Optional first superadmin created by SuperadminSeeder (local/bootstrap use).
+    'superadmin' => [
+        'email' => env('SUPERADMIN_EMAIL'),
+        'password' => env('SUPERADMIN_PASSWORD'),
+    ],
 ];

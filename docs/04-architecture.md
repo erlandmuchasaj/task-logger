@@ -98,3 +98,23 @@ Not in SPEC §2.3 and therefore **not** installed: Shield, medialibrary, backup,
 Pinned by `composer.lock`: laravel/framework 13.42.0, filament/filament 5.11.2, livewire 4.4.8, spatie/laravel-permission 8.5.0, activitylog 5.1.4, sluggable 4.0.6, settings 3.10.1, cybercog/laravel-ban 4.11.0, propaganistas/laravel-phone 6.1.0. Dev: larastan 3.15.0 (phpstan 2.3.5), pest 5.3.5 (phpunit 13.4.5), pint 1.32.3, debugbar 4.4.5, ide-helper 3.8.0. `composer.json` requires PHP ^8.4. `composer audit` is clean.
 
 Deviations from the plan: panel id/path is `app` (`/app`, `AppPanelProvider`); skeleton's PHPUnit 12 pin was replaced because Pest 5 requires PHPUnit 13; the Laravel skeleton's `AGENTS.md`/`CLAUDE.md` boilerplate was not kept; Pint enforces `declare_strict_types` and rewrote the published vendor migrations accordingly. Not installed: spatie/laravel-navigation (ADR-0006), lab404/laravel-impersonate (`[OPTIONAL]`, M6). Tests run against MySQL 8.4 (`task_logger_testing`), not SQLite.
+
+## 9. M1 outcome (2026-11-11)
+
+Built: permission constants (`App\Domain\Identity\Permissions`), the role map in `config/permission.php` validated by `PermissionCatalog`, and the seeder, five roles, `AssignUserRole` (D-09), `Money` value object (BR-12), master data (countries with leave policies, leave types, departments, technologies, payment plans, labels, bank holidays), settings (`PrivacySettings`, `LeaveSettings`), Filament resources and a Settings page, audit on every M1 model.
+
+Deviations and findings:
+- **Users table pulled forward from M2.** Departments, countries, roles and the audit tests all need `users`. The full SPEC 5.2 operational columns exist; `country`, `department`, `employment_type` and `start_date` are nullable at the database level so the first superadmin can be seeded, and `CreateUser` (M2) requires them. Profiles, contacts, salaries and skills stay in M2. The model moved to `App\Domain\Identity\Models\User`.
+- **Activitylog 5 stores before/after values in `attribute_changes`, not `properties`.** BR-07 (before/after on locked-month edits) and the BR-28 scrub must target `attribute_changes` as well as `properties`. SPEC wording ("properties") is read that way.
+- **Permissions deferred:** `employees.impersonate` (M6, optional) and `expenses.*` (M8, optional; SPEC does not name the individual actions). The grid test asserts the seeded set equals the catalog, so adding them later is a deliberate change.
+- **Assistant "add" (D-10):** implemented as separate `countries.create`, `departments.create`, `technologies.create` permissions; `.manage` means update and delete. `[ASSUMED]` the assistant may also list those rows (so it can avoid duplicates); nothing else is readable.
+- **Leave policies are edited inside the Country form** (repeater, visible only with `country_leave_policies.manage`), as SPEC section 8 says "Countries (with leave policies)". There is no standalone policy resource; `CountryLeavePolicyPolicy` is registered for later use.
+- **No country or policy seed data.** SPEC names no day counts; the superadmin enters them. The superadmin account is created only when `SUPERADMIN_EMAIL` and `SUPERADMIN_PASSWORD` are set.
+- **Spatie permission hooks in via a Gate `before` callback** that only grants permissions the user holds. It is not a superadmin bypass; the grid test proves this by revoking a permission from the superadmin role and checking it is denied.
+- **2FA (ADR-0005):** Filament 5 ships app (TOTP) and email multi-factor authentication, so the proposal is feasible. Not enabled: waiting for D-26.
+- `Model::preventLazyLoading()` is on outside production (NFR-09).
+
+### M1 addendum (owner changes after the first M1 report)
+
+- **Permissions are class constants** (`Permissions::LABELS_MANAGE`), modelled on the owner's other project: one `Permissions` class, the role map in `config/permission.php`. Roles stay a `RoleName` enum because they are only assigned, never checked. Policies, resources and tests use the constants; an architecture test fails on any permission string literal in `app/`. A role entry naming a non-constant throws.
+- **2FA (ADR-0005, D-26).** New `SecuritySettings` (global on/off, required, grace days, required-since), `TwoFactorPolicy` (grace logic, falls back to config defaults if the settings table is not migrated yet), `EnforceTwoFactorGracePeriod` middleware, the Two-factor authentication page (permission `two_factor.manage`, superadmin only) and a grace-period banner. Filament's profile page and built-in app authentication provide enrolment and the login challenge. New permission `two_factor.manage` brings the grid to 65 permissions.

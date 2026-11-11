@@ -14,6 +14,11 @@ Numbered FR-xx, grouped by module. Each links to business rules (BR), workflows 
 **FR-03 Deactivate / ban.** Perm `employees.deactivate` (superadmin). Uses `cybercog/laravel-ban` (D-20).
 - AC: banned user cannot log in; history is retained.
 
+**FR-04a Two-factor authentication (ADR-0005, D-26).** Perm `two_factor.manage` (superadmin).
+- AC: with 2FA on, a user who enrolled is not signed in by password alone. With 2FA off globally, nobody is challenged.
+- AC: when the superadmin requires 2FA, users without it get the grace period (default 14 days, configurable), then every panel page redirects them to their Profile page. Enrolled users are never forced.
+- AC: the change is audited; the secret is encrypted, hidden and never logged.
+
 **FR-04 Impersonation `[OPTIONAL]`.** Perm `employees.impersonate`, superadmin only, activity-logged.
 
 ## 2. Master data (M1)

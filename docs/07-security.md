@@ -4,7 +4,7 @@
 
 - Filament login (email + password). No self-registration; only superadmin creates users (FR-01). New users receive a set-password link `[ASSUMED]` (expiry 72 h `[PROPOSED]`). Password reset via Laravel broker.
 - Banned/deactivated users (`cybercog/laravel-ban`) cannot authenticate; their sessions are invalidated on ban.
-- 2FA and SSO undecided → ADR-0005: recommend TOTP 2FA for superadmin, admin, hr, assessed in M1; SSO out of v1.
+- 2FA (ADR-0005, D-26): TOTP authenticator app, controlled by the superadmin on the Two-factor authentication page. Global on/off, optional "required for all users", and a grace period (default 14 days, `config/task-logger.php`, editable on the page). After the grace period, users without 2FA are redirected to their Profile page until they enrol. Secret encrypted at rest, hidden, never logged. SSO out of v1.
 - Rate-limit login (Laravel default throttle).
 
 ## 2. Authorisation
@@ -25,6 +25,8 @@ Relationship rules sit **inside Policies on top of** the permission check:
 | Rate visibility | field-level: `clients.view_rates` | D-05 |
 
 ## 3. Permission catalog and role grid (seeder source)
+
+Permissions are string constants in `App\Domain\Identity\Permissions` (`Permissions::LABELS_MANAGE = 'labels.manage'`); code uses the constants, never literals (an architecture test enforces it). The role to permission map is `config/permission.php` (`roles`), with the employee baseline shared by every role. `PermissionCatalog` validates the map against the constants and feeds the seeder.
 
 `Y` = granted; `own`/`mgr` = relationship-scoped via Policy; blank = denied; `add` = create only. SA superadmin, AD admin, HR hr, AS assistant, EM employee. Source: SPEC §4.4 (unchanged).
 
@@ -77,6 +79,7 @@ Relationship rules sit **inside Policies on top of** the permission check:
 | expenses.* `[OPTIONAL]` | Y | Y | Y | | |
 | activity_logs.view | Y | | | | |
 | settings.manage | Y | Y | Y | | |
+| two_factor.manage | Y | | | | |
 
 Notes carried from SPEC: assistant `logs.create_own` and task/log own permissions are `✔*` derived from the employee baseline (D-09). The grid note that the **Assistant has `add` only** is implemented as permissions `countries.create`, `departments.create`, `technologies.create` separate from `.manage` (`.manage` = update/delete) `[ASSUMED D-10]`.
 
@@ -93,11 +96,11 @@ HTTPS only, secure cookies, HSTS in non-local. Receipts on private disk with sig
 
 ## 6. Auditing (BR-32)
 
-`spatie/laravel-activitylog` on every business model; log attributes (before/after), causer, subject. Edits to logs in a locked month always store before/after (BR-07). `activity_logs.view` is superadmin only. Activity log is **not** pruned. Properties may hold personal data → scrubbed on anonymisation.
+`spatie/laravel-activitylog` (v5) on every business model; before/after values are stored in the `attribute_changes` column (not `properties`), with causer and subject. Edits to logs in a locked month always store before/after (BR-07). `activity_logs.view` is superadmin only. Activity log is **not** pruned. Properties may hold personal data → scrubbed on anonymisation.
 
 ## 7. Retention and anonymisation (BR-28, D-15)
 
-Trigger: `offboarding.end_date + anonymize_after_months` (default 2). Replace name with `Former employee #id`, email with `anonymized-{id}@invalid.example`, clear profile, emergency contacts, avatar, metadata; scrub personal values in activity-log properties; set `anonymized_at`. Keep ids, logs, leave, salary, performance rows. Job is idempotent.
+Trigger: `offboarding.end_date + anonymize_after_months` (default 2). Replace name with `Former employee #id`, email with `anonymized-{id}@invalid.example`, clear profile, emergency contacts, avatar, metadata; scrub personal values in activity-log `attribute_changes` and `properties`; set `anonymized_at`. Keep ids, logs, leave, salary, performance rows. Job is idempotent.
 
 ## 8. Threat checklist (reviewed again in M7)
 
@@ -105,7 +108,7 @@ IDOR on Filament resources (Policy on every model, scoped queries), mass assignm
 
 ## Open questions for the owner
 
-1. Are 2FA and/or SSO required? (ADR-0005)
+1. Is the grace period start rule right: from when the requirement is switched on, or the user's creation if later? (ADR-0005)
 2. May employees read their own HR record and salary? (D-14, D-10)
 3. Employee-role users who manage others: can they approve the manager stage? (ADR-0007)
 4. Encrypted-at-rest columns needed?

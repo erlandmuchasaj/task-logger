@@ -60,6 +60,20 @@ final class EmployeeForm
         return $schema->components([Tabs::make('Employee')->tabs($tabs)->columnSpanFull()]);
     }
 
+    /**
+     * Dropdown options keyed by their own text (the columns are free strings, D-19), plus the current value when it is
+     * not in the list so editing an older record never loses it.
+     *
+     * @param  array<int, mixed>  $list
+     * @return array<string, string>
+     */
+    private static function choices(array $list, ?string $current): array
+    {
+        $options = array_combine(array_map(strval(...), $list), array_map(strval(...), $list));
+
+        return filled($current) && ! isset($options[$current]) ? [$current => $current] + $options : $options;
+    }
+
     /** @return array<int, mixed> */
     private static function account(?User $record, bool $creating): array
     {
@@ -134,7 +148,8 @@ final class EmployeeForm
                     Textarea::make('profile.address')->label('Address')->columnSpanFull(),
                     TextInput::make('profile.university')->label('University'),
                     TextInput::make('profile.field_of_study')->label('Field of study'),
-                    TextInput::make('profile.source_of_hire')->label('Source of hire'),
+                    Select::make('profile.source_of_hire')->label('Source of hire')->native(false)->placeholder('Choose')
+                        ->options(fn (?string $state): array => self::choices((array) config('task-logger.source_of_hire_options'), $state)),
                     Toggle::make('profile.has_health_insurance')->label('Has health insurance'),
                     Textarea::make('profile.description')->label('Description')->columnSpanFull(),
                     KeyValue::make('profile.metadata')->label('Metadata')->columnSpanFull(),
@@ -156,7 +171,8 @@ final class EmployeeForm
                                 $fail('Enter a valid phone number with the country code.');
                             }
                         }),
-                    TextInput::make('relationship')->required()->placeholder('spouse, brother, sister...'),
+                    Select::make('relationship')->required()->native(false)
+                        ->options(fn (?string $state): array => self::choices((array) config('task-logger.emergency_contact_relationships'), $state)),
                 ]),
         ];
     }

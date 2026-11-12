@@ -20,6 +20,16 @@ return [
     // D-42: longest span (in calendar days) one leave request may cover; a guard against typos such as a wrong year.
     'leave_max_request_days' => 366,
 
+    // D-48: choices offered in the HR form. The columns stay free text (D-19): an old or imported value outside
+    // these lists is still shown and kept. Change the lists here.
+    'source_of_hire_options' => [
+        'Referral', 'LinkedIn', 'Company website', 'Job board', 'Recruitment agency', 'University or campus',
+        'Social media', 'Walk-in', 'Internal transfer', 'Other',
+    ],
+    'emergency_contact_relationships' => [
+        'Spouse', 'Partner', 'Mother', 'Father', 'Brother', 'Sister', 'Son', 'Daughter', 'Grandparent', 'Friend', 'Other',
+    ],
+
     // BR-04: maximum minutes one user may log per calendar date.
     'max_log_minutes_per_day' => 24 * 60,
 

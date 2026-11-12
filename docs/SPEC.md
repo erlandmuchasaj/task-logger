@@ -378,6 +378,12 @@ Each entry: what the source says, the default this spec implements, and whether 
 - Default: the superadmin (`employees.impersonate`) can act as another user from the Employees list, using `lab404/laravel-impersonate` 1.7.8 (Laravel 13 compatible). Not allowed: yourself, a deactivated or anonymised account, another root user (`system.root`), or nesting. Starting and stopping are audited with the real person as causer; every audited write while impersonating carries `impersonator_id` (D-38). A banner with a POST-only stop button shows while impersonating; the package's own GET routes are not registered, so an impersonation can only start from the Filament action. While impersonating, the Profile page (password and two-factor setup of the person being acted as) is closed. The impersonated user's own permissions apply; root access does not carry over.
 - Confirm: no.
 
+**D-48 — Dropdowns for source of hire and emergency-contact relationship. Requested by the owner (2026-11-12).**
+
+- Source: D-19 keeps both as free strings; the owner wants dropdown lists in the Employees form.
+- Default: the form shows a dropdown for each, filled from `task-logger.source_of_hire_options` and `task-logger.emergency_contact_relationships` (editable in config). The columns and the domain validation stay free text, so no migration, import or old value breaks: a stored value that is not in the list is still shown and kept when the record is edited. Seeded lists: Referral, LinkedIn, Company website, Job board, Recruitment agency, University or campus, Social media, Walk-in, Internal transfer, Other; Spouse, Partner, Mother, Father, Brother, Sister, Son, Daughter, Grandparent, Friend, Other.
+- Confirm: yes. Should the lists be managed on screen like labels, and should the choice be limited to the list in the database too?
+
 ### 3.2 Confirm before coding
 
 1. D-14 and D-05: what employees and assistants may see, and whether an employee sees their own HR record. HR and admin access is now set by the owner.
@@ -392,6 +398,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 10. D-31 and D-33: the salary status rules, and whether employees may edit any of their own data.
 11. D-39: future dates, closed tasks, and whether admin may edit others' logs in open months.
 12. D-35 and D-36: what is immutable after creation, and the budget rule when no rate exists on the start date.
+14. D-48: whether the two dropdown lists need an admin screen, and whether values outside the list must be refused.
 13. D-46: whether free text written about a former employee (leave reasons, descriptions, review notes) must also be scrubbed.
 
 Answered by the owner and already applied: D-04 (budget includes fixed costs), D-07 (both manager and HR approve), D-08 (weekend holidays are handled manually by HR), D-10 (hr, admin and superadmin manage the HR record, salaries, offboardings, expenses and settings; assignees change their own task status), D-15 (2-month retention), D-44 (HR cancels approved leave; colleagues see each other's leave on the calendar).

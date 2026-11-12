@@ -9,6 +9,8 @@ use App\Domain\People\Models\EmergencyContact;
 use App\Domain\People\Models\EmployeeProfile;
 use App\Domain\People\Models\Salary;
 use App\Domain\People\Models\UserSkill;
+use App\Filament\Resources\Employees\Pages\EditEmployee;
+use Filament\Forms\Components\Select;
 use Illuminate\Console\Scheduling\Schedule;
 
 /** Several employees with every relation filled, so a lazy-loaded N+1 would throw (NFR-09). */
@@ -47,3 +49,18 @@ it('BR-29 the daily job that activates due salaries is scheduled', function () {
 
     expect($events)->toContain('salaries.activate-due');
 });
+
+it('D-48 source of hire and the contact relationship are dropdowns that keep an older free-text value', function () {
+    $employee = userWithRole(RoleName::Employee);
+    EmployeeProfile::factory()->create(['user_id' => $employee->id, 'source_of_hire' => 'Old fair']);
+    EmergencyContact::factory()->create(['user_id' => $employee->id, 'relationship' => 'sister']);
+
+    $this->actingAs(userWithRole(RoleName::Superadmin));
+
+    Livewire\Livewire::test(EditEmployee::class, ['record' => $employee->getKey()])
+        ->assertFormFieldExists('profile.source_of_hire', fn (Select $field): bool => $field->getOptions()['Referral'] === 'Referral'
+            && $field->getOptions()['Old fair'] === 'Old fair')
+        ->assertSee('Grandparent')   // an option of the relationship dropdown
+        ->assertFormSet(fn (array $state): bool => collect($state['contacts'])->first()['relationship'] === 'sister')
+        ->assertFormSet(['profile.source_of_hire' => 'Old fair']);
+})->group('D-48');

@@ -360,6 +360,18 @@ Each entry: what the source says, the default this spec implements, and whether 
 - Default: a person cancels the requests they made for themselves while pending or approved (not taken). HR (`leave_requests.approve`) and the superadmin (`leave_requests.create_for_others`) cancel any request, including an approved one or a direct day off; a cancelled approved request writes a reversal. A direct manager sees their reports' requests through the `manager_id` relationship plus `leave_requests.approve_direct_reports` (D-28); `view_any` is superadmin and HR as in the grid. The Leave Calendar shows everybody's approved and taken leave to everybody (colleagues see each other's leave) and pending requests only to those who may see the request; holidays are the viewer's own country's (every country for people who see all leave).
 - Confirm: no.
 
+**D-45 — Offboarding transitions and review immutability `[ASSUMED]`.**
+
+- Source: D-19 lists the offboarding statuses `pending`, `in_progress`, `completed`, `cancelled`; W-10 says completion deactivates the login; BR-27 restricts reading reviews. No transition rules or edit rules are given.
+- Default: `pending` moves to `in_progress`, `completed` or `cancelled`; `in_progress` to `completed` or `cancelled`; `completed` and `cancelled` are final and the facts of a final offboarding cannot be edited. An offboarding may be created `pending`, `in_progress` or `completed` (completing at creation deactivates the login straight away) but not `cancelled`. Completing is refused for yourself and for the last superadmin, like deactivating (D-32); it is atomic with the ban. Offboardings are cancelled, never deleted. Performance reviews are never edited or deleted. Root access does not change either rule (RootAccess `POLICY_ONLY`). A review's date has no limit and the reviewer may be anyone holding `performances.create`.
+- Confirm: no.
+
+**D-46 — What anonymisation does exactly `[ASSUMED]`.**
+
+- Source: D-15 and BR-28 (replace name and email, clear profile, contacts, avatar and metadata, scrub the activity log, keep logs, leave, salary and performance rows).
+- Default: the clock starts on a `completed` offboarding only: `end_date` plus `anonymize_after_months` (months added without overflow, compared with today in the person's country timezone). Someone whose login was reactivated is never anonymised. The user becomes `Former employee #id` with no surname, email `anonymized-{id}@invalid.example`, a random password, no avatar (the file is deleted), no 2FA secrets, no sessions and no password-reset tokens. The `employee_profiles` row is kept with every field emptied; emergency contacts are deleted. The position, department, manager, skills and country stay (they are not personal data and keep reports meaningful). In the activity log the entries about the user, their profile and their contacts keep their place but lose their before/after values and properties, and the IP address and user agent are cleared on entries the person caused. Writing this happens without model events so the old values are not logged again; one `anonymized` entry is added. The job is idempotent and runs daily.
+- Confirm: yes. Should free-text fields written by others about the person (leave reasons, task and log descriptions, review notes) be scrubbed too? The default keeps them: they are business records, and the rows are kept by BR-28.
+
 ### 3.2 Confirm before coding
 
 1. D-14 and D-05: what employees and assistants may see, and whether an employee sees their own HR record. HR and admin access is now set by the owner.
@@ -374,6 +386,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 10. D-31 and D-33: the salary status rules, and whether employees may edit any of their own data.
 11. D-39: future dates, closed tasks, and whether admin may edit others' logs in open months.
 12. D-35 and D-36: what is immutable after creation, and the budget rule when no rate exists on the start date.
+13. D-46: whether free text written about a former employee (leave reasons, descriptions, review notes) must also be scrubbed.
 
 Answered by the owner and already applied: D-04 (budget includes fixed costs), D-07 (both manager and HR approve), D-08 (weekend holidays are handled manually by HR), D-10 (hr, admin and superadmin manage the HR record, salaries, offboardings, expenses and settings; assignees change their own task status), D-15 (2-month retention), D-44 (HR cancels approved leave; colleagues see each other's leave on the calendar).
 

@@ -39,7 +39,11 @@ use App\Domain\MasterData\Policies\LabelPolicy;
 use App\Domain\MasterData\Policies\LeaveTypePolicy;
 use App\Domain\MasterData\Policies\PaymentPlanPolicy;
 use App\Domain\MasterData\Policies\TechnologyPolicy;
+use App\Domain\People\Models\Offboarding;
+use App\Domain\People\Models\Performance;
 use App\Domain\People\Models\Salary;
+use App\Domain\People\Policies\OffboardingPolicy;
+use App\Domain\People\Policies\PerformancePolicy;
 use App\Domain\People\Policies\SalaryPolicy;
 use App\Domain\People\Policies\UserPolicy;
 use App\Domain\Work\Models\Log;
@@ -99,6 +103,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Export::class, ExportPolicy::class);
         Gate::policy(TimesheetLock::class, TimesheetLockPolicy::class);
         Gate::policy(LeaveRequest::class, LeaveRequestPolicy::class);
+        Gate::policy(Performance::class, PerformancePolicy::class);
+        Gate::policy(Offboarding::class, OffboardingPolicy::class);
 
         // Catch N+1 queries early outside production (NFR-09).
         Model::preventLazyLoading(! $this->app->isProduction());

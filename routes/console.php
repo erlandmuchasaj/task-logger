@@ -7,6 +7,7 @@ use App\Domain\Leave\Actions\ExpireCarryOver;
 use App\Domain\Leave\Actions\GrantAnnualLeave;
 use App\Domain\Leave\Actions\MarkLeaveTaken;
 use App\Domain\People\Actions\ActivateDueSalaries;
+use App\Domain\People\Actions\AnonymizeDueEmployees;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -40,4 +41,10 @@ Schedule::call(fn () => app(ExpireCarryOver::class)->handle())
 Schedule::call(fn () => app(MarkLeaveTaken::class)->handle())
     ->name('leave.mark-taken')
     ->hourly()
+    ->withoutOverlapping();
+
+// BR-28 / NFR-07: anonymise people whose completed offboarding is past its retention period. Idempotent.
+Schedule::call(fn () => app(AnonymizeDueEmployees::class)->handle())
+    ->name('people.anonymize')
+    ->daily()
     ->withoutOverlapping();

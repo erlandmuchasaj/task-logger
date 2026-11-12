@@ -8,6 +8,8 @@ use App\Domain\Clients\Models\Customer;
 use App\Domain\Exports\Models\Export;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Permissions;
+use App\Domain\People\Models\Offboarding;
+use App\Domain\People\Models\Performance;
 use App\Domain\People\Models\Salary;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Spatie\Activitylog\Models\Activity;
@@ -24,7 +26,8 @@ use Spatie\Activitylog\Models\Activity;
  *  - the audit trail is read-only (BR-32);
  *  - salary history is append-only (BR-29);
  *  - users and clients are never hard-deleted, they are deactivated (SPEC 5.0, BR-31);
- *  - an export file belongs to the person who requested it (BR-33).
+ *  - an export file belongs to the person who requested it (BR-33);
+ *  - performance reviews are never edited or deleted, and offboardings are cancelled, not deleted (D-45).
  */
 final class RootAccess
 {
@@ -35,6 +38,8 @@ final class RootAccess
         User::class => ['delete', 'restore', 'forceDelete'],
         Customer::class => ['delete', 'restore', 'forceDelete'],
         Export::class => ['view', 'download', 'create', 'update', 'delete'],
+        Performance::class => ['update', 'delete', 'restore', 'forceDelete'],
+        Offboarding::class => ['delete', 'restore', 'forceDelete'],
     ];
 
     /**

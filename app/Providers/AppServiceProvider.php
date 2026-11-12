@@ -53,11 +53,14 @@ use App\Domain\Work\Models\TimesheetLock;
 use App\Domain\Work\Policies\LogPolicy;
 use App\Domain\Work\Policies\TaskPolicy;
 use App\Domain\Work\Policies\TimesheetLockPolicy;
+use App\Domain\Work\Support\LockedMonths;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 use Lab404\Impersonate\Events\LeaveImpersonation;
 use Lab404\Impersonate\Events\TakeImpersonation;
 use Spatie\Activitylog\Models\Activity;
@@ -73,6 +76,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->tag([ProjectManagerRoleGuard::class], 'role-change-guards');
         // One context per request: it caches the impersonator lookup for the audit trail (D-38).
         $this->app->scoped(ActivityContext::class);
+        $this->app->scoped(LockedMonths::class);
 
         $this->app->when(AssignUserRole::class)->needs('$guards')->giveTagged('role-change-guards');
     }
@@ -107,6 +111,13 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Export::class, ExportPolicy::class);
         Gate::policy(TimesheetLock::class, TimesheetLockPolicy::class);
         Gate::policy(LeaveRequest::class, LeaveRequestPolicy::class);
+        // NFR-05 / D-50: HTTPS only outside local and testing; passwords of 12 or more characters, mixed case and a number
+        // (and not found in known breaches in production).
+        URL::forceHttps($this->app->isProduction());
+        Password::defaults(fn (): Password => $this->app->isProduction()
+            ? Password::min(12)->mixedCase()->numbers()->uncompromised()
+            : Password::min(12)->mixedCase()->numbers());
+
         Event::listen(TakeImpersonation::class, [ImpersonationAudit::class, 'taken']);
         Event::listen(LeaveImpersonation::class, [ImpersonationAudit::class, 'left']);
 

@@ -68,6 +68,12 @@ Run `vendor/bin/larastan`, `vendor/bin/pest`, then `pest --group=BR-xx` per rule
 
 Milestone scope for the reports: M0 none; M1 BR-12, BR-25 (CRUD), BR-32; M2 BR-26, BR-29, BR-32; M3 BR-09..15, 30, 31, 35; M4 BR-01..08, 33; M5 BR-16..25, 34. BR-27, BR-28 belong to M6, beyond the approved M0–M5 range, but permission tests for them land with M1's grid.
 
+## 4a. M7 additions
+
+- `tests/Feature/Reports`: the estimated-versus-logged report (SPEC 1.2, BR-06, BR-12, D-05, D-49).
+- `tests/Feature/Security`: headers, HSTS, cookies, password rule, login throttle, no registration, guests redirected, default-deny on every resource, page and relation manager, no `$guarded = []`.
+- `tests/Performance/CapacityTest.php` (NFR-08, NFR-09, NFR-10): `RUN_PERFORMANCE_TESTS=1 PERF_LOGS=500000 php artisan test tests/Performance`. Skipped in the normal run and in CI; run it before a release or after changing a hot path. Results are in docs/09-scalability.md.
+
 ## 5. Test data
 
 Factories per model; seeders for roles/permissions, countries (AL, XK, DE), leave types, labels. Performance seeder separate and never run in CI by default.

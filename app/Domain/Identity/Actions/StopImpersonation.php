@@ -18,7 +18,7 @@ class StopImpersonation
         }
 
         $left = $manager->leave();
-        session()->forget('password_hash_'.$manager->getCurrentAuthGuardName());
+        session()->forget('password_hash_'.app('auth')->getDefaultDriver());
 
         return $left;
     }

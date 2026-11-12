@@ -27,7 +27,7 @@ class CancelLeave
 
         return app(CauserResolver::class)->withCauser($actor, fn (): LeaveRequest => DB::transaction(function () use ($actor, $request): LeaveRequest {
             $employee = User::query()->whereKey($request->user_id)->lockForUpdate()->firstOrFail();
-            $request = LeaveRequest::query()->with('leaveType')->lockForUpdate()->findOrFail($request->getKey());
+            $request = LeaveRequest::query()->with('leaveType')->whereKey($request->getKey())->lockForUpdate()->firstOrFail();
 
             if (! in_array($request->status, [LeaveStatus::Pending, LeaveStatus::Approved], true)) {
                 throw ValidationException::withMessages(['request' => 'Only a pending or approved request can be cancelled.']);

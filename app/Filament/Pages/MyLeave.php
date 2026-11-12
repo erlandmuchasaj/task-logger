@@ -37,13 +37,13 @@ class MyLeave extends Page
     {
         $user = auth()->user();
 
-        return LeaveType::query()->where('affects_balance', true)->where('is_active', true)->orderBy('name')->get()
+        return array_values(LeaveType::query()->where('affects_balance', true)->where('is_active', true)->orderBy('name')->get()
             ->map(fn (LeaveType $type): array => [
                 'type' => ucfirst(str_replace('_', ' ', $type->name)),
                 'balance' => Days::format(LeaveBalance::balance($user, (int) $type->getKey())),
                 'pending' => Days::format(LeaveBalance::pending($user, (int) $type->getKey())),
                 'available' => Days::format(LeaveBalance::available($user, (int) $type->getKey())),
-            ])->all();
+            ])->all());
     }
 
     public function upcoming(): int

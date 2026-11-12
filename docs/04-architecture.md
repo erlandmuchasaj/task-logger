@@ -204,3 +204,14 @@ Built: performance reviews, offboarding with status moves, the anonymisation job
 - `User` uses the package trait and overrides `canImpersonate()` (permission `employees.impersonate`) and `canBeImpersonated()` (active, not anonymised, not root). The action adds the self and nesting guards. Both clear Laravel's `password_hash_web` session value so `AuthenticateSession` stores the new user's hash instead of logging the session out.
 - `ImpersonationAudit` listens to the package's `TakeImpersonation` and `LeaveImpersonation` events. The existing `ActivityContext` already reads the session key, so no audit code changed.
 - The Profile page is closed while impersonating, so the impersonator cannot change the password or 2FA of the person acted as.
+
+## 18. M7 outcome (2026-11-12)
+
+Built: the estimated-versus-logged report, the capacity test, the security review and its hardening, and Larastan raised from level 6 to 7.
+
+- **Report (D-49).** `BuildEstimateReport::build` makes one grouped pass over the logs for every matching project and derives both the page lines and the grand totals from it, instead of scanning twice (the second scan was what pushed the page over 500 ms at 500k logs). Everything is integers: minutes, hundredths of an hour, minor units. Value sums each log's own rate snapshot, half up per log, like `Log::amount()`.
+- **Per-row query fix.** `LogPolicy` asked "is this month locked?" per table row (136 queries on one page). `TimesheetLocks::isLocked` now reads a scoped `LockedMonths` set, flushed by `TimesheetLock` saves and deletes, so a log page runs about 11 queries (NFR-09).
+- **Indexes.** `logs(date)` for the all-people list and month filters; the log list uses simple pagination so it never counts millions of rows.
+- **Hardening (D-50).** `SecurityHeaders` on the web group and the panel, HTTPS forcing and secure cookies in production, a 12-character password rule, authorisation default-deny and guest-redirect tests. See docs/07-security.md section 9.
+- **Capacity test.** `tests/Performance/CapacityTest.php`, skipped unless `RUN_PERFORMANCE_TESTS=1`; volume from `PERF_LOGS`.
+- **Larastan.** Level 7 now passes (about 30 findings fixed, mostly `findOrFail` on a key that Larastan types as a model or a collection, and list types). Level 8 reports about 170 findings, almost all nullable `belongsTo` properties; the honest fix is a per-relation decision (non-null foreign key versus `withDefault`), so it is left as a stretch goal rather than hidden behind annotations.

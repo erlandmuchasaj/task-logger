@@ -22,6 +22,6 @@ final class ProjectManagerEligibility
     /** @return list<int> ids of users who can be picked as a manager */
     public static function eligibleIds(): array
     {
-        return User::role(RoleName::Admin->value)->whereNull('banned_at')->pluck('id')->map(fn ($id): int => (int) $id)->all();
+        return array_values(User::role(RoleName::Admin->value)->whereNull('banned_at')->pluck('id')->map(fn ($id): int => (int) $id)->all());
     }
 }

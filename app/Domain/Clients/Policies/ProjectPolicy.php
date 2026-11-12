@@ -21,6 +21,12 @@ class ProjectPolicy
         return $user->can(Permissions::PROJECTS_VIEW);
     }
 
+    /** D-49: the estimated-versus-logged report shows everyone's logged time, so it needs both permissions. */
+    public function viewReport(User $user): bool
+    {
+        return $user->can(Permissions::PROJECTS_VIEW) && $user->can(Permissions::LOGS_VIEW_ANY);
+    }
+
     public function create(User $user): bool
     {
         return $user->can(Permissions::PROJECTS_CREATE);

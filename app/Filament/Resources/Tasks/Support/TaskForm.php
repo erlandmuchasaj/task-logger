@@ -93,7 +93,7 @@ final class TaskForm
             parentId: filled($data['parent_id'] ?? null) ? (int) $data['parent_id'] : null,
             forceToLog: (bool) ($data['force_to_log'] ?? false),
             dueDate: filled($data['due_date'] ?? null) ? CarbonImmutable::parse((string) $data['due_date']) : null,
-            labelIds: array_map('intval', (array) ($data['labels'] ?? [])),
+            labelIds: array_values(array_map('intval', (array) ($data['labels'] ?? []))),
         );
     }
 }

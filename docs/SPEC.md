@@ -384,6 +384,18 @@ Each entry: what the source says, the default this spec implements, and whether 
 - Default: the form shows a dropdown for each, filled from `task-logger.source_of_hire_options` and `task-logger.emergency_contact_relationships` (editable in config). The columns and the domain validation stay free text, so no migration, import or old value breaks: a stored value that is not in the list is still shown and kept when the record is edited. Seeded lists: Referral, LinkedIn, Company website, Job board, Recruitment agency, University or campus, Social media, Walk-in, Internal transfer, Other; Spouse, Partner, Mother, Father, Brother, Sister, Son, Daughter, Grandparent, Friend, Other.
 - Confirm: yes. Should the lists be managed on screen like labels, and should the choice be limited to the list in the database too?
 
+**D-49 — The estimated-versus-logged report `[ASSUMED]`.**
+
+- Source: SPEC 1.2 ("compare estimated vs logged hours per project and technology, and value logged work at the client hourly rate that applied when it was logged") and the optional widget in section 8; no access rule is given.
+- Default: a page under Reports, for people holding both `projects.view` and `logs.view_any` (superadmin, admin, assistant), because it shows everyone's logged time. Hours are shown to all of them; the value columns need `clients.view_rates` (D-05), so the assistant sees hours only. Value is the sum of each log's own rate snapshot (BR-06), rounded half up per log like `Log::amount()`, shown per project in the client's currency and grouped by currency in the totals (BR-12). The date filter limits the logs counted, never the estimate. It lists projects 25 to a page; the totals cover every project the filters match. Status defaults to Active. No export in v1.
+- Confirm: no.
+
+**D-50 — Security hardening baseline (M7) `[PROPOSED]`.**
+
+- Source: NFR-05 and the SPEC security notes (HTTPS only, secure cookies, HSTS, evaluate encrypted casts).
+- Default: outside local and testing the app forces HTTPS URLs and marks session cookies secure (`APP_ENV=production`); every response carries `X-Content-Type-Options`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy` and `Permissions-Policy`, and HTTPS responses carry HSTS for one year. Passwords need 12 or more characters with mixed case and a number, and in production must not appear in known breaches. No Content-Security-Policy (Filament and Livewire need inline scripts). PII columns (date of birth, phone, address) are not encrypted at rest; the superadmin-only database access and backups are the control. Behind a load balancer set `TRUSTED_PROXIES` so HTTPS and the client IP are detected.
+- Confirm: yes. Is encryption at rest of the private profile columns required? It would break searching them and needs a key-rotation plan.
+
 ### 3.2 Confirm before coding
 
 1. D-14 and D-05: what employees and assistants may see, and whether an employee sees their own HR record. HR and admin access is now set by the owner.
@@ -399,6 +411,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 11. D-39: future dates, closed tasks, and whether admin may edit others' logs in open months.
 12. D-35 and D-36: what is immutable after creation, and the budget rule when no rate exists on the start date.
 14. D-48: whether the two dropdown lists need an admin screen, and whether values outside the list must be refused.
+15. D-50: whether the private profile columns must be encrypted at rest.
 13. D-46: whether free text written about a former employee (leave reasons, descriptions, review notes) must also be scrubbed.
 
 Answered by the owner and already applied: D-04 (budget includes fixed costs), D-07 (both manager and HR approve), D-08 (weekend holidays are handled manually by HR), D-10 (hr, admin and superadmin manage the HR record, salaries, offboardings, expenses and settings; assignees change their own task status), D-15 (2-month retention), D-44 (HR cancels approved leave; colleagues see each other's leave on the calendar).

@@ -44,7 +44,7 @@ class ManageOffboardings extends ManageRecords
                     try {
                         app(CreateOffboarding::class)->handle(
                             auth()->user(),
-                            User::query()->findOrFail($data['user_id']),
+                            User::query()->whereKey($data['user_id'])->firstOrFail(),
                             new OffboardingData(
                                 CarbonImmutable::parse((string) $data['end_date']), (bool) $data['equipment_returned'],
                                 (bool) $data['resignation_letter_signed'], $data['description'] ?? null,

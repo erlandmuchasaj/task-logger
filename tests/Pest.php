@@ -46,7 +46,7 @@ use Tests\TestCase;
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->beforeEach(fn () => $this->seed(RolesAndPermissionsSeeder::class))
-    ->in('Feature');
+    ->in('Feature', 'Performance');
 
 pest()->extend(TestCase::class)->in('Architecture');
 

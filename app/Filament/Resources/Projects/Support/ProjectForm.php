@@ -122,7 +122,7 @@ final class ProjectForm
             status: $status instanceof ProjectStatus ? $status : ProjectStatus::from((string) $status),
             color: $data['color'] ?? null,
             technologies: $technologies,
-            memberIds: array_map('intval', (array) ($data['members'] ?? [])),
+            memberIds: array_values(array_map('intval', (array) ($data['members'] ?? []))),
         );
     }
 }

@@ -28,7 +28,7 @@ final class ClientRates
      */
     public static function technologyIds(int $customerId): array
     {
-        return ClientTechnologyRate::query()->where('customer_id', $customerId)->distinct()->pluck('technology_id')
-            ->map(fn ($id): int => (int) $id)->all();
+        return array_values(ClientTechnologyRate::query()->where('customer_id', $customerId)->distinct()->pluck('technology_id')
+            ->map(fn ($id): int => (int) $id)->all());
     }
 }

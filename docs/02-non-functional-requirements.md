@@ -18,7 +18,7 @@ Turns SPEC §9 into measurable targets. Numbers are `[PROPOSED]` until the owner
 | NFR-12 | Reliability | Queue workers and scheduler under Supervisor with auto-restart; failed jobs table and retry | Runbook check |
 | NFR-13 | Reliability | Scheduled jobs idempotent: leave grant, approved→taken, anonymisation | Run-twice tests |
 | NFR-14 | Backup | Daily DB backup, 30-day retention, quarterly restore test; RPO ≤ 24 h, RTO ≤ 4 h `[PROPOSED]` | Runbook |
-| NFR-15 | Maintainability | Larastan at level 6 at M0, raised to 8 by M3 `[PROPOSED]`; Pint clean; CI blocks merge on failure | CI |
+| NFR-15 | Maintainability | Larastan at level 6 at M0, level 7 at M7 (level 8 not reached: about 170 findings, nearly all "relation may be null" on belongsTo properties; fixing them needs per-relation null decisions) `[PROPOSED]`; Pint clean; CI blocks merge on failure | CI |
 | NFR-16 | Testing | Every BR-xx has ≥ 1 test citing its ID (`@covers`/test name `BR-xx`); line coverage ≥ 80% on `app/Domain` `[PROPOSED]` | Traceability matrix in 10-testing-strategy.md |
 | NFR-17 | Localisation | All user-facing strings via `__()`; English only (SPEC §1.3) | Pint/grep rule |
 | NFR-18 | Money | No float type for money anywhere; `*_minor` unsigned bigint + `char(3)` | Larastan + migration review |

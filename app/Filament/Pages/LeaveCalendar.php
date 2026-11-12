@@ -99,12 +99,12 @@ class LeaveCalendar extends Page
             $weeks[(int) floor($day->diffInDays($from) / 7)][] = [
                 'date' => $day,
                 'inMonth' => $day->month === $first->month,
-                'holidays' => $holidays
+                'holidays' => array_values($holidays
                     ->filter(fn (BankHoliday $h): bool => $day->betweenIncluded($h->start_date->startOfDay(), $h->end_date->startOfDay()))
-                    ->map(fn (BankHoliday $h): string => $h->name.($seesAll ? ' ('.$h->country->code.')' : ''))->values()->all(),
-                'leave' => $leave
+                    ->map(fn (BankHoliday $h): string => $h->name.($seesAll ? ' ('.$h->country->code.')' : ''))->all()),
+                'leave' => array_values($leave
                     ->filter(fn (LeaveRequest $r): bool => $day->betweenIncluded($r->start_date->startOfDay(), $r->end_date->startOfDay()))
-                    ->map(fn (LeaveRequest $r): array => ['label' => $r->user->getFilamentName(), 'pending' => $r->status === LeaveStatus::Pending])->values()->all(),
+                    ->map(fn (LeaveRequest $r): array => ['label' => $r->user->getFilamentName(), 'pending' => $r->status === LeaveStatus::Pending])->all()),
             ];
         }
 

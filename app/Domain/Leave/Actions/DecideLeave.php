@@ -40,7 +40,7 @@ class DecideLeave
 
         return app(CauserResolver::class)->withCauser($actor, fn (): LeaveRequest => DB::transaction(function () use ($actor, $request, $stage, $decision, $note): LeaveRequest {
             $employee = User::query()->whereKey($request->user_id)->lockForUpdate()->firstOrFail();
-            $request = LeaveRequest::query()->with(['approvals', 'leaveType'])->lockForUpdate()->findOrFail($request->getKey());
+            $request = LeaveRequest::query()->with(['approvals', 'leaveType'])->whereKey($request->getKey())->lockForUpdate()->firstOrFail();
 
             if ($request->user_id === $actor->getKey()) {
                 throw ValidationException::withMessages(['request' => 'You cannot decide your own leave request.']);

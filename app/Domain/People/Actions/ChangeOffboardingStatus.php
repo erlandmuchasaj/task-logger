@@ -25,7 +25,7 @@ class ChangeOffboardingStatus
         Gate::forUser($actor)->authorize('changeStatus', $offboarding);
 
         return app(CauserResolver::class)->withCauser($actor, fn (): Offboarding => DB::transaction(function () use ($actor, $offboarding, $to): Offboarding {
-            $offboarding = Offboarding::query()->with('employee')->lockForUpdate()->findOrFail($offboarding->getKey());
+            $offboarding = Offboarding::query()->with('employee')->whereKey($offboarding->getKey())->lockForUpdate()->firstOrFail();
 
             if (! in_array($to, $offboarding->status->next(), true)) {
                 throw ValidationException::withMessages(['status' => 'An offboarding cannot move from '.$offboarding->status->getLabel().' to '.$to->getLabel().'.']);
@@ -44,6 +44,6 @@ class ChangeOffboardingStatus
     /** The side effect of completion (ADR-0008). Public so CreateOffboarding can complete at creation. */
     public function deactivate(User $actor, Offboarding $offboarding): void
     {
-        Deactivation::ban($actor, $offboarding->employee ?? User::query()->findOrFail($offboarding->user_id), 'Offboarding completed', ['offboarding_id' => $offboarding->getKey()]);
+        Deactivation::ban($actor, $offboarding->employee ?? User::query()->whereKey($offboarding->user_id)->firstOrFail(), 'Offboarding completed', ['offboarding_id' => $offboarding->getKey()]);
     }
 }

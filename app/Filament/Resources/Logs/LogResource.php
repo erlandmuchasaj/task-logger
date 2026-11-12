@@ -21,6 +21,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\PaginationMode;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -108,6 +109,7 @@ class LogResource extends Resource
                     }),
             ])
             ->defaultSort('date', 'desc')
+            ->paginationMode(PaginationMode::Simple)   // no COUNT(*) over millions of rows (NFR-08)
             ->paginated([25, 50, 100])
             ->defaultPaginationPageOption(25);
     }

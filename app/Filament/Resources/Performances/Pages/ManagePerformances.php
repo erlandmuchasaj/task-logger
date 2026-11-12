@@ -42,7 +42,7 @@ class ManagePerformances extends ManageRecords
                     try {
                         app(CreatePerformanceReview::class)->handle(
                             auth()->user(),
-                            User::query()->findOrFail($data['user_id']),
+                            User::query()->whereKey($data['user_id'])->firstOrFail(),
                             new PerformanceData((int) $data['score'], CarbonImmutable::parse((string) $data['review_date']), $data['notes'] ?? null),
                         );
                         Notification::make()->title('Review saved')->success()->send();

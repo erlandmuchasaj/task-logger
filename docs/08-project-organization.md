@@ -4,7 +4,7 @@
 
 - PHP 8.4+, `declare(strict_types=1)`, typed properties and returns, backed enums with Filament labels (`HasLabel`).
 - Laravel conventions: plural snake_case tables, singular models, `{model}_id` keys (SPEC §0.2.5).
-- Laravel Pint (Laravel preset) `[PROPOSED]`. Larastan (`larastan/larastan`) level 6 at M0, 8 by M3.
+- Laravel Pint (Laravel preset) `[PROPOSED]`. Larastan (`larastan/larastan`) level 6 at M0, 7 at M7 (8 is the stretch goal: see NFR-15).
 - Money only via `Money` VO / `*_minor` ints; no floats. Strings via `__()`.
 - Business logic in Actions, not models/resources/controllers. Policies check permissions only.
 - Pest 4 for tests `[PROPOSED]` (PHPUnit-compatible). Test names cite BR-xx.

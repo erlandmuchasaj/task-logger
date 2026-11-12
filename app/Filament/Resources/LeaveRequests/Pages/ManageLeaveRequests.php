@@ -53,7 +53,7 @@ class ManageLeaveRequests extends ManageRecords
                 ])->columns(2))
                 ->action(function (array $data, Action $action): void {
                     try {
-                        $employee = User::query()->findOrFail($data['user_id']);
+                        $employee = User::query()->whereKey($data['user_id'])->firstOrFail();
                         app(CreateDirectDayOff::class)->handle(auth()->user(), $employee, self::input($data), (bool) ($data['override_balance'] ?? false));
                         Notification::make()->title('Day off recorded')->success()->send();
                     } catch (ValidationException $e) {

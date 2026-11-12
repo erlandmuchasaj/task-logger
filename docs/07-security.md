@@ -110,9 +110,43 @@ Behind a load balancer the client IP is only right if trusted proxies are config
 
 IDOR on Filament resources (Policy on every model, scoped queries), mass assignment, privilege escalation via role change (role changes need `employees.update` and are audited), CSRF/XSS (Livewire/Blade defaults), export data leaks (permission re-check in job), impersonation misuse `[OPTIONAL]` (superadmin only, logged), dependency CVEs (`composer audit` in CI).
 
+## 9. M7 security review (2026-11-12)
+
+Scope: the whole application as built through M6, reviewed by reading the code, by searching it for known-dangerous patterns, and by tests that now run on every push (`tests/Feature/Security`, `tests/Architecture`).
+
+| Area | Result | Evidence |
+|---|---|---|
+| Authentication | Pass | Filament login is rate limited (test), no registration route (test), banned and anonymised users cannot enter the panel (`canAccessPanel`), TOTP 2FA with a superadmin-controlled requirement, secrets encrypted and never logged. |
+| Authorisation: default deny | Pass | A signed-in user with no role reaches no resource, page or relation manager except their own profile (`NFR-03` test). Policies check permissions only (architecture test forbids role-name checks). Root access has a documented exemption list (D-41). |
+| Authorisation: guests | Pass | Every GET panel route that takes no parameter redirects a guest to the login page (test). |
+| IDOR | Pass | Row-level scope on logs, leave requests, performance reviews, exports and tasks is in the query (`getEloquentQuery`) and in the policy; the Directory selects public columns only (BR-26 tests). Direct manager rights come from `manager_id`, never from a request value. |
+| Mass assignment | Pass | Every model declares `#[Fillable]`; a test fails if a model sets `$guarded = []`. Role and permission changes go through `AssignUserRole` only. |
+| Injection | Pass | No user input reaches raw SQL: the raw fragments are constants (`whereRaw('1 = 0')`, the report's grouped sums). No `eval`, `exec`, `unserialize`, `{!! !!}` or `allowHtml` in `app` or `resources`. CSV export neutralises formula cells (D-40). |
+| CSRF | Pass | Livewire and Filament forms are protected; the only custom state-changing route (stop impersonating) is POST with a token and the package's GET routes are not registered (D-47). |
+| Sessions and transport | Pass in production | `APP_ENV=production` forces HTTPS URLs and secure cookies; HttpOnly and SameSite=lax are set; HSTS and the baseline headers are sent (D-50). Behind a load balancer set `TRUSTED_PROXIES`. |
+| Passwords | Pass | 12 or more characters, mixed case, a number, and not breached in production (D-50). |
+| Secrets and data at rest | Open question | The 2FA secret and recovery codes are encrypted. Date of birth, phone and address are not (D-50, owner question). `.env` is not committed. |
+| Files | Pass with a note | Exports are on the private disk, owner-only, deleted after 7 days. Avatars are on the public disk by design (they appear in the Directory); uploads are limited to images of 2 MB. |
+| Audit | Pass | Every business write is audited with the actor, IP, browser and impersonator; entries are read-only even for root (BR-32); anonymisation scrubs personal values (D-46). |
+| Dependencies | Pass | `composer audit` and `npm audit --omit=dev` report no advisories. |
+
+Found and fixed during the review:
+
+1. **N+1 on every log table row** (performance and denial-of-service risk): the policy asked the database whether the month is locked once per row and action (136 queries for one page). Locked months are now loaded once per request (`LockedMonths`).
+2. **Missing response headers**: added `SecurityHeaders` (D-50).
+3. **No password policy** beyond the framework default: added (D-50).
+4. **Session cookie `secure` flag defaulted to unset**: now on in production.
+
+Known gaps, none blocking:
+
+- No Content-Security-Policy (Filament and Livewire need inline scripts); revisit when Filament supports nonces.
+- 2FA is optional until the superadmin requires it (D-26).
+- No per-user throttle on report and export requests; the capacity test shows the cost is bounded (docs/09-scalability.md).
+- Backups, queue supervision and TLS termination are deployment work (NFR-12, NFR-14) and are not testable in the repository.
+
 ## Open questions for the owner
 
 1. Is the grace period start rule right: from when the requirement is switched on, or the user's creation if later? (ADR-0005)
 2. May employees read their own HR record and salary? (D-14, D-10)
 3. Employee-role users who manage others: can they approve the manager stage? (ADR-0007)
-4. Encrypted-at-rest columns needed?
+4. Encrypted-at-rest columns needed? (D-50)

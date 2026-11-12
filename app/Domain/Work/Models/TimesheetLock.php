@@ -6,6 +6,7 @@ namespace App\Domain\Work\Models;
 
 use App\Domain\Identity\Models\User;
 use App\Domain\Shared\LogsBusinessActivity;
+use App\Domain\Work\Support\LockedMonths;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,6 +19,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class TimesheetLock extends Model
 {
     use LogsBusinessActivity;
+
+    protected static function booted(): void
+    {
+        static::saved(fn () => app(LockedMonths::class)->flush());
+        static::deleted(fn () => app(LockedMonths::class)->flush());
+    }
 
     protected function casts(): array
     {

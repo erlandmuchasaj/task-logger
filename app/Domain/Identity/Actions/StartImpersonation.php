@@ -39,6 +39,6 @@ class StartImpersonation
         }
 
         // Filament's session guard compares a stored password hash with the signed-in user: let it store the new user's.
-        session()->forget('password_hash_'.$manager->getCurrentAuthGuardName());
+        session()->forget('password_hash_'.app('auth')->getDefaultDriver());
     }
 }

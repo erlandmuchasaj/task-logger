@@ -7,6 +7,7 @@ namespace App\Providers\Filament;
 use App\Domain\Identity\Support\TwoFactorPolicy;
 use App\Filament\Pages\Auth\EditProfile;
 use App\Http\Middleware\EnforceTwoFactorGracePeriod;
+use App\Http\Middleware\SecurityHeaders;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -70,6 +71,7 @@ class AppPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
+                SecurityHeaders::class,
             ])
             ->authMiddleware([
                 Authenticate::class,

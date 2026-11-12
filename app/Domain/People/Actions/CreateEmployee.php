@@ -6,6 +6,7 @@ namespace App\Domain\People\Actions;
 
 use App\Domain\Identity\Actions\AssignUserRole;
 use App\Domain\Identity\Models\User;
+use App\Domain\Leave\Actions\GrantAnnualLeave;
 use App\Domain\People\Data\EmployeeData;
 use App\Domain\People\Data\HrRecordData;
 use App\Domain\People\Data\SalaryData;
@@ -64,6 +65,9 @@ class CreateEmployee
 
             return $employee;
         }));
+
+        // W-01 step 4: the grant for the year of joining (due now when the start date has passed, else the job writes it).
+        app(GrantAnnualLeave::class)->grantFor($employee->load('country'));
 
         $this->sendLink->handle($employee);
 

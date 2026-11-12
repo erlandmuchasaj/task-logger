@@ -175,3 +175,15 @@ Built: logs (task and direct), the client rate snapshot, My Day with pinned task
 - `AppServiceProvider` registers `Gate::before(RootAccess::check(...))`. `RootAccess` calls `hasPermissionTo` directly (not `can`), so the gate cannot recurse, and returns `true` or `null` (never `false`), so other roles are untouched and Spatie's own gate keeps working.
 - `RootAccess::POLICY_ONLY` lists the abilities that stay under their policy: activity log create/update/delete, salary update/delete, user and client delete/restore/forceDelete, export view/download/create/update/delete. Add to it whenever a policy deliberately returns `false` for everyone.
 - Data rules are not authorisation and still apply to root (validation in the actions).
+
+## 15. M5 outcome (2026-11-12)
+
+Built: `app/Domain/Leave` (enums, three models, actions, support, policy), the leave tables, the My Leave, Leave Requests and Leave Calendar screens, and three hourly scheduled jobs.
+
+- **Day counting (BR-16, BR-17).** `LeaveSpan` is the one place that turns dates and day parts into occupied half days (overlap) and charged tenths of a day (working days minus the country's holidays). All leave arithmetic runs on integer tenths (`Days`); no float touches a balance. The client never supplies `days_requested`.
+- **Ledger (BR-18, SPEC 5.5).** Append-only `leave_ledger_entries`; balance is the sum. A generated column `idempotency_key` plus a unique index makes the grant, carry-over and expiry entries unique per user, type and date, so the database itself backs the idempotent jobs (NFR-13). `GrantAnnualLeave` runs hourly, so 1 January is caught in each country's timezone; the grant for the year of joining is also written when the employee is created (W-01 step 4). `ExpireCarryOver` and `MarkLeaveTaken` are the other two jobs.
+- **Approvals (D-07, BR-20, BR-21).** `DecideLeave` locks the employee and the request, records one `leave_request_approvals` row per stage, and on HR approval re-checks the balance and writes the deduction. "Not your own request" lives in the action, so root access (D-41) cannot skip it. Policy methods `approveManagerStage` and `approveHrStage` are plain permission checks; the manager one adds the `manager_id` relationship (D-28).
+- **Direct day off (BR-22).** `CreateDirectDayOff` needs `leave_requests.create_for_others`, a note, a balance-affecting type, and an explicit flag to go below zero. It still obeys BR-23.
+- **Concurrency.** Requests, decisions, cancellations and grants lock the employee's user row first (as the 24 hour log cap does), so two requests cannot both pass the balance check.
+- **Calendar.** A server-rendered month grid (no calendar plugin to verify against Filament 5). Visibility reuses `LeaveRequestResource::visibleTo`.
+- **Not built:** manual balance adjustments (no permission in the grid), leave notifications `[OPTIONAL]`, the leave-balance widget `[OPTIONAL]`, an expiry job for requests left pending.

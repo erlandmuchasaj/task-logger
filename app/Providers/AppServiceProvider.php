@@ -21,6 +21,8 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Policies\ActivityPolicy;
 use App\Domain\Identity\Support\ActivityContext;
 use App\Domain\Identity\Support\RootAccess;
+use App\Domain\Leave\Models\LeaveRequest;
+use App\Domain\Leave\Policies\LeaveRequestPolicy;
 use App\Domain\MasterData\Models\BankHoliday;
 use App\Domain\MasterData\Models\Country;
 use App\Domain\MasterData\Models\CountryLeavePolicy;
@@ -96,6 +98,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Log::class, LogPolicy::class);
         Gate::policy(Export::class, ExportPolicy::class);
         Gate::policy(TimesheetLock::class, TimesheetLockPolicy::class);
+        Gate::policy(LeaveRequest::class, LeaveRequestPolicy::class);
 
         // Catch N+1 queries early outside production (NFR-09).
         Model::preventLazyLoading(! $this->app->isProduction());

@@ -342,6 +342,24 @@ Each entry: what the source says, the default this spec implements, and whether 
 - Consequence for D-39: the superadmin can now edit and delete any user's log in any month. Admin still cannot edit others' logs in an open month.
 - Confirm: yes. Should root also be able to change the immutable items above (for example delete audit entries)? Not recommended.
 
+**D-42 — Leave day-counting details the spec leaves open `[ASSUMED]`.**
+
+- Source: BR-16, BR-17 and the half-day enum `full`, `am`, `pm`.
+- Default: the part describes which part of that date is on leave. A request that starts `pm` leaves at noon on the first day, one that ends `am` returns at noon on the last day, every date in between is a full day. A single-day request carries one part (the end part is ignored). A request with no working day in it (for example a weekend) is refused. A request may cover at most 366 calendar days (`task-logger.leave_max_request_days`), a guard against a wrong year. Overlap (BR-23) is checked per half day, so a morning and an afternoon request on one date do not clash; `taken` requests count as active like `approved` ones.
+- Confirm: no.
+
+**D-43 — Approval order and the ledger `[ASSUMED]`.**
+
+- Source: D-07, BR-18, BR-19, SPEC 5.5 ("balance = sum of non-expired days").
+- Default: the manager decides first, then HR, for everybody including the superadmin ("any stage" means either stage, not out of order). The manager stage is required only when the employee has a manager when the decision is made. The deduction is written on final approval, dated the first day of the leave, and a cancellation writes a reversal. The balance is the plain sum of the ledger: expiry is itself a negative entry. On the new year (country timezone) last year's unused balance expires through one `expiry` entry and, when the country policy enables carry-over, a `carry_over` entry puts back up to the policy maximum; carried days that are still unused after `carry_over_expires_after_months` expire through a further `expiry` entry, counting days used since the carry-over against the carried part first. The ledger has no manual `adjustment` writer in v1 (no permission for it in the grid).
+- Confirm: no.
+
+**D-44 — Who cancels and who sees leave. Decided by the owner (2026-11-12).**
+
+- Source: the grid has no cancel permission and no permission for a manager to see their reports' requests.
+- Default: a person cancels the requests they made for themselves while pending or approved (not taken). HR (`leave_requests.approve`) and the superadmin (`leave_requests.create_for_others`) cancel any request, including an approved one or a direct day off; a cancelled approved request writes a reversal. A direct manager sees their reports' requests through the `manager_id` relationship plus `leave_requests.approve_direct_reports` (D-28); `view_any` is superadmin and HR as in the grid. The Leave Calendar shows everybody's approved and taken leave to everybody (colleagues see each other's leave) and pending requests only to those who may see the request; holidays are the viewer's own country's (every country for people who see all leave).
+- Confirm: no.
+
 ### 3.2 Confirm before coding
 
 1. D-14 and D-05: what employees and assistants may see, and whether an employee sees their own HR record. HR and admin access is now set by the owner.
@@ -357,7 +375,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 11. D-39: future dates, closed tasks, and whether admin may edit others' logs in open months.
 12. D-35 and D-36: what is immutable after creation, and the budget rule when no rate exists on the start date.
 
-Answered by the owner and already applied: D-04 (budget includes fixed costs), D-07 (both manager and HR approve), D-08 (weekend holidays are handled manually by HR), D-10 (hr, admin and superadmin manage the HR record, salaries, offboardings, expenses and settings; assignees change their own task status), D-15 (2-month retention).
+Answered by the owner and already applied: D-04 (budget includes fixed costs), D-07 (both manager and HR approve), D-08 (weekend holidays are handled manually by HR), D-10 (hr, admin and superadmin manage the HR record, salaries, offboardings, expenses and settings; assignees change their own task status), D-15 (2-month retention), D-44 (HR cancels approved leave; colleagues see each other's leave on the calendar).
 
 ## 4. Roles and permissions
 

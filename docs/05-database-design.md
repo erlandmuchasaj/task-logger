@@ -93,6 +93,8 @@ Money note (D-34): `amount_minor` is an integer in the currency's ISO 4217 minor
 
 M3 built as designed: tasks reference `(project_id, technology_id)` on `project_technology` (composite key, BR-10); `projects` has no priority column (D-02); `estimated_hours` and `budget_minor` are computed snapshots; `customers` and `projects` and `tasks` soft delete.
 
+M5 built as designed: `leave_requests` (CHECK `end_date >= start_date`, soft deletes), `leave_request_approvals` (unique per request and stage) and `leave_ledger_entries` (append-only; the generated column `idempotency_key` covers grant, carry-over and expiry entries). The unique key is `(user_id, leave_type_id, effective_on, idempotency_key)`, which is simpler than the generated date column first proposed and also protects carry-over and expiry.
+
 M4 built as designed: `logs` (CHECK duration 1 to 1440 minutes, composite key to `project_technology`, soft deletes), `timesheet_locks` (unique month, unlock keeps the row), plus an `exports` table (type, status, filters, request context, private file path, expiry).
 
 ## 3. Access patterns

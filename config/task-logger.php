@@ -17,6 +17,9 @@ return [
     // D-08: default working week (ISO weekdays, 1 = Monday), configurable per country.
     'default_working_days' => [1, 2, 3, 4, 5],
 
+    // D-42: longest span (in calendar days) one leave request may cover; a guard against typos such as a wrong year.
+    'leave_max_request_days' => 366,
+
     // BR-04: maximum minutes one user may log per calendar date.
     'max_log_minutes_per_day' => 24 * 60,
 

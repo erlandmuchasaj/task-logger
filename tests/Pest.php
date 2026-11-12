@@ -13,8 +13,14 @@ use App\Domain\Identity\Enums\EmploymentType;
 use App\Domain\Identity\Enums\RoleName;
 use App\Domain\Identity\Models\ActivityLog;
 use App\Domain\Identity\Models\User;
+use App\Domain\Leave\Data\LeaveRequestData;
+use App\Domain\Leave\Enums\DayPart;
+use App\Domain\Leave\Enums\LedgerEntryType;
+use App\Domain\Leave\Models\LeaveLedgerEntry;
 use App\Domain\MasterData\Models\Country;
+use App\Domain\MasterData\Models\CountryLeavePolicy;
 use App\Domain\MasterData\Models\Department;
+use App\Domain\MasterData\Models\LeaveType;
 use App\Domain\MasterData\Models\Technology;
 use App\Domain\People\Data\EmployeeData;
 use App\Domain\Work\Data\LogData;
@@ -197,4 +203,41 @@ function logData(array $overrides = []): LogData
         'type' => LogType::NormalHours,
         'description' => 'Worked on it',
     ], $overrides));
+}
+
+/**
+ * A country with a Monday to Friday week, an annual leave type that affects the balance (20 days a year from
+ * 2020), a sick type, an unpaid type that does not, and a person in that country.
+ *
+ * @return array{country: Country, annual: LeaveType, sick: LeaveType, unpaid: LeaveType, employee: User}
+ */
+function leaveSetup(RoleName $role = RoleName::Employee, ?User $manager = null, string $startDate = '2024-01-01'): array
+{
+    $country = Country::query()->where('code', 'AL')->first() ?? Country::factory()->albania()->create();
+    $annual = LeaveType::firstOrCreate(['name' => 'annual_leave'], ['affects_balance' => true]);
+    $sick = LeaveType::firstOrCreate(['name' => 'sick_leave'], ['affects_balance' => true]);
+    $unpaid = LeaveType::firstOrCreate(['name' => 'unpaid_leave'], ['affects_balance' => false]);
+
+    CountryLeavePolicy::firstOrCreate(
+        ['country_id' => $country->id, 'leave_type_id' => $annual->id, 'effective_from' => '2020-01-01'],
+        ['days_per_year' => '20.0'],
+    );
+
+    $employee = User::factory()->withRole($role)->create(['country_id' => $country->id, 'manager_id' => $manager?->id, 'start_date' => $startDate]);
+
+    return compact('country', 'annual', 'sick', 'unpaid', 'employee');
+}
+
+/** Adds days to someone's balance the way a grant would. */
+function grantDays(User $user, LeaveType $type, string $days, string $on = '2026-01-01'): LeaveLedgerEntry
+{
+    return LeaveLedgerEntry::create([
+        'user_id' => $user->id, 'leave_type_id' => $type->id, 'entry_type' => LedgerEntryType::Grant,
+        'days' => $days, 'effective_on' => $on,
+    ]);
+}
+
+function leaveData(LeaveType $type, string $from, ?string $to = null, DayPart $start = DayPart::Full, DayPart $end = DayPart::Full, ?string $reason = null): LeaveRequestData
+{
+    return new LeaveRequestData($type->id, Carbon::parse($from), Carbon::parse($to ?? $from), $start, $end, $reason);
 }

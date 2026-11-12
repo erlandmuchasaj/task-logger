@@ -16,4 +16,4 @@
 | 09 | [Scalability](09-scalability.md) | Load assumptions, bottlenecks |
 | 10 | [Testing strategy](10-testing-strategy.md) | Test plans and BR traceability matrix |
 
-ADRs: [adr/](adr/) (0001–0009). Decision log: SPEC §3 (D-01…D-30).
+ADRs: [adr/](adr/) (0001–0010). Decision log: SPEC §3 (D-01…D-52).

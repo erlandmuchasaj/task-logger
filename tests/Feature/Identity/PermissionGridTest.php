@@ -60,5 +60,5 @@ it('seeding twice changes nothing', function () {
     $permissions = Permission::count();
     $this->seed(RolesAndPermissionsSeeder::class);
 
-    expect(Permission::count())->toBe($permissions)->and(Role::count())->toBe(5);
+    expect(Permission::count())->toBe($permissions)->and(Role::count())->toBe(6);
 });

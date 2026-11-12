@@ -200,7 +200,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 
 - Source: we can also add employee expenses. No role capabilities are defined.
 - Default: `[OPTIONAL]`, last milestone. Managed by hr, admin and superadmin (owner answer). Employees have no expense access until defined. One currency per expense (lines carry a currency column, validated equal).
-- Confirm: yes. Should employees submit or view their own expenses? Does this ship in v1?
+- Confirm: answered by the owner on 2026-11-12: finance and superadmin only (D-51); expenses ship.
 
 **D-18 — Customer country and currency.**
 
@@ -396,13 +396,25 @@ Each entry: what the source says, the default this spec implements, and whether 
 - Default: outside local and testing the app forces HTTPS URLs and marks session cookies secure (`APP_ENV=production`); every response carries `X-Content-Type-Options`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy` and `Permissions-Policy`, and HTTPS responses carry HSTS for one year. Passwords need 12 or more characters with mixed case and a number, and in production must not appear in known breaches. No Content-Security-Policy (Filament and Livewire need inline scripts). PII columns (date of birth, phone, address) are not encrypted at rest; the superadmin-only database access and backups are the control. Behind a load balancer set `TRUSTED_PROXIES` so HTTPS and the client IP are detected.
 - Confirm: yes. Is encryption at rest of the private profile columns required? It would break searching them and needs a key-rotation plan.
 
+**D-51 — A Finance role manages expenses. Decided by the owner (2026-11-12); ADR-0010.**
+
+- Source: D-17 asked who may use expenses. The owner answered: "finance and superadmin only manage expenses". The spec had no Finance role (D-24 and ADR-0003 listed it as a conflict with D-09's five roles); the earlier owner answer gave expenses to hr, admin and superadmin.
+- Default: a sixth role `finance` (`RoleName::Finance`). It holds the employee baseline plus every `expenses.*` permission and nothing else; one role per user still holds (D-09). hr and admin do not manage expenses. Assistant and employee have no expense access, including to their own. Superadmin keeps every permission explicitly and root access (D-41). The grid in 4.4 shows the superadmin column; the `finance` column is exactly the employee column plus the expenses row.
+- Confirm: no. Open for the owner: should finance see anything else (clients, rates, logs)? It sees none of it today.
+
+**D-52 — Expense rules `[ASSUMED]`.**
+
+- Source: SPEC 5.6 and FR-38 give the fields and the statuses but no permissions, transitions or editing rules.
+- Default: permissions `expenses.view`, `.create`, `.update`, `.delete`, `.approve`, `.reimburse`. Flow: `draft` to `submitted`; `submitted` to `approved` or `rejected`; `approved` to `reimbursed`; `rejected` back to `draft` to be edited and resubmitted; `reimbursed` is final. Submit and reopen need `expenses.update`, approve and reject need `expenses.approve`, reimburse needs `expenses.reimburse`. Header, lines and receipt can change and the expense can be deleted only while it is a `draft`, for everyone including the superadmin (the actions check it). Nobody approves or rejects an expense made for themselves, root included (like BR-20). A rejection needs a reason, appended to `notes` as "Rejected: ..." because SPEC 5.6 has no review column. Quantity is a whole number so `amount = quantity x unit price` is exact; the database checks it. All lines share the expense's one currency; totals are the sum of the lines, and any report groups by currency (BR-12). `number` is `EXP-` plus the row id padded to six digits, set in the creating transaction. The receipt is one image or PDF up to 5 MB on the private disk, read only through a permission-checked download; it is kept on anonymisation (the expense stays, BR-28). No expense export and no notifications in v1.
+- Confirm: no.
+
 ### 3.2 Confirm before coding
 
 1. D-14 and D-05: what employees and assistants may see, and whether an employee sees their own HR record. HR and admin access is now set by the owner.
 2. D-21: performance review visibility (implemented literally: superadmin, hr, direct manager).
 3. D-11 and D-04: whether backdating logs is allowed, and which rate date prices the budget.
 4. D-15: whether the 2 months run from the offboarding end date, and whether salary and performance rows are retained.
-5. D-17: whether employees can submit or see expenses, and whether expenses ship in v1.
+5. (answered) D-17: expenses ship, managed by finance and superadmin only (D-51).
 6. D-10: labels and whether the assistant can edit master data.
 7. D-22: headcount and expected volume.
 8. D-24, D-25: invoicing, multiple assignees and MCP (conflicts with IDEA.md).
@@ -414,7 +426,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 15. D-50: whether the private profile columns must be encrypted at rest.
 13. D-46: whether free text written about a former employee (leave reasons, descriptions, review notes) must also be scrubbed.
 
-Answered by the owner and already applied: D-04 (budget includes fixed costs), D-07 (both manager and HR approve), D-08 (weekend holidays are handled manually by HR), D-10 (hr, admin and superadmin manage the HR record, salaries, offboardings, expenses and settings; assignees change their own task status), D-15 (2-month retention), D-44 (HR cancels approved leave; colleagues see each other's leave on the calendar).
+Answered by the owner and already applied: D-04 (budget includes fixed costs), D-07 (both manager and HR approve), D-08 (weekend holidays are handled manually by HR), D-10 (hr, admin and superadmin manage the HR record, salaries, offboardings, expenses and settings; assignees change their own task status), D-15 (2-month retention), D-44 (HR cancels approved leave; colleagues see each other's leave on the calendar), D-17 and D-51 (expenses are managed by a Finance role and the superadmin only).
 
 ## 4. Roles and permissions
 
@@ -490,7 +502,7 @@ Answered by the owner and already applied: D-04 (budget includes fixed costs), D
 
 **Owner clarifications (after the first review)**
 
-- hr, admin and superadmin manage the private HR record, salaries, offboardings, expenses and settings.
+- hr, admin and superadmin manage the private HR record, salaries, offboardings and settings. Expenses are managed by a Finance role and the superadmin only (D-51, owner answer 2026-11-12, replacing the earlier answer that gave expenses to hr and admin).
 - HR can create bank holidays, for example the Monday observed for a holiday that falls on a Sunday.
 - An assignee can change the status of their own tasks. The creator of a task (the manager) can change statuses of tasks they created for other users. Admin and superadmin can change any task.
 - A leave request is approved only when both the direct manager and HR approve it.
@@ -547,7 +559,7 @@ Legend: ✔ stated in the source or by the owner after review. ✔\* derived or 
 | countries.manage | ✔ | — | — | add | — |
 | departments.manage | ✔ | — | — | add | — |
 | technologies.manage | ✔ | — | — | add | — |
-| expenses.\* `[OPTIONAL]` | ✔ | ✔ | ✔ | — | — |
+| expenses.\* `[OPTIONAL]` (D-51: also held by the `finance` role) | ✔ | — | — | — | — |
 | activity\_logs.view | ✔\* | — | — | — | — |
 | settings.manage | ✔ | ✔ | ✔ | — | — |
 | two\_factor.manage (D-26) | ✔ | — | — | — | — |

@@ -77,6 +77,8 @@ Direct day off (BR-22) is created directly in `approved`.
 
 **Task:** backlog → todo → in_progress → in_review → completed; any → cancelled. SPEC defines no transition restrictions; none are enforced `[ASSUMED]` (ADR if the owner wants a stricter flow).
 
+**Expense:** draft → submitted → approved → reimbursed; submitted → rejected → draft (edit and resubmit). Only a draft is editable or deletable (D-52).
+
 **Offboarding:** pending → in_progress → completed | cancelled. `completed` bans the user (ADR-0008) and starts the anonymisation clock (BR-28).
 
 **Salary:** pending → active → superseded. Append-only; activating a new row supersedes the previous active one `[ASSUMED D-19]`.

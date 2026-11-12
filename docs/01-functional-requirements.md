@@ -125,7 +125,9 @@ Numbered FR-xx, grouped by module. Each links to business rules (BR), workflows 
 
 **FR-37 Time zones (BR-34).** Store UTC; leave/holiday logic uses the employee's country timezone.
 
-**FR-38 Expenses `[OPTIONAL]` (D-17).** `expenses.*` for hr, admin, superadmin. Lines share one currency; number `EXP-000001` generated race-safely.
+**FR-38 Expenses `[OPTIONAL]` (D-17, D-51, D-52).** `expenses.*` for the `finance` role and the superadmin only. Lines share one currency; number `EXP-000001` generated race-safely.
+- AC: an admin, hr, assistant or employee gets 403 on the Expenses screens and a refusal from every expense action. Finance creates a draft for an employee with lines (amount = quantity x price, computed on the server), submits it, another finance user or the superadmin approves or rejects it (reason required), then marks it reimbursed.
+- AC: only a draft can be edited or deleted, by anyone including the superadmin. Nobody approves or rejects their own expense. A receipt is downloadable only through a permission-checked action, never by URL.
 
 ## Workflow coverage
 
@@ -146,6 +148,6 @@ Numbered FR-xx, grouped by module. Each links to business rules (BR), workflows 
 
 1. May an employee see their own HR record? (D-14)
 2. Should a performance review's author (non-manager admin) be able to read it back? Should HR create reviews? (D-21)
-3. Are employees allowed to submit or view their own expenses, and do expenses ship in v1? (D-17)
+3. (answered) Expenses ship; only finance and the superadmin manage them (D-17, D-51).
 4. When a user with role `employee` is someone's manager, who approves the manager stage? (ADR-0007)
 5. Is logging on a leave day or holiday allowed, with or without warning? SPEC is silent; default allowed, no warning.

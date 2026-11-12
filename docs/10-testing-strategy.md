@@ -72,6 +72,7 @@ Milestone scope for the reports: M0 none; M1 BR-12, BR-25 (CRUD), BR-32; M2 BR-2
 
 - `tests/Feature/Reports`: the estimated-versus-logged report (SPEC 1.2, BR-06, BR-12, D-05, D-49).
 - `tests/Feature/Security`: headers, HSTS, cookies, password rule, login throttle, no registration, guests redirected, default-deny on every resource, page and relation manager, no `$guarded = []`.
+- `tests/Feature/Expenses`: the six expense permissions per role (D-51), status transitions, draft-only edits, no self-approval, line maths and the DB check, receipts, audit and screens (FR-38, D-52).
 - `tests/Performance/CapacityTest.php` (NFR-08, NFR-09, NFR-10): `RUN_PERFORMANCE_TESTS=1 PERF_LOGS=500000 php artisan test tests/Performance`. Skipped in the normal run and in CI; run it before a release or after changing a hot path. Results are in docs/09-scalability.md.
 
 ## 5. Test data

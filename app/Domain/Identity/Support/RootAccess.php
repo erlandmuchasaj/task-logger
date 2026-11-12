@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Identity\Support;
 
 use App\Domain\Clients\Models\Customer;
+use App\Domain\Expenses\Models\Expense;
 use App\Domain\Exports\Models\Export;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Permissions;
@@ -40,6 +41,7 @@ final class RootAccess
         Export::class => ['view', 'download', 'create', 'update', 'delete'],
         Performance::class => ['update', 'delete', 'restore', 'forceDelete'],
         Offboarding::class => ['delete', 'restore', 'forceDelete'],
+        Expense::class => ['restore', 'forceDelete'],
     ];
 
     /**

@@ -15,4 +15,5 @@ enum RoleName: string
     case Hr = 'hr';
     case Assistant = 'assistant';
     case Employee = 'employee';
+    case Finance = 'finance';   // D-51 (ADR-0010): manages expenses
 }

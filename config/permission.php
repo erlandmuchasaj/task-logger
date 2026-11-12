@@ -130,6 +130,13 @@ return [
             Permissions::SETTINGS_MANAGE,
 
             Permissions::TWO_FACTOR_MANAGE,
+
+            Permissions::EXPENSES_VIEW,
+            Permissions::EXPENSES_CREATE,
+            Permissions::EXPENSES_UPDATE,
+            Permissions::EXPENSES_DELETE,
+            Permissions::EXPENSES_APPROVE,
+            Permissions::EXPENSES_REIMBURSE,
         ],
         RoleName::Admin->value => [
             ...$employee,
@@ -213,6 +220,17 @@ return [
             Permissions::TECHNOLOGIES_CREATE,
         ],
         RoleName::Employee->value => $employee,
+        // D-51 (ADR-0010): the owner's Finance role manages expenses with the superadmin, and nothing else beyond the baseline.
+        RoleName::Finance->value => [
+            ...$employee,
+
+            Permissions::EXPENSES_VIEW,
+            Permissions::EXPENSES_CREATE,
+            Permissions::EXPENSES_UPDATE,
+            Permissions::EXPENSES_DELETE,
+            Permissions::EXPENSES_APPROVE,
+            Permissions::EXPENSES_REIMBURSE,
+        ],
     ],
 
     'models' => [

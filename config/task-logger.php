@@ -30,6 +30,12 @@ return [
         'Spouse', 'Partner', 'Mother', 'Father', 'Brother', 'Sister', 'Son', 'Daughter', 'Grandparent', 'Friend', 'Other',
     ],
 
+    // D-52: expense receipts live on a private disk; one image or PDF per expense.
+    'expenses' => [
+        'disk' => 'local',
+        'receipt_max_kb' => 5120,
+    ],
+
     // BR-04: maximum minutes one user may log per calendar date.
     'max_log_minutes_per_day' => 24 * 60,
 

@@ -13,6 +13,8 @@ use App\Domain\Clients\Policies\CustomerPolicy;
 use App\Domain\Clients\Policies\FixedCostPolicy;
 use App\Domain\Clients\Policies\ProjectPolicy;
 use App\Domain\Clients\Support\ProjectManagerRoleGuard;
+use App\Domain\Expenses\Models\Expense;
+use App\Domain\Expenses\Policies\ExpensePolicy;
 use App\Domain\Exports\Models\Export;
 use App\Domain\Exports\Policies\ExportPolicy;
 use App\Domain\Identity\Actions\AssignUserRole;
@@ -121,6 +123,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(TakeImpersonation::class, [ImpersonationAudit::class, 'taken']);
         Event::listen(LeaveImpersonation::class, [ImpersonationAudit::class, 'left']);
 
+        Gate::policy(Expense::class, ExpensePolicy::class);
         Gate::policy(Performance::class, PerformancePolicy::class);
         Gate::policy(Offboarding::class, OffboardingPolicy::class);
 

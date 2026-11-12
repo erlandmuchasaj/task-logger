@@ -10,8 +10,6 @@ use ReflectionClassConstant;
  * Every permission in the system, as `resource.action` string constants (SPEC 4.1).
  * Application code checks these through Policies and Gates, never role names.
  * Which role holds which permission lives in config/permission.php ('roles').
- *
- * Deferred permissions, added with their milestone: expenses.* (M8, optional).
  */
 final class Permissions
 {
@@ -169,6 +167,19 @@ final class Permissions
 
     /** Two Factor */
     public const TWO_FACTOR_MANAGE = 'two_factor.manage';
+
+    /** Expenses [OPTIONAL] (D-51, D-52): finance and superadmin only. */
+    public const EXPENSES_VIEW = 'expenses.view';
+
+    public const EXPENSES_CREATE = 'expenses.create';
+
+    public const EXPENSES_UPDATE = 'expenses.update';
+
+    public const EXPENSES_DELETE = 'expenses.delete';
+
+    public const EXPENSES_APPROVE = 'expenses.approve';
+
+    public const EXPENSES_REIMBURSE = 'expenses.reimburse';
 
     /** System */
     public const SYSTEM_ROOT = 'system.root';

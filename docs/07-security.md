@@ -76,7 +76,7 @@ Permissions are string constants in `App\Domain\Identity\Permissions` (`Permissi
 | bank_holidays.manage | Y | | Y | | |
 | bank_holidays.view | Y | Y | Y | Y | Y |
 | countries.manage, departments.manage, technologies.manage | Y | | | add | |
-| expenses.* `[OPTIONAL]` | Y | Y | Y | | |
+| expenses.* `[OPTIONAL]` (the `finance` role holds these too, D-51) | Y | | | | |
 | activity_logs.view | Y | | | | |
 | settings.manage | Y | Y | Y | | |
 | two_factor.manage | Y | | | | |
@@ -126,7 +126,7 @@ Scope: the whole application as built through M6, reviewed by reading the code, 
 | Sessions and transport | Pass in production | `APP_ENV=production` forces HTTPS URLs and secure cookies; HttpOnly and SameSite=lax are set; HSTS and the baseline headers are sent (D-50). Behind a load balancer set `TRUSTED_PROXIES`. |
 | Passwords | Pass | 12 or more characters, mixed case, a number, and not breached in production (D-50). |
 | Secrets and data at rest | Open question | The 2FA secret and recovery codes are encrypted. Date of birth, phone and address are not (D-50, owner question). `.env` is not committed. |
-| Files | Pass with a note | Exports are on the private disk, owner-only, deleted after 7 days. Avatars are on the public disk by design (they appear in the Directory); uploads are limited to images of 2 MB. |
+| Files | Pass with a note | Exports and expense receipts are on the private disk; receipts are read only through a permission-checked download (D-52). Exports are owner-only, deleted after 7 days. Avatars are on the public disk by design (they appear in the Directory); uploads are limited to images of 2 MB. |
 | Audit | Pass | Every business write is audited with the actor, IP, browser and impersonator; entries are read-only even for root (BR-32); anonymisation scrubs personal values (D-46). |
 | Dependencies | Pass | `composer audit` and `npm audit --omit=dev` report no advisories. |
 

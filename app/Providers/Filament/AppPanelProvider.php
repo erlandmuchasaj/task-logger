@@ -46,6 +46,7 @@ class AppPanelProvider extends PanelProvider
                     : [],
             )
             ->renderHook(PanelsRenderHook::CONTENT_START, fn () => view('filament.hooks.two-factor-banner'))
+            ->renderHook(PanelsRenderHook::CONTENT_START, fn () => view('filament.hooks.impersonation-banner'))
             ->colors([
                 'primary' => Color::Amber,
             ])

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Employees;
 
+use App\Domain\Identity\Actions\StartImpersonation;
 use App\Domain\Identity\Models\User;
 use App\Domain\People\Actions\DeactivateEmployee;
 use App\Domain\People\Actions\ReactivateEmployee;
@@ -29,6 +30,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Lab404\Impersonate\Services\ImpersonateManager;
+use Livewire\Component;
 use UnitEnum;
 
 /**
@@ -120,6 +123,18 @@ class EmployeeResource extends Resource
                     ->action(function (User $record): void {
                         app(ReactivateEmployee::class)->handle(auth()->user(), $record);
                         Notification::make()->title('Employee reactivated')->success()->send();
+                    }),
+                Action::make('impersonate')->label('Impersonate')->icon(Heroicon::OutlinedEye)->color('gray')
+                    ->visible(fn (User $record): bool => (bool) auth()->user()?->can('impersonate', $record)
+                        && ! $record->is(auth()->user()) && $record->canBeImpersonated() && ! app(ImpersonateManager::class)->isImpersonating())
+                    ->requiresConfirmation()->modalDescription('You will see and act as this person. Everything you change is recorded under their name with you as the impersonator.')
+                    ->action(function (User $record, Component $livewire): void {
+                        try {
+                            app(StartImpersonation::class)->handle(auth()->user(), $record);
+                            $livewire->redirect('/app');
+                        } catch (ValidationException $e) {
+                            Notification::make()->title(collect($e->errors())->flatten()->first())->danger()->send();
+                        }
                     }),
                 Action::make('resetTwoFactor')->label('Reset 2FA')->icon(Heroicon::OutlinedShieldExclamation)->color('danger')
                     ->visible(fn (User $record): bool => (bool) auth()->user()?->can('resetTwoFactor', $record) && $record->hasTwoFactorEnabled())

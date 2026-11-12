@@ -68,6 +68,12 @@ class UserPolicy
         return $user->can(Permissions::EMPLOYEES_DEACTIVATE);
     }
 
+    /** [OPTIONAL] D-47: employees.impersonate (superadmin). Who can be impersonated is a data rule in StartImpersonation. */
+    public function impersonate(User $user, User $employee): bool
+    {
+        return $user->can(Permissions::EMPLOYEES_IMPERSONATE);
+    }
+
     public function resetTwoFactor(User $user, User $employee): bool
     {
         return $user->can(Permissions::TWO_FACTOR_MANAGE);

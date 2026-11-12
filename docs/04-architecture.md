@@ -171,7 +171,7 @@ Built: logs (task and direct), the client rate snapshot, My Day with pinned task
 
 ## 14. Root access (D-41, after M4)
 
-- `Permissions::SYSTEM_ROOT` (`system.root`) is in the superadmin's list in `config/permission.php`; the grid now has 66 permissions.
+- `Permissions::SYSTEM_ROOT` (`system.root`) is in the superadmin's list in `config/permission.php`; the grid had 66 permissions then, 67 after `employees.impersonate` (M6).
 - `AppServiceProvider` registers `Gate::before(RootAccess::check(...))`. `RootAccess` calls `hasPermissionTo` directly (not `can`), so the gate cannot recurse, and returns `true` or `null` (never `false`), so other roles are untouched and Spatie's own gate keeps working.
 - `RootAccess::POLICY_ONLY` lists the abilities that stay under their policy: activity log create/update/delete, salary update/delete, user and client delete/restore/forceDelete, export view/download/create/update/delete. Add to it whenever a policy deliberately returns `false` for everyone.
 - Data rules are not authorisation and still apply to root (validation in the actions).
@@ -190,10 +190,17 @@ Built: `app/Domain/Leave` (enums, three models, actions, support, policy), the l
 
 ## 16. M6 outcome (2026-11-12)
 
-Built: performance reviews, offboarding with status moves, the anonymisation job, and the Performances and Offboardings screens. Ban already existed (M2) and now shares one code path with offboarding. Impersonation `[OPTIONAL]` is not built.
+Built: performance reviews, offboarding with status moves, the anonymisation job, and the Performances and Offboardings screens. Ban already existed (M2) and now shares one code path with offboarding. Impersonation `[OPTIONAL]` was added right after (section 17).
 
 - **Reviews (BR-27, D-21).** `PerformancePolicy` reads by `performances.view` or by the `manager_id` relationship, so an employee-role team lead reads their reports' reviews while an admin who is not the manager can create one and never read it back (FR-15). The list is scoped the same way in `PerformanceResource::getEloquentQuery`.
 - **Offboarding (W-10, ADR-0008).** `ChangeOffboardingStatus` locks the row, checks `OffboardingStatus::next()`, and on completion calls `Deactivation::ban`, the single place that bans (self and last-superadmin guards, sessions, audit). `DeactivateEmployee` uses it too. The database keeps one non-cancelled offboarding per user with a generated `active_user_id` unique column.
 - **Anonymisation (BR-28, D-46).** `AnonymizeDueEmployees` (daily) selects completed, past-retention, still-deactivated people and calls `AnonymizeEmployee`, which writes through the query builder and `saveQuietly` so the old values are not audited again, scrubs the activity log, and adds one `anonymized` entry. Retention uses the `PrivacySettings` value at run time.
 - **Root access.** `Performance` update/delete and `Offboarding` delete stay under their policy (denied) in `RootAccess::POLICY_ONLY`.
 - **Not built:** impersonation (`lab404/laravel-impersonate` 1.7.8 supports Laravel 13; it needs the `employees.impersonate` permission, a button on the Employees list and a test that the audit trail carries `impersonator_id`; the audit side already exists, D-38); a performance-review relation manager on the employee page (the list screen covers W-09); notifications.
+
+## 17. Impersonation (D-47, after M6)
+
+- `lab404/laravel-impersonate` 1.7.8 is installed. Its GET routes are not registered (only the `Route::impersonate()` macro would); starting is the Employees list action calling `StartImpersonation`, stopping is a POST route (`impersonation.leave`) with CSRF.
+- `User` uses the package trait and overrides `canImpersonate()` (permission `employees.impersonate`) and `canBeImpersonated()` (active, not anonymised, not root). The action adds the self and nesting guards. Both clear Laravel's `password_hash_web` session value so `AuthenticateSession` stores the new user's hash instead of logging the session out.
+- `ImpersonationAudit` listens to the package's `TakeImpersonation` and `LeaveImpersonation` events. The existing `ActivityContext` already reads the session key, so no audit code changed.
+- The Profile page is closed while impersonating, so the impersonator cannot change the password or 2FA of the person acted as.

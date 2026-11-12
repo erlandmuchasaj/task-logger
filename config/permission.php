@@ -47,6 +47,7 @@ return [
             Permissions::EMPLOYEES_CREATE,
             Permissions::EMPLOYEES_UPDATE,
             Permissions::EMPLOYEES_DEACTIVATE,
+            Permissions::EMPLOYEES_IMPERSONATE,
             Permissions::EMPLOYEES_VIEW_HR_RECORD,
             Permissions::EMPLOYEES_UPDATE_HR_RECORD,
 

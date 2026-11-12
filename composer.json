@@ -9,6 +9,7 @@
         "php": "^8.4",
         "cybercog/laravel-ban": "^4.11",
         "filament/filament": "^5.11",
+        "lab404/laravel-impersonate": "^1.7",
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0",
         "propaganistas/laravel-phone": "^6.1",

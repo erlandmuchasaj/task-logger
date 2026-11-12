@@ -372,6 +372,12 @@ Each entry: what the source says, the default this spec implements, and whether 
 - Default: the clock starts on a `completed` offboarding only: `end_date` plus `anonymize_after_months` (months added without overflow, compared with today in the person's country timezone). Someone whose login was reactivated is never anonymised. The user becomes `Former employee #id` with no surname, email `anonymized-{id}@invalid.example`, a random password, no avatar (the file is deleted), no 2FA secrets, no sessions and no password-reset tokens. The `employee_profiles` row is kept with every field emptied; emergency contacts are deleted. The position, department, manager, skills and country stay (they are not personal data and keep reports meaningful). In the activity log the entries about the user, their profile and their contacts keep their place but lose their before/after values and properties, and the IP address and user agent are cleared on entries the person caused. Writing this happens without model events so the old values are not logged again; one `anonymized` entry is added. The job is idempotent and runs daily.
 - Confirm: yes. Should free-text fields written by others about the person (leave reasons, task and log descriptions, review notes) be scrubbed too? The default keeps them: they are business records, and the rows are kept by BR-28.
 
+**D-47 — Impersonation `[OPTIONAL]` (M6). Requested by the owner (2026-11-12).**
+
+- Source: IDEA.md and the grid row `employees.impersonate`; D-38 already records `impersonator_id` on every audit entry.
+- Default: the superadmin (`employees.impersonate`) can act as another user from the Employees list, using `lab404/laravel-impersonate` 1.7.8 (Laravel 13 compatible). Not allowed: yourself, a deactivated or anonymised account, another root user (`system.root`), or nesting. Starting and stopping are audited with the real person as causer; every audited write while impersonating carries `impersonator_id` (D-38). A banner with a POST-only stop button shows while impersonating; the package's own GET routes are not registered, so an impersonation can only start from the Filament action. While impersonating, the Profile page (password and two-factor setup of the person being acted as) is closed. The impersonated user's own permissions apply; root access does not carry over.
+- Confirm: no.
+
 ### 3.2 Confirm before coding
 
 1. D-14 and D-05: what employees and assistants may see, and whether an employee sees their own HR record. HR and admin access is now set by the owner.

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Identity\Models;
 
 use App\Domain\Identity\Enums\EmploymentType;
+use App\Domain\Identity\Permissions;
 use App\Domain\MasterData\Models\Country;
 use App\Domain\MasterData\Models\Department;
 use App\Domain\MasterData\Models\Technology;
@@ -31,6 +32,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Lab404\Impersonate\Models\Impersonate;
 use SensitiveParameter;
 use Spatie\Activitylog\Models\Concerns\CausesActivity;
 use Spatie\Permission\Traits\HasRoles;
@@ -48,7 +50,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements BannableContract, FilamentUser, HasAppAuthentication, HasAppAuthenticationRecovery
 {
     /** @use HasFactory<UserFactory> */
-    use Bannable, CausesActivity, HasFactory, HasRoles, LogsBusinessActivity, Notifiable, SoftDeletes;
+    use Bannable, CausesActivity, HasFactory, HasRoles, Impersonate, LogsBusinessActivity, Notifiable, SoftDeletes;
 
     protected function casts(): array
     {
@@ -108,6 +110,18 @@ class User extends Authenticatable implements BannableContract, FilamentUser, Ha
     public function canAccessPanel(Panel $panel): bool
     {
         return ! $this->isBanned() && $this->anonymized_at === null;
+    }
+
+    /** D-47: only holders of employees.impersonate may act as someone else. Read by lab404/laravel-impersonate. */
+    public function canImpersonate(): bool
+    {
+        return $this->hasPermissionTo(Permissions::EMPLOYEES_IMPERSONATE);
+    }
+
+    /** D-47: never a deactivated or anonymised account, and never another root user (that would gain nothing and hide who acted). */
+    public function canBeImpersonated(): bool
+    {
+        return ! $this->isBanned() && $this->anonymized_at === null && ! $this->hasPermissionTo(Permissions::SYSTEM_ROOT);
     }
 
     public function getFilamentName(): string

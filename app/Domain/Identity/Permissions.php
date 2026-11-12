@@ -11,8 +11,7 @@ use ReflectionClassConstant;
  * Application code checks these through Policies and Gates, never role names.
  * Which role holds which permission lives in config/permission.php ('roles').
  *
- * Deferred permissions, added with their milestone: employees.impersonate (M6, optional),
- * expenses.* (M8, optional).
+ * Deferred permissions, added with their milestone: expenses.* (M8, optional).
  */
 final class Permissions
 {
@@ -28,6 +27,9 @@ final class Permissions
     public const EMPLOYEES_VIEW_HR_RECORD = 'employees.view_hr_record';
 
     public const EMPLOYEES_UPDATE_HR_RECORD = 'employees.update_hr_record';
+
+    /** [OPTIONAL] Act as another user (D-47). Superadmin only. */
+    public const EMPLOYEES_IMPERSONATE = 'employees.impersonate';
 
     /** Salaries */
     public const SALARIES_VIEW = 'salaries.view';

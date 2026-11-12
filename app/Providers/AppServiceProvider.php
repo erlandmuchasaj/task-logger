@@ -20,6 +20,7 @@ use App\Domain\Identity\Models\ActivityLog;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Policies\ActivityPolicy;
 use App\Domain\Identity\Support\ActivityContext;
+use App\Domain\Identity\Support\ImpersonationAudit;
 use App\Domain\Identity\Support\RootAccess;
 use App\Domain\Leave\Models\LeaveRequest;
 use App\Domain\Leave\Policies\LeaveRequestPolicy;
@@ -54,8 +55,11 @@ use App\Domain\Work\Policies\TaskPolicy;
 use App\Domain\Work\Policies\TimesheetLockPolicy;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Lab404\Impersonate\Events\LeaveImpersonation;
+use Lab404\Impersonate\Events\TakeImpersonation;
 use Spatie\Activitylog\Models\Activity;
 
 class AppServiceProvider extends ServiceProvider
@@ -103,6 +107,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Export::class, ExportPolicy::class);
         Gate::policy(TimesheetLock::class, TimesheetLockPolicy::class);
         Gate::policy(LeaveRequest::class, LeaveRequestPolicy::class);
+        Event::listen(TakeImpersonation::class, [ImpersonationAudit::class, 'taken']);
+        Event::listen(LeaveImpersonation::class, [ImpersonationAudit::class, 'left']);
+
         Gate::policy(Performance::class, PerformancePolicy::class);
         Gate::policy(Offboarding::class, OffboardingPolicy::class);
 

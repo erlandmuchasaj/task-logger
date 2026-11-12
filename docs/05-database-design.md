@@ -121,7 +121,7 @@ M4 built as designed: `logs` (CHECK duration 1 to 1440 minutes, composite key to
 8. leave_requests, leave_request_approvals, leave_ledger_entries.
 9. expenses, expense_lines `[OPTIONAL]`.
 
-Circularity: `users.country_id/department_id` need step 2 first; `projects.manager_id` needs users. Seeders: permissions → roles → superadmin user → master data.
+Circularity: `users.country_id/department_id` need step 2 first; `projects.manager_id` needs users. Seeders (`DatabaseSeeder` order, all idempotent): permissions and roles → master data (leave types, labels, payment plans) → countries (AL, XK) → departments (Engineering with Backend/Frontend/Mobile/DevOps, plus six top-level) → technologies → superadmin user. The country, department and technology lists are starter data the owner can edit in the UI.
 
 ## Open questions for the owner
 

@@ -3,13 +3,19 @@
 declare(strict_types=1);
 
 use App\Domain\Identity\Enums\RoleName;
+use App\Domain\MasterData\Models\Country;
+use App\Domain\MasterData\Models\Department;
 use App\Domain\MasterData\Models\Label;
 use App\Domain\MasterData\Models\LeaveType;
 use App\Domain\MasterData\Models\PaymentPlan;
+use App\Domain\MasterData\Models\Technology;
 use App\Domain\MasterData\Settings\LeaveSettings;
 use App\Domain\MasterData\Settings\PrivacySettings;
 use App\Filament\Pages\ManageSettings;
+use Database\Seeders\CountrySeeder;
+use Database\Seeders\DepartmentSeeder;
 use Database\Seeders\MasterDataSeeder;
+use Database\Seeders\TechnologySeeder;
 use Livewire\Livewire;
 
 it('D-19 seeds the leave types, labels and payment plans named in the spec, idempotently', function () {
@@ -22,6 +28,24 @@ it('D-19 seeds the leave types, labels and payment plans named in the spec, idem
         ->and(Label::pluck('name')->sort()->values()->all())
         ->toBe(['Bug', 'Design', 'Documentation', 'Enhancement', 'Feature', 'Refactoring', 'Testing'])
         ->and(PaymentPlan::count())->toBe(4);
+});
+
+it('seeds countries, departments and technologies idempotently', function () {
+    foreach ([CountrySeeder::class, DepartmentSeeder::class, TechnologySeeder::class] as $seeder) {
+        $this->seed($seeder);
+        $this->seed($seeder);
+    }
+
+    $albania = Country::where('code', 'AL')->firstOrFail();
+
+    expect(Country::count())->toBe(2)
+        ->and($albania->currency_code)->toBe('ALL')
+        ->and($albania->timezone)->toBe('Europe/Tirane')
+        ->and($albania->working_days)->toBe([1, 2, 3, 4, 5])
+        ->and(Technology::count())->toBe(13)
+        ->and(Department::count())->toBe(11)
+        ->and(Department::where('name', 'Backend')->firstOrFail()->parent->name)->toBe('Engineering')
+        ->and(Department::pluck('slug')->unique()->count())->toBe(11);
 });
 
 it('D-15 / D-08 settings default to 2 months retention and carry-over off', function () {

@@ -8,6 +8,8 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Work\Models\Task;
 use App\Filament\Resources\Logs\LogResource;
 use App\Filament\Resources\Tasks\TaskResource;
+use Filament\Actions\Action;
+use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -19,7 +21,7 @@ final class TaskAssigned extends Notification
     /** @return list<string> */
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return ['mail', 'database'];
     }
 
     public function toMail(User $notifiable): MailMessage
@@ -53,5 +55,20 @@ final class TaskAssigned extends Notification
         return $mail
             ->action('Open the task', TaskResource::getUrl('view', ['record' => $task], panel: 'app'))
             ->line('To log your hours on it, use **Log hours** on the task page or go straight to: '.LogResource::getUrl('create', ['task' => $task->getKey()], panel: 'app'));
+    }
+
+    /** @return array<string, mixed> */
+    public function toDatabase(User $notifiable): array
+    {
+        $task = $this->task->loadMissing('project');
+        $by = $this->assignedBy?->getFilamentName();
+
+        return FilamentNotification::make()
+            ->title('New task assigned')
+            ->body(($by !== null ? "{$by} assigned you " : 'You were assigned ').$task->name.' on '.$task->project->name.'.')
+            ->actions([
+                Action::make('view')->label('View')->url(TaskResource::getUrl('view', ['record' => $task], panel: 'app'))->markAsRead(),
+            ])
+            ->getDatabaseMessage();
     }
 }

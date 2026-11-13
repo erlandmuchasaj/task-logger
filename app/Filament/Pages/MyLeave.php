@@ -39,7 +39,7 @@ final class MyLeave extends Page
 
         return array_values(LeaveType::query()->where('affects_balance', true)->where('is_active', true)->orderBy('name')->get()
             ->map(fn (LeaveType $type): array => [
-                'type' => ucfirst(str_replace('_', ' ', $type->name)),
+                'type' => $type->label(),
                 'balance' => Days::format(LeaveBalance::balance($user, (int) $type->getKey())),
                 'pending' => Days::format(LeaveBalance::pending($user, (int) $type->getKey())),
                 'available' => Days::format(LeaveBalance::available($user, (int) $type->getKey())),

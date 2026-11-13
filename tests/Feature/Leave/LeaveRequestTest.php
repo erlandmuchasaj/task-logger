@@ -17,10 +17,14 @@ use App\Domain\Leave\Enums\LeaveStatus;
 use App\Domain\Leave\Enums\LedgerEntryType;
 use App\Domain\Leave\Models\LeaveLedgerEntry;
 use App\Domain\Leave\Models\LeaveRequest;
+use App\Domain\Leave\Notifications\LeaveDecided;
 use App\Domain\Leave\Support\LeaveBalance;
+use Filament\Notifications\Livewire\DatabaseNotifications;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Date;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
+use Livewire\Livewire;
 
 /** An employee with a manager, 10 days of annual leave, and an HR user. */
 function approvalSetup(): array
@@ -263,3 +267,48 @@ it('BR-32 every leave write is audited with the actor', function (): void {
         ->and(ActivityLog::query()->where('subject_type', LeaveLedgerEntry::class)->where('causer_id', $setup['hr']->id)->exists())->toBeTrue()
         ->and(ActivityLog::query()->where('subject_type', LeaveRequest::class)->where('event', 'updated')->exists())->toBeTrue();
 })->group('BR-32');
+
+it('D-57 the employee is told about the final approval and about a rejection, not about the manager step', function (): void {
+    Notification::fake();
+    $setup = approvalSetup();
+    $request = pendingRequest($setup);
+
+    resolve(DecideLeave::class)->handle($setup['manager'], $request, ApprovalStage::Manager, ApprovalDecision::Approved);
+    Notification::assertNothingSent();
+
+    resolve(DecideLeave::class)->handle($setup['hr'], $request, ApprovalStage::Hr, ApprovalDecision::Approved);
+    Notification::assertSentTo($setup['employee'], LeaveDecided::class, fn (LeaveDecided $n): bool => $n->toMail($setup['employee'])->subject === 'Your leave request was approved'
+        && str_contains(implode("\n", $n->toMail($setup['employee'])->introLines), 'Annual Leave')
+        && $n->via($setup['employee']) === ['mail', 'database']);
+
+    $other = approvalSetup();
+    $rejected = pendingRequest($other);
+    resolve(DecideLeave::class)->handle($other['manager'], $rejected, ApprovalStage::Manager, ApprovalDecision::Rejected, 'Release week');
+    Notification::assertSentTo($other['employee'], LeaveDecided::class, function (LeaveDecided $n) use ($other, $rejected): bool {
+        $mail = $n->toMail($other['employee']);
+
+        return $n->request->is($rejected)
+            && $mail->subject === 'Your leave request was rejected'
+            && str_contains(implode("\n", $mail->introLines), 'Release week');
+    });
+})->group('D-57');
+
+it('D-57 the decision lands in the in-app notification drawer and a banned employee is not told', function (): void {
+    $setup = approvalSetup();
+    $request = pendingRequest($setup);
+
+    resolve(DecideLeave::class)->handle($setup['manager'], $request, ApprovalStage::Manager, ApprovalDecision::Rejected, 'Release week');
+
+    expect($setup['employee']->notifications)->toHaveCount(1)
+        ->and($setup['employee']->notifications->first()->data['title'])->toBe('Your leave request was rejected');
+
+    Livewire::withoutLazyLoading();
+    Livewire::actingAs($setup['employee'])->test(DatabaseNotifications::class)
+        ->set('isOpen', true)
+        ->assertSee('Your leave request was rejected');
+
+    Notification::fake();
+    $setup['employee']->ban();
+    resolve(DecideLeave::class)->handle($setup['manager'], pendingRequest($setup), ApprovalStage::Manager, ApprovalDecision::Rejected, 'No');
+    Notification::assertNothingSent();
+})->group('D-57');

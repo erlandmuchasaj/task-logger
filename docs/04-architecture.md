@@ -186,7 +186,7 @@ Built: `app/Domain/Leave` (enums, three models, actions, support, policy), the l
 - **Direct day off (BR-22).** `CreateDirectDayOff` needs `leave_requests.create_for_others`, a note, a balance-affecting type, and an explicit flag to go below zero. It still obeys BR-23.
 - **Concurrency.** Requests, decisions, cancellations and grants lock the employee's user row first (as the 24 hour log cap does), so two requests cannot both pass the balance check.
 - **Calendar.** A server-rendered month grid (no calendar plugin to verify against Filament 5). Visibility reuses `LeaveRequestResource::visibleTo`.
-- **Not built:** manual balance adjustments (no permission in the grid), leave notifications `[OPTIONAL]`, the leave-balance widget `[OPTIONAL]`, an expiry job for requests left pending.
+- **Not built:** manual balance adjustments (no permission in the grid), leave submission notifications to approvers `[OPTIONAL]` (the employee decision notice is built, D-57), the leave-balance widget `[OPTIONAL]`, an expiry job for requests left pending.
 
 ## 16. M6 outcome (2026-11-12)
 

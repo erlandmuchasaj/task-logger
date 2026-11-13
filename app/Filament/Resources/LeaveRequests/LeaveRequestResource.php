@@ -33,6 +33,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use UnitEnum;
 
@@ -101,8 +102,8 @@ final class LeaveRequestResource extends Resource
     {
         return [
             Select::make('leave_type_id')->label('Type')->required()
-                ->options(fn (): array => LeaveType::query()->where('is_active', true)->orderBy('name')->pluck('name', 'id')
-                    ->map(fn (string $name): string => ucfirst(str_replace('_', ' ', $name)))->all()),
+                ->options(fn (): array => LeaveType::query()->where('is_active', true)->orderBy('name')->get()
+                    ->mapWithKeys(fn (LeaveType $type): array => [$type->getKey() => $type->label()])->all()),
             DatePicker::make('start_date')->required(),
             Select::make('start_day_part')->label('First day')->options(DayPart::class)->default(DayPart::Full->value)->required()->native(false),
             DatePicker::make('end_date')->required()->afterOrEqual('start_date'),
@@ -122,7 +123,7 @@ final class LeaveRequestResource extends Resource
                     ->formatStateUsing(fn (?string $state, LeaveRequest $record): string => $record->user->getFilamentName())
                     ->searchable(['name' => 'users.name']),
                 TextColumn::make('leaveType.name')->label('Type')
-                    ->formatStateUsing(fn (string $state): string => ucfirst(str_replace('_', ' ', $state))),
+                    ->formatStateUsing(fn (string $state): string => Str::headline($state)),
                 TextColumn::make('period')->label('Dates')->state(fn (LeaveRequest $record): string => $record->start_date->isSameDay($record->end_date)
                     ? $record->start_date->format('d M Y').self::part($record->start_day_part)
                     : $record->start_date->format('d M Y').self::part($record->start_day_part).' to '.$record->end_date->format('d M Y').self::part($record->end_day_part)),

@@ -43,6 +43,8 @@ final class AppPanelProvider extends PanelProvider
             ->login()
             ->passwordReset()
             ->profile(EditProfile::class)
+            ->databaseNotifications()
+            ->databaseNotificationsPolling('30s')
             ->globalSearch(LockedGlobalSearchProvider::class)
             // ADR-0005 / D-26: providers appear only while the superadmin has 2FA switched on.
             // "Required" is enforced by EnforceTwoFactorGracePeriod (after the grace period), not by

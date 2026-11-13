@@ -13,6 +13,7 @@ use App\Domain\Leave\Models\LeaveLedgerEntry;
 use App\Domain\Leave\Models\LeaveRequest;
 use App\Domain\Leave\Models\LeaveRequestApproval;
 use App\Domain\Leave\Support\Days;
+use App\Domain\Leave\Support\NotifyLeaveDecision;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -119,6 +120,10 @@ final class DecideLeave
             'review_note' => $note,
         ]);
 
-        return $request->refresh();
+        $request->refresh();
+
+        NotifyLeaveDecision::send($actor, $request);
+
+        return $request;
     }
 }

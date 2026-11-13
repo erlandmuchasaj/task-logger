@@ -156,7 +156,7 @@ it('FR-34 My Leave shows the balance and Leave Calendar shows holidays and leave
         'start_date' => '2026-06-11', 'end_date' => '2026-06-11', 'status' => LeaveStatus::Pending,
     ]);
 
-    $this->actingAs($world['employee'])->get('/app/my-leave')->assertOk()->assertSee('10.0')->assertSee('Annual leave');
+    $this->actingAs($world['employee'])->get('/app/my-leave')->assertOk()->assertSee('10.0')->assertSee('Annual Leave');
 
     Date::setTestNow('2026-06-15');
     Livewire::test(LeaveCalendar::class)->set('month', '2026-06')

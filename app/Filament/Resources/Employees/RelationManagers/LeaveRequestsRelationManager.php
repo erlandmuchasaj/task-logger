@@ -13,6 +13,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 /**
  * The person's leave requests on their employee page (read-only; decisions stay on the Leave Requests
@@ -44,7 +45,7 @@ final class LeaveRequestsRelationManager extends RelationManager
             ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('leaveType'))
             ->columns([
                 TextColumn::make('leaveType.name')->label('Type')->badge()->color('info')
-                    ->formatStateUsing(fn (string $state): string => ucfirst(str_replace('_', ' ', $state))),
+                    ->formatStateUsing(fn (string $state): string => Str::headline($state)),
                 TextColumn::make('status')->badge(),
                 TextColumn::make('start_date')->label('Start date')->date()->sortable(),
                 TextColumn::make('end_date')->label('End date')->date()->sortable(),

@@ -71,7 +71,7 @@ Source scope sentence: users, user skills, roles and permissions, clients, proje
 - Move approved leave to `taken` after its end date (BR-19).
 - Anonymise personal data 2 months after the offboarding end date (BR-28).
 - Queued exports (BR-33).
-- `[OPTIONAL]` Notifications to approvers and employees on leave submission and decision.
+- Notifications to employees on the final leave decision (D-57). `[OPTIONAL]` Notifications to approvers on leave submission.
 
 ### 2.3 Packages
 
@@ -425,6 +425,12 @@ Each entry: what the source says, the default this spec implements, and whether 
 - Source: the owner asked that an employee be emailed when a task is assigned to them, with the task details and a link to the task page where they can log hours.
 - Default: sent when a task gets a new assignee (on create, edit or the assign action), after the change commits. Not sent when the assignee is unchanged or removed, when people assign themselves, or to a deactivated or anonymised account. The email lists name, project and client, technology, priority, status, estimate, due date, labels, the pinned flag and the description (first 1,000 characters), with "Open the task" and a direct "log hours" link. The task page gains a "Log hours" button for its assignee while the task is open; it opens the log form with the task chosen (`?task={id}`, only one of the person's own open tasks is ever preselected). Sent at once (not queued), like the other emails.
 - Confirm: whether the previous assignee should be told when a task is taken from them.
+
+**D-57 — Leave decision notification and in-app notification bell. Asked by the owner (2026-11-13).**
+
+- Source: the owner asked that an employee is told when their leave request is approved or rejected, and that every email we send is also visible in the app, behind a bell in the top menu.
+- Default: the employee gets an email and an in-app notification on the final decision only (a rejection at either stage, or HR's approval); a manager's intermediate approval sends nothing. A rejection includes the reason. Not sent to a deactivated or anonymised account. The bell uses Filament's database notifications drawer (unread badge, mark all as read, clear, per-item delete, 30 second polling). `TaskAssigned` (D-55) also goes to the bell. The welcome and password-reset emails stay email only because they contain a password.
+- Confirm: whether approvers should also be notified when a request is submitted.
 
 **D-56 — Admin sees every leave request. Decided by the owner (2026-11-13).**
 

@@ -341,6 +341,12 @@ it('D-55 the assignee gets an email with the task details and links to the task 
             && str_contains($text, $actor->getFilamentName());
     });
     Notification::assertCount(1);
+
+    $payload = new TaskAssigned($task, $actor)->toDatabase($assignee);
+
+    expect(new TaskAssigned($task, $actor)->via($assignee))->toContain('database')
+        ->and($payload['title'])->toBe('New task assigned')
+        ->and($payload['actions'][0]['url'])->toBe(TaskResource::getUrl('view', ['record' => $task], panel: 'app'));
 });
 
 it('D-55 reassigning emails only the new assignee; unchanged, removed or self-assigned tasks send nothing', function (): void {

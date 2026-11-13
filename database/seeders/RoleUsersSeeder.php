@@ -7,6 +7,7 @@ namespace Database\Seeders;
 use App\Domain\Identity\Actions\AssignUserRole;
 use App\Domain\Identity\Enums\RoleName;
 use App\Domain\Identity\Models\User;
+use Exception;
 use Illuminate\Database\Seeder;
 
 /**
@@ -17,6 +18,9 @@ final class RoleUsersSeeder extends Seeder
 {
     public const string PASSWORD = '12345678';
 
+    /**
+     * @throws Exception
+     */
     public function run(): void
     {
         if (app()->isProduction()) {

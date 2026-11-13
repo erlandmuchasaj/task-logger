@@ -304,3 +304,37 @@ it("BR-18 the expiry job running first on 1 January leaves that day's expiry ent
     expect(expiriesOn($setup, '2027-01-01'))->toHaveCount(1)
         ->and(LeaveBalance::balance($setup['employee'], $setup['annual']->id))->toBe(400);
 })->group('BR-18', 'NFR-13');
+
+it('BR-18 a year-end close retried after the policy appears later on 1 January still expires the whole old balance', function (): void {
+    $setup = leaveSetup();
+    carryPolicy($setup, 12);
+
+    runLeaveJobs('2025-01-01');
+    runLeaveJobs('2026-01-01');   // a 20-day tranche due 2027-01-01, plus the 2026 grant
+
+    CountryLeavePolicy::query()->where('leave_type_id', $setup['annual']->id)->delete();   // no policy yet on 2027-01-01
+
+    Date::setTestNow('2027-01-01 10:00:00');
+    resolve(GrantAnnualLeave::class)->handle();
+    resolve(ExpireCarryOver::class)->handle();
+
+    expect(expiriesOn($setup, '2027-01-01'))->toHaveCount(0);   // the expiry job leaves that day to the close
+
+    CountryLeavePolicy::factory()->create([
+        'country_id' => $setup['country']->id, 'leave_type_id' => $setup['annual']->id, 'days_per_year' => '20.0',
+        'effective_from' => '2027-01-01', 'carry_over_enabled' => false,
+    ]);
+
+    resolve(GrantAnnualLeave::class)->handle();
+    resolve(ExpireCarryOver::class)->handle();
+
+    expect(expiriesOn($setup, '2027-01-01')->sole()->days)->toBe('-40.0')
+        ->and(entries($setup['employee'], LedgerEntryType::CarryOver))->toHaveCount(1)
+        ->and(LeaveBalance::balance($setup['employee'], $setup['annual']->id))->toBe(200);   // only the 2027 grant is left
+
+    $entryCount = entries($setup['employee'])->count();
+    resolve(GrantAnnualLeave::class)->handle();
+    resolve(ExpireCarryOver::class)->handle();
+
+    expect(entries($setup['employee']))->toHaveCount($entryCount);
+})->group('BR-18', 'NFR-13');

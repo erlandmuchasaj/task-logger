@@ -10,6 +10,7 @@ use BackedEnum;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -17,6 +18,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\ColorColumn;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -40,7 +42,7 @@ final class DepartmentResource extends Resource
                 ->relationship('parent', 'name', fn ($query, ?Department $record) => $record instanceof Department ? $query->whereKeyNot($record->getKey()) : $query)
                 ->searchable()->preload(),
             Textarea::make('description')->columnSpanFull(),
-            TextInput::make('color')->maxLength(32),
+            ColorPicker::make('color'),
             Toggle::make('is_active')->default(true),
         ]);
     }
@@ -50,6 +52,7 @@ final class DepartmentResource extends Resource
         return $table
             ->modifyQueryUsing(fn ($query) => $query->with('parent'))
             ->columns([
+                ColorColumn::make('color')->label(''),
                 TextColumn::make('name')->searchable()->sortable(),
                 TextColumn::make('parent.name')->label('Parent'),
                 TextColumn::make('slug')->toggleable(isToggledHiddenByDefault: true),

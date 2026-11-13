@@ -27,8 +27,23 @@ final class MasterDataSeeder extends Seeder
             LeaveType::firstOrCreate(['name' => $name], ['affects_balance' => $affectsBalance, 'is_active' => true]);
         }
 
-        foreach (['Bug', 'Feature', 'Design', 'Testing', 'Refactoring', 'Enhancement', 'Documentation'] as $label) {
-            Label::firstOrCreate(['name' => $label]);
+        /** Every label gets its own color; no two share one. */
+        $labels = [
+            'Bug' => '#ef4444',
+            'Feature' => '#22c55e',
+            'Design' => '#ec4899',
+            'Testing' => '#f59e0b',
+            'Refactoring' => '#8b5cf6',
+            'Enhancement' => '#3b82f6',
+            'Documentation' => '#14b8a6',
+        ];
+
+        foreach ($labels as $name => $color) {
+            $label = Label::firstOrCreate(['name' => $name], ['color' => $color]);
+
+            if ($label->color === null) {
+                $label->update(['color' => $color]);
+            }
         }
 
         $plans = [

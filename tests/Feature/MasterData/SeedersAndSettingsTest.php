@@ -59,6 +59,26 @@ it('settings.manage holders (superadmin, admin, hr) can change settings', functi
 
     Livewire::test(ManageSettings::class)
         ->fillForm(['anonymize_after_months' => 3, 'carry_over_default' => true])
+it('gives every seeded department and label its own color', function (): void {
+    $this->seed([DepartmentSeeder::class, MasterDataSeeder::class]);
+
+    foreach ([Department::query()->pluck('color'), Label::query()->pluck('color')] as $colors) {
+        expect($colors->filter()->count())->toBe($colors->count())
+            ->and($colors->unique()->count())->toBe($colors->count());
+    }
+});
+
+it('fills a missing color on re-seed but keeps a color an admin chose', function (): void {
+    $this->seed([DepartmentSeeder::class]);
+    Department::query()->where('name', 'Sales')->update(['color' => '#000000']);
+    Department::query()->where('name', 'Design')->update(['color' => null]);
+
+    $this->seed([DepartmentSeeder::class]);
+
+    expect(Department::query()->where('name', 'Sales')->value('color'))->toBe('#000000')
+        ->and(Department::query()->where('name', 'Design')->value('color'))->toBe('#ec4899');
+});
+
         ->call('save')
         ->assertHasNoFormErrors();
 

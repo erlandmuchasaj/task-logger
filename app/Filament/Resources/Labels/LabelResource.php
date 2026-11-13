@@ -10,10 +10,12 @@ use BackedEnum;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\ColorColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use UnitEnum;
@@ -32,7 +34,7 @@ final class LabelResource extends Resource
     {
         return $schema->components([
             TextInput::make('name')->required()->maxLength(255)->unique(ignoreRecord: true),
-            TextInput::make('color')->maxLength(32),
+            ColorPicker::make('color'),
         ]);
     }
 
@@ -41,7 +43,7 @@ final class LabelResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('name')->searchable()->sortable(),
-                TextColumn::make('color'),
+                ColorColumn::make('color'),
             ])
             ->recordActions([ActionGroup::make([EditAction::make(), DeleteAction::make()])])
             ->defaultSort('name');

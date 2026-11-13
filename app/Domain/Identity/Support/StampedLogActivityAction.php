@@ -12,7 +12,7 @@ use Spatie\Activitylog\Actions\LogActivityAction;
  * Stamps every activity with the request context before it is saved or buffered (D-38). Values already
  * set on an entry are kept, so code can still record something explicitly.
  */
-class StampedLogActivityAction extends LogActivityAction
+final class StampedLogActivityAction extends LogActivityAction
 {
     protected function beforeActivityLogged(Model $activity): void
     {
@@ -22,7 +22,7 @@ class StampedLogActivityAction extends LogActivityAction
             return; // another activity model is configured: it has no context columns
         }
 
-        $context = app(ActivityContext::class);
+        $context = resolve(ActivityContext::class);
 
         $activity->client_ip ??= $context->clientIp();
         $activity->user_agent ??= $context->userAgent();

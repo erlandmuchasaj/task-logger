@@ -6,6 +6,7 @@ namespace App\Providers\Filament;
 
 use App\Domain\Identity\Support\TwoFactorPolicy;
 use App\Filament\Pages\Auth\EditProfile;
+use App\Filament\Support\LockedGlobalSearchProvider;
 use App\Http\Middleware\EnforceTwoFactorGracePeriod;
 use App\Http\Middleware\ForcePasswordChange;
 use App\Http\Middleware\SecurityHeaders;
@@ -21,6 +22,8 @@ use Filament\Support\Colors\Color;
 use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
 use Filament\Widgets\FilamentInfoWidget;
+use Illuminate\Contracts\View\Factory;
+use Illuminate\Contracts\View\View;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -28,7 +31,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
-class AppPanelProvider extends PanelProvider
+final class AppPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
@@ -40,16 +43,17 @@ class AppPanelProvider extends PanelProvider
             ->login()
             ->passwordReset()
             ->profile(EditProfile::class)
+            ->globalSearch(LockedGlobalSearchProvider::class)
             // ADR-0005 / D-26: providers appear only while the superadmin has 2FA switched on.
             // "Required" is enforced by EnforceTwoFactorGracePeriod (after the grace period), not by
             // Filament's all-or-nothing isRequired flag.
             ->multiFactorAuthentication(
-                fn (): array => app(TwoFactorPolicy::class)->isEnabled()
+                fn (): array => resolve(TwoFactorPolicy::class)->isEnabled()
                     ? [AppAuthentication::make()->recoverable()->brandName((string) config('app.name'))]
                     : [],
             )
-            ->renderHook(PanelsRenderHook::CONTENT_START, fn () => view('filament.hooks.two-factor-banner'))
-            ->renderHook(PanelsRenderHook::CONTENT_START, fn () => view('filament.hooks.impersonation-banner'))
+            ->renderHook(PanelsRenderHook::CONTENT_START, fn (): Factory|View => view('filament.hooks.two-factor-banner'))
+            ->renderHook(PanelsRenderHook::CONTENT_START, fn (): Factory|View => view('filament.hooks.impersonation-banner'))
             ->colors([
                 'primary' => Color::Amber,
             ])
@@ -79,6 +83,6 @@ class AppPanelProvider extends PanelProvider
                 Authenticate::class,
                 ForcePasswordChange::class,
                 EnforceTwoFactorGracePeriod::class,
-            ]);
+            ], isPersistent: true);
     }
 }

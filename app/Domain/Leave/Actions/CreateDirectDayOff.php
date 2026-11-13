@@ -21,7 +21,7 @@ use Spatie\Activitylog\Support\CauserResolver;
  * approval, is stored as approved and deducts PTO or sick leave straight away. A note is required;
  * with `overrideBalance` it may take the balance below zero (BR-24).
  */
-class CreateDirectDayOff
+final class CreateDirectDayOff
 {
     use ValidatesLeave;
 
@@ -29,7 +29,7 @@ class CreateDirectDayOff
     {
         Gate::forUser($actor)->authorize('createForOthers', LeaveRequest::class);
 
-        if (trim((string) $data->reason) === '') {
+        if (mb_trim((string) $data->reason) === '') {
             throw ValidationException::withMessages(['reason' => 'A note is required for a direct day off.']);
         }
 
@@ -39,7 +39,7 @@ class CreateDirectDayOff
             throw ValidationException::withMessages(['leave_type_id' => 'A direct day off is deducted from PTO or sick leave.']);
         }
 
-        return app(CauserResolver::class)->withCauser($actor, fn (): LeaveRequest => DB::transaction(function () use ($actor, $employee, $data, $overrideBalance): LeaveRequest {
+        return resolve(CauserResolver::class)->withCauser($actor, fn (): LeaveRequest => DB::transaction(function () use ($actor, $employee, $data, $overrideBalance): LeaveRequest {
             $this->lockEmployee($employee);
 
             ['span' => $span, 'tenths' => $tenths, 'type' => $type] = $this->prepare($employee, $data);
@@ -49,7 +49,7 @@ class CreateDirectDayOff
                 $this->assertBalance($employee, $type, $tenths);
             }
 
-            $request = LeaveRequest::create([
+            $request = LeaveRequest::query()->create([
                 'user_id' => $employee->getKey(),
                 'created_by' => $actor->getKey(),
                 'leave_type_id' => $type->getKey(),
@@ -64,7 +64,7 @@ class CreateDirectDayOff
                 'reviewed_at' => now(),
             ]);
 
-            LeaveLedgerEntry::create([
+            LeaveLedgerEntry::query()->create([
                 'user_id' => $employee->getKey(),
                 'leave_type_id' => $type->getKey(),
                 'entry_type' => LedgerEntryType::Deduction,

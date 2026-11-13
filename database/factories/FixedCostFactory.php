@@ -10,7 +10,7 @@ use App\Domain\Identity\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<FixedCost> */
-class FixedCostFactory extends Factory
+final class FixedCostFactory extends Factory
 {
     protected $model = FixedCost::class;
 

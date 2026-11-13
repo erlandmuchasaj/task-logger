@@ -9,7 +9,7 @@ use App\Domain\MasterData\Models\Country;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<BankHoliday> */
-class BankHolidayFactory extends Factory
+final class BankHolidayFactory extends Factory
 {
     protected $model = BankHoliday::class;
 

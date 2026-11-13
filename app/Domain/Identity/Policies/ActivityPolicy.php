@@ -9,7 +9,7 @@ use App\Domain\Identity\Permissions;
 use Spatie\Activitylog\Models\Activity;
 
 /** The audit trail is read-only and visible to activity_logs.view holders (superadmin). */
-class ActivityPolicy
+final class ActivityPolicy
 {
     public function viewAny(User $user): bool
     {

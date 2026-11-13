@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Identity\Actions;
 
 use App\Domain\Identity\Models\User;
+use Illuminate\Contracts\Auth\Factory;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Lab404\Impersonate\Services\ImpersonateManager;
@@ -14,13 +15,13 @@ use Lab404\Impersonate\Services\ImpersonateManager;
  * yourself, not while already impersonating, and only an active account that is not root (User::canBeImpersonated).
  * The start is audited by the TakeImpersonation listener; every audited write afterwards carries `impersonator_id` (D-38).
  */
-class StartImpersonation
+final class StartImpersonation
 {
     public function handle(User $actor, User $target): void
     {
         Gate::forUser($actor)->authorize('impersonate', $target);
 
-        $manager = app(ImpersonateManager::class);
+        $manager = resolve(ImpersonateManager::class);
 
         if ($actor->is($target)) {
             throw ValidationException::withMessages(['employee' => 'You cannot impersonate yourself.']);
@@ -39,6 +40,6 @@ class StartImpersonation
         }
 
         // Filament's session guard compares a stored password hash with the signed-in user: let it store the new user's.
-        session()->forget('password_hash_'.app('auth')->getDefaultDriver());
+        session()->forget('password_hash_'.resolve(Factory::class)->getDefaultDriver());
     }
 }

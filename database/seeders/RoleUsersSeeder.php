@@ -13,7 +13,7 @@ use Illuminate\Database\Seeder;
  * One login per role for development: {role}@test.com / 12345678. Idempotent on email.
  * Never runs in production, so these weak credentials cannot reach a live database.
  */
-class RoleUsersSeeder extends Seeder
+final class RoleUsersSeeder extends Seeder
 {
     public const string PASSWORD = '12345678';
 

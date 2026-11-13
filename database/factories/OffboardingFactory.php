@@ -10,7 +10,7 @@ use App\Domain\People\Models\Offboarding;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<Offboarding> */
-class OffboardingFactory extends Factory
+final class OffboardingFactory extends Factory
 {
     protected $model = Offboarding::class;
 

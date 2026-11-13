@@ -14,7 +14,7 @@ use Filament\Support\Exceptions\Halt;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 
-class CreateCustomer extends CreateRecord
+final class CreateCustomer extends CreateRecord
 {
     protected static string $resource = CustomerResource::class;
 
@@ -27,9 +27,9 @@ class CreateCustomer extends CreateRecord
     protected function handleRecordCreation(array $data): Model
     {
         try {
-            return app(CreateCustomerAction::class)->handle(auth()->user(), CustomerForm::data($data, null));
-        } catch (ValidationException $e) {
-            ActionErrors::report($this, $e);
+            return resolve(CreateCustomerAction::class)->handle(auth()->user(), CustomerForm::data($data, null));
+        } catch (ValidationException $validationException) {
+            ActionErrors::report($this, $validationException);
             throw new Halt;
         }
     }

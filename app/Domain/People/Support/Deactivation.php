@@ -27,7 +27,7 @@ final class Deactivation
         }
 
         $isSuperadmin = $employee->roles()->where('name', RoleName::Superadmin->value)->exists();
-        $otherSuperadmin = User::role(RoleName::Superadmin->value)->whereKeyNot($employee->getKey())->whereNull('banned_at')->exists();
+        $otherSuperadmin = User::query()->role(RoleName::Superadmin->value)->whereKeyNot($employee->getKey())->whereNull('banned_at')->exists();
 
         if ($isSuperadmin && ! $otherSuperadmin) {
             throw ValidationException::withMessages(['employee' => 'The last superadmin cannot be deactivated.']);

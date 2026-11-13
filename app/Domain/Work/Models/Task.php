@@ -27,21 +27,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'estimated_hours', 'assignee_id', 'parent_id', 'force_to_log', 'due_date',
 ])]
 #[UseFactory(TaskFactory::class)]
-class Task extends Model
+final class Task extends Model
 {
     /** @use HasFactory<TaskFactory> */
-    use HasFactory, LogsBusinessActivity, SoftDeletes;
+    use HasFactory;
 
-    protected function casts(): array
-    {
-        return [
-            'status' => TaskStatus::class,
-            'priority' => Priority::class,
-            'estimated_hours' => 'decimal:2',
-            'force_to_log' => 'boolean',
-            'due_date' => 'date',
-        ];
-    }
+    use LogsBusinessActivity;
+    use SoftDeletes;
 
     /** @return BelongsTo<Project, $this> */
     public function project(): BelongsTo
@@ -83,5 +75,16 @@ class Task extends Model
     public function labels(): BelongsToMany
     {
         return $this->belongsToMany(Label::class, 'label_task')->withTimestamps();
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'status' => TaskStatus::class,
+            'priority' => Priority::class,
+            'estimated_hours' => 'decimal:2',
+            'force_to_log' => 'boolean',
+            'due_date' => 'date',
+        ];
     }
 }

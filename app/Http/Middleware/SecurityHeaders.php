@@ -13,7 +13,7 @@ use Symfony\Component\HttpFoundation\Response;
  * pinned to HTTPS. No Content-Security-Policy: Filament and Livewire need inline scripts, and a policy that allows
  * them adds little; it is listed as a known gap in docs/07-security.md.
  */
-class SecurityHeaders
+final class SecurityHeaders
 {
     public function handle(Request $request, Closure $next): Response
     {

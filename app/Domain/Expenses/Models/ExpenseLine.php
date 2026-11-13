@@ -12,14 +12,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /** One line of an expense. `amount_minor` is quantity x unit price, computed on the server (BR-12). */
 #[Fillable(['expense_id', 'description', 'quantity', 'unit_price_minor', 'amount_minor', 'currency_code', 'date'])]
-class ExpenseLine extends Model
+final class ExpenseLine extends Model
 {
     use LogsBusinessActivity;
-
-    protected function casts(): array
-    {
-        return ['quantity' => 'integer', 'unit_price_minor' => 'integer', 'amount_minor' => 'integer', 'date' => 'date'];
-    }
 
     /** @return BelongsTo<Expense, $this> */
     public function expense(): BelongsTo
@@ -35,5 +30,10 @@ class ExpenseLine extends Model
     public function unitPrice(): Money
     {
         return Money::of($this->unit_price_minor, $this->currency_code);
+    }
+
+    protected function casts(): array
+    {
+        return ['quantity' => 'integer', 'unit_price_minor' => 'integer', 'amount_minor' => 'integer', 'date' => 'date'];
     }
 }

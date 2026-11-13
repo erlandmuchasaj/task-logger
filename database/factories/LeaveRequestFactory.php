@@ -12,7 +12,7 @@ use App\Domain\MasterData\Models\LeaveType;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<LeaveRequest> */
-class LeaveRequestFactory extends Factory
+final class LeaveRequestFactory extends Factory
 {
     protected $model = LeaveRequest::class;
 

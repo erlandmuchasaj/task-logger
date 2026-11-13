@@ -20,8 +20,10 @@ use UnitEnum;
  * plugin). Holidays: your country's, or every country's for people who see all leave. Leave: approved and taken leave of
  * everybody (D-44); pending requests only the ones the leave request policy lets you see.
  */
-class LeaveCalendar extends Page
+final class LeaveCalendar extends Page
 {
+    public string $month = '';
+
     protected string $view = 'filament.pages.leave-calendar';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
@@ -32,8 +34,6 @@ class LeaveCalendar extends Page
 
     protected static ?string $title = 'Leave Calendar';
 
-    public string $month = '';
-
     public static function canAccess(): bool
     {
         return (bool) auth()->user()?->can(Permissions::BANK_HOLIDAYS_VIEW);
@@ -41,7 +41,7 @@ class LeaveCalendar extends Page
 
     public function mount(): void
     {
-        abort_unless(static::canAccess(), 403);
+        abort_unless(self::canAccess(), 403);
 
         $this->month = CarbonImmutable::now()->format('Y-m');
     }
@@ -80,7 +80,7 @@ class LeaveCalendar extends Page
         $seesAll = (bool) $user?->can(Permissions::LEAVE_REQUESTS_VIEW_ANY);
 
         $holidays = BankHoliday::query()->with('country')
-            ->when(! $seesAll, fn ($query) => $query->where('country_id', $user?->country_id))
+            ->unless($seesAll, fn ($query) => $query->where('country_id', $user?->country_id))
             ->whereDate('start_date', '<=', $to->toDateString())->whereDate('end_date', '>=', $from->toDateString())
             ->get();
 

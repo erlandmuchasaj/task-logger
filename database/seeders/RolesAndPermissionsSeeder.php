@@ -15,7 +15,7 @@ use Spatie\Permission\PermissionRegistrar;
  * Idempotent. Superadmin receives every permission explicitly from the catalog, so the grid stays
  * the single source of truth (D-10); root access on top of it is the `system.root` gate (D-41).
  */
-class RolesAndPermissionsSeeder extends Seeder
+final class RolesAndPermissionsSeeder extends Seeder
 {
     public function run(): void
     {

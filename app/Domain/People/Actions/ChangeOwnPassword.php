@@ -13,7 +13,7 @@ use SensitiveParameter;
  * D-53: the person replaces the temporary password they were emailed with one of their own. Clears the
  * forced-change flag. The audit records the event, never the value.
  */
-class ChangeOwnPassword
+final class ChangeOwnPassword
 {
     public function handle(User $user, #[SensitiveParameter] string $password): User
     {

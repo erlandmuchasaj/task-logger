@@ -8,7 +8,7 @@ use App\Domain\MasterData\Models\Country;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<Country> */
-class CountryFactory extends Factory
+final class CountryFactory extends Factory
 {
     protected $model = Country::class;
 

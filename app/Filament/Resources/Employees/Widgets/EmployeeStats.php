@@ -19,12 +19,12 @@ use Illuminate\Database\Eloquent\Builder;
  * The average salary is shown only to holders of salaries.view, and only over the current salaries
  * of active people in one currency (amounts in different currencies are never averaged together).
  */
-class EmployeeStats extends StatsOverviewWidget
+final class EmployeeStats extends StatsOverviewWidget
 {
     protected ?string $pollingInterval = null;
 
     /** @return array<string, int> */
-    protected function getColumns(): int|array|null
+    protected function getColumns(): array
     {
         return ['md' => 3, 'xl' => count($this->getCachedStats())];
     }
@@ -89,7 +89,7 @@ class EmployeeStats extends StatsOverviewWidget
 
     private function averageTenure(): Stat
     {
-        $today = now()->startOfDay();
+        $today = today();
         $starts = $this->people()->whereNull('banned_at')->whereNotNull('start_date')
             ->whereDate('start_date', '<=', $today)->pluck('start_date');
 

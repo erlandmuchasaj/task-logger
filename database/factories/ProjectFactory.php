@@ -13,7 +13,7 @@ use App\Domain\Identity\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<Project> */
-class ProjectFactory extends Factory
+final class ProjectFactory extends Factory
 {
     protected $model = Project::class;
 

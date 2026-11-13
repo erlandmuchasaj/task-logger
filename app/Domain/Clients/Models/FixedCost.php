@@ -17,15 +17,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /** A fixed cost for a project in a month, e.g. Management, 100 EUR, September (BR-14). */
 #[Fillable(['project_id', 'name', 'date', 'amount_minor', 'currency_code', 'created_by'])]
 #[UseFactory(FixedCostFactory::class)]
-class FixedCost extends Model
+final class FixedCost extends Model
 {
     /** @use HasFactory<FixedCostFactory> */
-    use HasFactory, LogsBusinessActivity;
+    use HasFactory;
 
-    protected function casts(): array
-    {
-        return ['date' => 'date', 'amount_minor' => 'integer'];
-    }
+    use LogsBusinessActivity;
 
     public function money(): Money
     {
@@ -42,5 +39,10 @@ class FixedCost extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    protected function casts(): array
+    {
+        return ['date' => 'date', 'amount_minor' => 'integer'];
     }
 }

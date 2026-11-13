@@ -14,14 +14,14 @@ use App\Domain\Work\Support\WorkCalendar;
  * `anonymize_after_months` has passed in their country's timezone, and only while their login is still
  * deactivated (D-46: someone the superadmin reactivated is never anonymised). Idempotent.
  */
-class AnonymizeDueEmployees
+final readonly class AnonymizeDueEmployees
 {
-    public function __construct(private readonly AnonymizeEmployee $anonymize) {}
+    public function __construct(private AnonymizeEmployee $anonymize) {}
 
     /** @return int people anonymised */
     public function handle(): int
     {
-        $months = app(PrivacySettings::class)->anonymize_after_months;
+        $months = resolve(PrivacySettings::class)->anonymize_after_months;
         $count = 0;
 
         Offboarding::query()

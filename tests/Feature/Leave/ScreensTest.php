@@ -12,10 +12,10 @@ use App\Domain\Leave\Models\LeaveRequest;
 use App\Domain\MasterData\Models\BankHoliday;
 use App\Filament\Pages\LeaveCalendar;
 use App\Filament\Resources\LeaveRequests\Pages\ManageLeaveRequests;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Date;
 use Livewire\Livewire;
 
-afterEach(fn () => Carbon::setTestNow());
+afterEach(fn () => Date::setTestNow());
 
 function leaveWorld(): array
 {
@@ -29,7 +29,7 @@ function leaveWorld(): array
     return [...$setup, 'manager' => $manager, 'hr' => $hr, 'colleague' => $colleague];
 }
 
-it('FR-29 an employee requests leave from the Leave Requests page and sees only their own', function () {
+it('FR-29 an employee requests leave from the Leave Requests page and sees only their own', function (): void {
     $world = leaveWorld();
     $theirs = LeaveRequest::factory()->create(['user_id' => $world['colleague']->id, 'created_by' => $world['colleague']->id, 'leave_type_id' => $world['annual']->id]);
 
@@ -42,7 +42,7 @@ it('FR-29 an employee requests leave from the Leave Requests page and sees only 
         ])
         ->assertHasNoActionErrors();
 
-    $mine = LeaveRequest::where('user_id', $world['employee']->id)->sole();
+    $mine = LeaveRequest::query()->where('user_id', $world['employee']->id)->sole();
 
     Livewire::test(ManageLeaveRequests::class)
         ->assertCanSeeTableRecords([$mine])
@@ -51,7 +51,7 @@ it('FR-29 an employee requests leave from the Leave Requests page and sees only 
     expect($mine)->days_requested->toBe('3.0')->status->toBe(LeaveStatus::Pending);
 })->group('FR-29');
 
-it('FR-29 shows the reason when a request is refused', function () {
+it('FR-29 shows the reason when a request is refused', function (): void {
     $world = leaveWorld();
     $this->actingAs($world['employee']);
 
@@ -62,10 +62,10 @@ it('FR-29 shows the reason when a request is refused', function () {
         ])
         ->assertNotified('The selected dates contain no working days.');
 
-    expect(LeaveRequest::count())->toBe(0);
+    expect(LeaveRequest::query()->count())->toBe(0);
 })->group('FR-29');
 
-it('D-07 D-28 FR-30 the manager sees reports\' requests and the stage buttons appear in order', function () {
+it("D-07 D-28 FR-30 the manager sees reports' requests and the stage buttons appear in order", function (): void {
     $world = leaveWorld();
     $request = LeaveRequest::factory()->create([
         'user_id' => $world['employee']->id, 'created_by' => $world['employee']->id, 'leave_type_id' => $world['annual']->id,
@@ -88,7 +88,7 @@ it('D-07 D-28 FR-30 the manager sees reports\' requests and the stage buttons ap
     expect($request->refresh()->status)->toBe(LeaveStatus::Approved);
 })->group('D-07', 'D-28', 'FR-30');
 
-it('BR-21 rejecting from the screen needs a note', function () {
+it('BR-21 rejecting from the screen needs a note', function (): void {
     $world = leaveWorld();
     $request = LeaveRequest::factory()->create([
         'user_id' => $world['employee']->id, 'created_by' => $world['employee']->id, 'leave_type_id' => $world['annual']->id,
@@ -106,7 +106,7 @@ it('BR-21 rejecting from the screen needs a note', function () {
     expect($request->refresh())->status->toBe(LeaveStatus::Rejected)->review_note->toBe('Release week');
 })->group('BR-21');
 
-it('BR-20 nobody gets decision buttons on their own request', function () {
+it('BR-20 nobody gets decision buttons on their own request', function (): void {
     $world = leaveWorld();
     $request = LeaveRequest::factory()->create([
         'user_id' => $world['hr']->id, 'created_by' => $world['hr']->id, 'leave_type_id' => $world['annual']->id,
@@ -119,7 +119,7 @@ it('BR-20 nobody gets decision buttons on their own request', function () {
         ->assertTableActionVisible('cancel', $request);
 })->group('BR-20');
 
-it('W-06 BR-22 only the superadmin sees Record a day off, and it deducts the balance', function () {
+it('W-06 BR-22 only the superadmin sees Record a day off, and it deducts the balance', function (): void {
     $world = leaveWorld();
     grantDays($world['employee'], $world['sick'], '3.0');
 
@@ -135,10 +135,10 @@ it('W-06 BR-22 only the superadmin sees Record a day off, and it deducts the bal
         ])
         ->assertHasNoActionErrors();
 
-    expect(LeaveRequest::where('user_id', $world['employee']->id)->sole())->status->toBe(LeaveStatus::Approved);
+    expect(LeaveRequest::query()->where('user_id', $world['employee']->id)->sole())->status->toBe(LeaveStatus::Approved);
 })->group('W-06', 'BR-22');
 
-it('FR-34 My Leave shows the balance and Leave Calendar shows holidays and leave', function () {
+it('FR-34 My Leave shows the balance and Leave Calendar shows holidays and leave', function (): void {
     $world = leaveWorld();
     BankHoliday::factory()->create(['country_id' => $world['country']->id, 'name' => 'Labour Day', 'start_date' => '2026-06-03', 'end_date' => '2026-06-03']);
     LeaveRequest::factory()->create([
@@ -158,7 +158,7 @@ it('FR-34 My Leave shows the balance and Leave Calendar shows holidays and leave
 
     $this->actingAs($world['employee'])->get('/app/my-leave')->assertOk()->assertSee('10.0')->assertSee('Annual leave');
 
-    Carbon::setTestNow('2026-06-15');
+    Date::setTestNow('2026-06-15');
     Livewire::test(LeaveCalendar::class)->set('month', '2026-06')
         ->assertSee('Labour Day')->assertSee($world['employee']->getFilamentName())
         ->assertSee('Hidden')          // D-44: colleagues see each other's approved leave
@@ -169,16 +169,16 @@ it('FR-34 My Leave shows the balance and Leave Calendar shows holidays and leave
     Livewire::test(LeaveCalendar::class)->set('month', '2026-06')->assertSee('Hidden')->assertSee('Waiting');
 })->group('FR-34');
 
-it('M5 the leave screens render for every role without N+1 queries', function (RoleName $role) {
+it('M5 the leave screens render for every role without N+1 queries', function (RoleName $role): void {
     $world = leaveWorld();
     foreach (range(1, 6) as $i) {
         $person = User::factory()->withRole(RoleName::Employee)->create(['country_id' => $world['country']->id, 'manager_id' => $world['manager']->id]);
-        $day = Carbon::parse('2026-06-01')->addDays($i * 2);
+        $day = Date::parse('2026-06-01')->addDays($i * 2);
         $request = LeaveRequest::factory()->create([
             'user_id' => $person->id, 'created_by' => $person->id, 'leave_type_id' => $world['annual']->id,
             'start_date' => $day->toDateString(), 'end_date' => $day->toDateString(),
         ]);
-        app(DecideLeave::class)->handle($world['manager'], $request, ApprovalStage::Manager, ApprovalDecision::Approved);
+        resolve(DecideLeave::class)->handle($world['manager'], $request, ApprovalStage::Manager, ApprovalDecision::Approved);
     }
 
     $user = match ($role) {
@@ -192,5 +192,6 @@ it('M5 the leave screens render for every role without N+1 queries', function (R
     foreach (['/app/leave-requests', '/app/leave-calendar'] as $url) {
         $this->get($url)->assertOk();
     }
+
     $this->get('/app/my-leave')->assertOk();
 })->with([RoleName::Superadmin, RoleName::Admin, RoleName::Hr, RoleName::Assistant, RoleName::Employee])->group('NFR-09');

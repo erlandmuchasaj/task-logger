@@ -14,13 +14,13 @@ use Illuminate\Support\Facades\Gate;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /** W-02 step 3. Perm projects.create. The budget is computed, never typed (D-04). */
-class CreateProject
+final readonly class CreateProject
 {
     use ValidatesProject;
 
     public function __construct(
-        private readonly SyncProjectParts $parts,
-        private readonly ComputeProjectBudget $compute,
+        private SyncProjectParts $parts,
+        private ComputeProjectBudget $compute,
     ) {}
 
     public function handle(User $actor, ProjectData $data): Project
@@ -38,8 +38,8 @@ class CreateProject
         $customer = Customer::query()->findOrFail($data->customerId);
         $this->validateProject($data, $customer, null);
 
-        return app(CauserResolver::class)->withCauser($actor, fn (): Project => DB::transaction(function () use ($actor, $data, $customer): Project {
-            $project = Project::create([
+        return resolve(CauserResolver::class)->withCauser($actor, fn (): Project => DB::transaction(function () use ($actor, $data, $customer): Project {
+            $project = Project::query()->create([
                 'created_by' => $actor->getKey(),
                 'customer_id' => $customer->getKey(),
                 'project_type' => $data->type,
@@ -55,6 +55,7 @@ class CreateProject
 
             $this->parts->technologies($project, $data);
             $this->parts->members($project, $data->memberIds);
+
             $this->compute->handle($project);
 
             return $project->refresh();

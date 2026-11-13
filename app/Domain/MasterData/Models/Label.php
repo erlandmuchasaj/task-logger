@@ -13,8 +13,10 @@ use Illuminate\Database\Eloquent\Model;
 
 #[Fillable(['name', 'color'])]
 #[UseFactory(LabelFactory::class)]
-class Label extends Model
+final class Label extends Model
 {
     /** @use HasFactory<LabelFactory> */
-    use HasFactory, LogsBusinessActivity;
+    use HasFactory;
+
+    use LogsBusinessActivity;
 }

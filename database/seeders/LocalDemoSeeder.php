@@ -35,7 +35,7 @@ use Illuminate\Support\Facades\DB;
  * (BR-02/BR-10), weekdays only, at most 8h a day, and the rate snapshot taken on the log date (BR-06).
  * Skipped when any customer already exists, so re-seeding never duplicates.
  */
-class LocalDemoSeeder extends Seeder
+final class LocalDemoSeeder extends Seeder
 {
     private const int EMPLOYEES = 12;
 
@@ -75,7 +75,7 @@ class LocalDemoSeeder extends Seeder
 
             $projects = new EloquentCollection;
 
-            foreach (range(1, self::CUSTOMERS) as $i) {
+            for ($i = 0; $i < self::CUSTOMERS; $i++) {
                 $customer = Customer::factory()->create([
                     'created_by' => $creator->id,
                     'country_id' => $country->id,
@@ -192,7 +192,7 @@ class LocalDemoSeeder extends Seeder
     {
         return Task::factory()->create([
             'created_by' => $creator->id,
-            'name' => rtrim(fake()->sentence(fake()->numberBetween(3, 6)), '.'),
+            'name' => mb_rtrim(fake()->sentence(fake()->numberBetween(3, 6)), '.'),
             'project_id' => $project->id,
             'technology_id' => $technology->id,
             'parent_id' => $parent?->id,

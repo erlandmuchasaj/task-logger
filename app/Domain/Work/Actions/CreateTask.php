@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Gate;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /** W-03 step 1. Perm tasks.create; an assignee needs tasks.assign. One assignee only (BR-09). */
-class CreateTask
+final class CreateTask
 {
     use ValidatesTask;
 
@@ -29,8 +29,8 @@ class CreateTask
         $project = Project::query()->with('customer')->findOrFail($data->projectId);
         $this->validateTask($data, $project, null);
 
-        $task = app(CauserResolver::class)->withCauser($actor, fn (): Task => DB::transaction(function () use ($actor, $data): Task {
-            $task = Task::create([
+        $task = resolve(CauserResolver::class)->withCauser($actor, fn (): Task => DB::transaction(function () use ($actor, $data): Task {
+            $task = Task::query()->create([
                 'created_by' => $actor->getKey(),
                 'name' => $data->name,
                 'description' => $data->description,

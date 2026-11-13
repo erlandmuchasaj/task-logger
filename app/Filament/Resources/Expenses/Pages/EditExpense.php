@@ -15,7 +15,7 @@ use Filament\Support\Exceptions\Halt;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 
-class EditExpense extends EditRecord
+final class EditExpense extends EditRecord
 {
     protected static string $resource = ExpenseResource::class;
 
@@ -41,9 +41,9 @@ class EditExpense extends EditRecord
     {
         /** @var Expense $record */
         try {
-            return app(UpdateExpense::class)->handle(auth()->user(), $record, ExpenseForm::data($data));
-        } catch (ValidationException $e) {
-            ActionErrors::report($this, $e);
+            return resolve(UpdateExpense::class)->handle(auth()->user(), $record, ExpenseForm::data($data));
+        } catch (ValidationException $validationException) {
+            ActionErrors::report($this, $validationException);
             throw new Halt;
         }
     }

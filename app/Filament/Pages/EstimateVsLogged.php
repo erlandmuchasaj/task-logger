@@ -23,8 +23,13 @@ use UnitEnum;
  * M7 report: estimated against logged hours per project and technology, with logged work valued at the rate of
  * each log (SPEC 1.2). Needs projects.view and logs.view_any; the value columns need clients.view_rates (D-49).
  */
-class EstimateVsLogged extends Page
+final class EstimateVsLogged extends Page
 {
+    /** @var array<string, mixed>|null */
+    public ?array $data = [];
+
+    public int $page = 1;
+
     protected string $view = 'filament.pages.estimate-vs-logged';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedScale;
@@ -35,11 +40,6 @@ class EstimateVsLogged extends Page
 
     protected static ?string $title = 'Estimated vs logged';
 
-    /** @var array<string, mixed>|null */
-    public ?array $data = [];
-
-    public int $page = 1;
-
     protected ?EstimateReportResult $result = null;
 
     public static function canAccess(): bool
@@ -49,7 +49,7 @@ class EstimateVsLogged extends Page
 
     public function mount(): void
     {
-        abort_unless(static::canAccess(), 403);
+        abort_unless(self::canAccess(), 403);
 
         $this->getSchema('form')?->fill(['status' => ProjectStatus::Active->value]);
     }
@@ -67,11 +67,11 @@ class EstimateVsLogged extends Page
                 ->options(fn (): array => Project::query()
                     ->when($this->data['customer_id'] ?? null, fn ($q, $id) => $q->where('customer_id', $id))
                     ->orderBy('name')->limit(200)->pluck('name', 'id')->all())
-                ->afterStateUpdated(fn () => $this->page = 1),
+                ->afterStateUpdated(fn (): int => $this->page = 1),
             Select::make('status')->native(false)->options(ProjectStatus::class)->placeholder('Any status')->live()
-                ->afterStateUpdated(fn () => $this->page = 1),
-            DatePicker::make('from')->label('Logs from')->live()->afterStateUpdated(fn () => $this->page = 1),
-            DatePicker::make('to')->label('Logs to')->live()->afterStateUpdated(fn () => $this->page = 1),
+                ->afterStateUpdated(fn (): int => $this->page = 1),
+            DatePicker::make('from')->label('Logs from')->live()->afterStateUpdated(fn (): int => $this->page = 1),
+            DatePicker::make('to')->label('Logs to')->live()->afterStateUpdated(fn (): int => $this->page = 1),
         ])->columns(5)->statePath('data');
     }
 
@@ -102,6 +102,6 @@ class EstimateVsLogged extends Page
     /** Computed once per request: the page and the totals come from one pass over the logs. */
     public function result(): EstimateReportResult
     {
-        return $this->result ??= app(BuildEstimateReport::class)->build(auth()->user(), $this->filters(), $this->page);
+        return $this->result ??= resolve(BuildEstimateReport::class)->build(auth()->user(), $this->filters(), $this->page);
     }
 }

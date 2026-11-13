@@ -18,12 +18,13 @@ function populatedLogs(): Log
             'date' => now()->subDays($i % 5)->toDateString(), 'duration_minutes' => 30 + $i,
         ]);
     }
-    TimesheetLock::create(['month' => '2025-01-01', 'locked_by' => userWithRole(RoleName::Superadmin)->id, 'locked_at' => now()]);
+
+    TimesheetLock::query()->create(['month' => '2025-01-01', 'locked_by' => userWithRole(RoleName::Superadmin)->id, 'locked_at' => now()]);
 
     return Log::query()->with('user')->where('user_id', $me->id)->firstOrFail();
 }
 
-it('M4 every logging screen renders for the roles that may see it, without N+1 queries', function (RoleName $role, array $urls) {
+it('M4 every logging screen renders for the roles that may see it, without N+1 queries', function (RoleName $role, array $urls): void {
     $ownLog = populatedLogs();
     $this->actingAs($role === RoleName::Employee ? $ownLog->user : userWithRole($role));
 

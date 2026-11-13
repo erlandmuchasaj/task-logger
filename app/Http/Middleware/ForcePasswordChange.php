@@ -14,10 +14,11 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * D-53: while the account holds a temporary password, every panel page redirects to ChangePassword.
  * It runs before EnforceTwoFactorGracePeriod, so the password comes first and 2FA second. The page
- * itself, the auth routes (logout) and Livewire updates stay reachable. Not applied while an
+ * itself and the auth routes (logout) stay reachable. The middleware is persistent, so a Livewire update
+ * is checked against the page its component was rendered on. Not applied while an
  * administrator impersonates the person (D-47): they cannot change someone else's password.
  */
-readonly class ForcePasswordChange
+final readonly class ForcePasswordChange
 {
     public function __construct(private ImpersonateManager $impersonation) {}
 
@@ -39,7 +40,6 @@ readonly class ForcePasswordChange
     private function isExempt(Request $request): bool
     {
         return $request->routeIs(ChangePassword::getRouteName())
-            || $request->routeIs('filament.app.auth.logout')
-            || $request->routeIs('livewire.*');
+            || $request->routeIs('filament.app.auth.logout');
     }
 }

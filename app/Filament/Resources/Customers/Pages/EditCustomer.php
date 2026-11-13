@@ -15,7 +15,7 @@ use Filament\Support\Exceptions\Halt;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 
-class EditCustomer extends EditRecord
+final class EditCustomer extends EditRecord
 {
     protected static string $resource = CustomerResource::class;
 
@@ -44,9 +44,9 @@ class EditCustomer extends EditRecord
     {
         /** @var Customer $record */
         try {
-            return app(UpdateCustomer::class)->handle(auth()->user(), $record, CustomerForm::data($data, $record));
-        } catch (ValidationException $e) {
-            ActionErrors::report($this, $e);
+            return resolve(UpdateCustomer::class)->handle(auth()->user(), $record, CustomerForm::data($data, $record));
+        } catch (ValidationException $validationException) {
+            ActionErrors::report($this, $validationException);
             throw new Halt;
         }
     }

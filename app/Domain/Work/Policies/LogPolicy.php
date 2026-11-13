@@ -16,7 +16,7 @@ use Carbon\CarbonInterface;
  * can create their own and correct anyone's. [ASSUMED D-39] The grid has no "edit anyone's log" permission,
  * so editing other people's logs exists only for month-close corrections.
  */
-class LogPolicy
+final class LogPolicy
 {
     public function viewAny(User $user): bool
     {

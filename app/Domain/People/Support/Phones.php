@@ -14,7 +14,7 @@ final class Phones
     public static function isValid(string $input, ?string $countryCode = null): bool
     {
         try {
-            return (new PhoneNumber($input, $countryCode))->isValid();
+            return new PhoneNumber($input, $countryCode)->isValid();
         } catch (Throwable) {
             return false;
         }
@@ -23,7 +23,7 @@ final class Phones
     /** @throws ValidationException */
     public static function toE164(?string $input, ?string $countryCode, string $field = 'phone'): ?string
     {
-        $input = $input === null ? null : trim($input);
+        $input = $input === null ? null : mb_trim($input);
 
         if ($input === null || $input === '') {
             return null;
@@ -33,6 +33,6 @@ final class Phones
             throw ValidationException::withMessages([$field => 'The phone number is not valid. Include the country code, e.g. +355 69 123 4567.']);
         }
 
-        return (new PhoneNumber($input, $countryCode))->formatE164();
+        return new PhoneNumber($input, $countryCode)->formatE164();
     }
 }

@@ -8,7 +8,7 @@ use App\Filament\Resources\BankHolidays\BankHolidayResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ManageRecords;
 
-class ManageBankHolidays extends ManageRecords
+final class ManageBankHolidays extends ManageRecords
 {
     protected static string $resource = BankHolidayResource::class;
 

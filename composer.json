@@ -21,6 +21,7 @@
     "require-dev": {
         "barryvdh/laravel-debugbar": "^4.4",
         "barryvdh/laravel-ide-helper": "^3.8",
+        "driftingly/rector-laravel": "^2.7",
         "fakerphp/faker": "^1.23",
         "larastan/larastan": "^3.15",
         "laravel/boost": "^2.10",
@@ -31,7 +32,9 @@
         "nunomaduro/collision": "^8.6",
         "pestphp/pest": "^5.3",
         "pestphp/pest-plugin-arch": "^5.0",
-        "pestphp/pest-plugin-laravel": "^5.0"
+        "pestphp/pest-plugin-laravel": "^5.0",
+        "pestphp/pest-plugin-type-coverage": "^5.1",
+        "rector/rector": "^2.8"
     },
     "autoload": {
         "psr-4": {
@@ -58,14 +61,15 @@
             "Composer\\Config::disableProcessTimeout",
             "@php artisan dev"
         ],
-        "test": "pest",
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi",
             "@php artisan filament:upgrade"
         ],
         "post-update-cmd": [
-            "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
+            "@php artisan vendor:publish --tag=laravel-assets --ansi --force",
+            "@php artisan clear",
+            "@php artisan boost:update --ansi"
         ],
         "post-root-package-install": [
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
@@ -78,8 +82,24 @@
         "pre-package-uninstall": [
             "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
         ],
-        "analyse": "phpstan analyse --memory-limit=1G",
-        "lint": "pint --test"
+        "lint": [
+            "rector --memory-limit=2G",
+            "pint --parallel"
+        ],
+        "test:lint": [
+            "pint --parallel --test",
+            "rector --dry-run --memory-limit=2G"
+        ],
+        "test:types": "phpstan analyse --memory-limit=2G",
+        "test:type-coverage": "pest --type-coverage --min=97",
+        "test:unit": "pest --parallel",
+        "test": [
+            "@php artisan config:clear --ansi",
+            "@test:lint",
+            "@test:types",
+            "@test:type-coverage",
+            "@test:unit"
+        ]
     },
     "extra": {
         "laravel": {
@@ -93,6 +113,9 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
+        },
+        "audit": {
+            "abandoned": "report"
         }
     },
     "minimum-stability": "stable",

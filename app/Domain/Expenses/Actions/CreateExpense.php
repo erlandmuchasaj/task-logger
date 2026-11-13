@@ -18,7 +18,7 @@ use Spatie\Activitylog\Support\CauserResolver;
  * FR-38: finance (or the superadmin) records an expense for an employee, as a draft. The number is EXP- plus the row id,
  * set in the same transaction, so it is unique and race-safe without a counter table (D-52).
  */
-class CreateExpense
+final class CreateExpense
 {
     use ValidatesExpense;
 
@@ -28,21 +28,21 @@ class CreateExpense
 
         $lines = $this->prepareLines($employee, $data);
 
-        return app(CauserResolver::class)->withCauser($actor, fn (): Expense => DB::transaction(function () use ($actor, $employee, $data, $lines): Expense {
+        return resolve(CauserResolver::class)->withCauser($actor, fn (): Expense => DB::transaction(function () use ($actor, $employee, $data, $lines): Expense {
             // Written without events: the audit entry is added below, once the real number is known.
-            $expense = Expense::withoutEvents(fn (): Expense => Expense::create([
+            $expense = Expense::withoutEvents(fn (): Expense => Expense::query()->create([
                 'user_id' => $employee->getKey(),
                 'created_by' => $actor->getKey(),
                 'project_id' => $data->projectId,
                 'category' => $data->category,
-                'description' => trim($data->description),
+                'description' => mb_trim($data->description),
                 'number' => 'TMP-'.Str::random(12),
                 'receipt_path' => $data->receiptPath,
                 'notes' => filled($data->notes) ? $data->notes : null,
                 'status' => ExpenseStatus::Draft,
             ]));
 
-            $expense->forceFill(['number' => 'EXP-'.str_pad((string) $expense->getKey(), 6, '0', STR_PAD_LEFT)]);
+            $expense->forceFill(['number' => 'EXP-'.mb_str_pad((string) $expense->getKey(), 6, '0', STR_PAD_LEFT)]);
             Expense::withoutEvents(fn () => $expense->save());
 
             activity()->performedOn($expense)->event('created')
@@ -50,7 +50,7 @@ class CreateExpense
                 ->log('created');
 
             foreach ($lines as $line) {
-                ExpenseLine::create(['expense_id' => $expense->getKey(), ...$line]);
+                ExpenseLine::query()->create(['expense_id' => $expense->getKey(), ...$line]);
             }
 
             return $expense->load('lines');

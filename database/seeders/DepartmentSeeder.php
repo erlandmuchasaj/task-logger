@@ -8,7 +8,7 @@ use App\Domain\MasterData\Models\Department;
 use Illuminate\Database\Seeder;
 
 /** Starter department tree. Idempotent on `name`; slugs come from sluggable. */
-class DepartmentSeeder extends Seeder
+final class DepartmentSeeder extends Seeder
 {
     public function run(): void
     {

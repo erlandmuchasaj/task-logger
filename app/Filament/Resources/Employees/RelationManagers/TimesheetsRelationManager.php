@@ -24,7 +24,7 @@ use Illuminate\Database\Eloquent\Model;
  * The person's timesheet on their employee page (read-only). Visible to holders of logs.view_any;
  * rates and amounts only with clients.view_rates, as on the Logs screen.
  */
-class TimesheetsRelationManager extends RelationManager
+final class TimesheetsRelationManager extends RelationManager
 {
     protected static string $relationship = 'logs';
 

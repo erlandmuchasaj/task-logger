@@ -13,10 +13,12 @@ use Illuminate\Database\Eloquent\Model;
 
 #[Fillable(['name', 'affects_balance', 'is_active'])]
 #[UseFactory(LeaveTypeFactory::class)]
-class LeaveType extends Model
+final class LeaveType extends Model
 {
     /** @use HasFactory<LeaveTypeFactory> */
-    use HasFactory, LogsBusinessActivity;
+    use HasFactory;
+
+    use LogsBusinessActivity;
 
     protected function casts(): array
     {

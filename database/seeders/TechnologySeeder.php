@@ -8,7 +8,7 @@ use App\Domain\MasterData\Models\Technology;
 use Illuminate\Database\Seeder;
 
 /** Starter technologies (skills and areas, D-01). Idempotent on `name`; extend through the UI. */
-class TechnologySeeder extends Seeder
+final class TechnologySeeder extends Seeder
 {
     public function run(): void
     {

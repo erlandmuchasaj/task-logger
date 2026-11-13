@@ -14,10 +14,12 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Once 2FA is required and a user's grace period is over, every panel page redirects to the profile
- * page, where they enrol. The profile, MFA and logout routes stay reachable, as do Livewire updates
- * (the profile page needs them; no other page can be loaded to produce one).
+ * page, where they enrol. Only the profile, MFA and logout routes stay reachable. The middleware is
+ * persistent, so a Livewire update is checked against the page its component was rendered on: an
+ * open page cannot keep invoking actions once the lock starts, while the profile page's own updates
+ * (enrolment) still pass.
  */
-readonly class EnforceTwoFactorGracePeriod
+final readonly class EnforceTwoFactorGracePeriod
 {
     public function __construct(private TwoFactorPolicy $twoFactor) {}
 
@@ -35,7 +37,7 @@ readonly class EnforceTwoFactorGracePeriod
                 ->actions([TwoFactorPrompt::enableAction()])
                 ->send();
 
-            return redirect()->route('filament.app.auth.profile');
+            return to_route('filament.app.auth.profile');
         }
 
         return $next($request);
@@ -43,6 +45,6 @@ readonly class EnforceTwoFactorGracePeriod
 
     private function isExempt(Request $request): bool
     {
-        return $request->routeIs('filament.app.auth.*') || $request->routeIs('livewire.*');
+        return $request->routeIs('filament.app.auth.*');
     }
 }

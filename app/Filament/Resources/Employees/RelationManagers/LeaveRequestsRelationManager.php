@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Model;
  * The person's leave requests on their employee page (read-only; decisions stay on the Leave Requests
  * screen). Visible with leave_requests.view_any, or to the person's direct manager (as LeaveRequestPolicy).
  */
-class LeaveRequestsRelationManager extends RelationManager
+final class LeaveRequestsRelationManager extends RelationManager
 {
     protected static string $relationship = 'leaveRequests';
 

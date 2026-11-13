@@ -7,6 +7,7 @@ namespace App\Domain\Leave\Actions;
 use App\Domain\Identity\Models\User;
 use App\Domain\Leave\Enums\LedgerEntryType;
 use App\Domain\Leave\Models\LeaveLedgerEntry;
+use App\Domain\Leave\Support\CarryOverTranches;
 use App\Domain\Leave\Support\Days;
 use App\Domain\Leave\Support\Entitlement;
 use App\Domain\MasterData\Models\CountryLeavePolicy;
@@ -21,7 +22,7 @@ use Illuminate\Support\Facades\DB;
  * joins (prorated). A new year first closes the old one: the unused balance expires, except the part the
  * policy lets you carry over. Safe to run any number of times (NFR-13): a year is granted once.
  */
-class GrantAnnualLeave
+final class GrantAnnualLeave
 {
     /** @return int number of grant entries written */
     public function handle(?User $only = null): int
@@ -73,13 +74,13 @@ class GrantAnnualLeave
                 }
 
                 if (! $joinedThisYear) {
-                    $this->closePreviousYear($user, $type, $policy, $grantDate);
+                    $this->closePreviousYear($user, $type, $grantDate, $policy);
                 }
 
                 $tenths = Entitlement::grantTenths($policy, $start, $joinedThisYear);
 
                 if ($tenths > 0) {
-                    LeaveLedgerEntry::create([
+                    LeaveLedgerEntry::query()->create([
                         'user_id' => $user->getKey(),
                         'leave_type_id' => $type->getKey(),
                         'entry_type' => LedgerEntryType::Grant,
@@ -95,9 +96,22 @@ class GrantAnnualLeave
         });
     }
 
-    /** What is left from last year either expires or, when the policy allows, carries over up to its maximum. */
-    private function closePreviousYear(User $user, LeaveType $type, CountryLeavePolicy $policy, CarbonImmutable $newYear): void
+    /**
+     * What is left from last year either expires or, when the policy allows, carries over up to its maximum.
+     * Carry-over tranches keep their own expiry date ({@see CarryOverTranches}): one that is still live
+     * stays where it is and counts towards the cap; one due on the new year expires with the balance and
+     * is never carried again; the rest of the balance is what the policy may carry over.
+     */
+    private function closePreviousYear(User $user, LeaveType $type, CarbonImmutable $newYear, CountryLeavePolicy $policy): void
     {
+        $expire = resolve(ExpireCarryOver::class);
+
+        if ($expire->hasExpiryOn((int) $user->getKey(), (int) $type->getKey(), $newYear)) {
+            return; // the ledger allows one expiry per day: this year-end is already closed
+        }
+
+        $expire->expireDueFor($user, (int) $type->getKey(), $newYear);
+
         $leftover = Days::tenths((string) (LeaveLedgerEntry::query()
             ->where('user_id', $user->getKey())->where('leave_type_id', $type->getKey())
             ->whereDate('effective_on', '<', $newYear->toDateString())
@@ -107,20 +121,27 @@ class GrantAnnualLeave
             return;
         }
 
+        $tranches = CarryOverTranches::remaining((int) $user->getKey(), (int) $type->getKey(), $newYear);
+        $live = min($leftover, (int) $tranches->filter(fn (array $tranche): bool => $tranche['entry']->expires_on->greaterThan($newYear))->sum('remaining'));
+        $due = (int) $tranches->filter(fn (array $tranche): bool => $tranche['entry']->expires_on->isSameDay($newYear))->sum('remaining');
+        $expiring = $leftover - $live;
         $carry = 0;
 
         if ($policy->carry_over_enabled) {
-            $carry = $policy->carry_over_max_days === null ? $leftover : min($leftover, Days::tenths((string) $policy->carry_over_max_days));
+            $room = $policy->carry_over_max_days === null ? PHP_INT_MAX : Days::tenths((string) $policy->carry_over_max_days) - $live;
+            $carry = max(min($expiring - min($due, $expiring), $room), 0);
         }
 
-        LeaveLedgerEntry::create([
-            'user_id' => $user->getKey(), 'leave_type_id' => $type->getKey(), 'entry_type' => LedgerEntryType::Expiry,
-            'days' => Days::format(-$leftover), 'effective_on' => $newYear->toDateString(),
-            'note' => 'Year-end: unused balance of '.($newYear->year - 1),
-        ]);
+        if ($expiring > 0) {
+            LeaveLedgerEntry::query()->create([
+                'user_id' => $user->getKey(), 'leave_type_id' => $type->getKey(), 'entry_type' => LedgerEntryType::Expiry,
+                'days' => Days::format(-$expiring), 'effective_on' => $newYear->toDateString(),
+                'note' => 'Year-end: unused balance of '.($newYear->year - 1),
+            ]);
+        }
 
         if ($carry > 0) {
-            LeaveLedgerEntry::create([
+            LeaveLedgerEntry::query()->create([
                 'user_id' => $user->getKey(), 'leave_type_id' => $type->getKey(), 'entry_type' => LedgerEntryType::CarryOver,
                 'days' => Days::format($carry), 'effective_on' => $newYear->toDateString(),
                 'expires_on' => $policy->carry_over_expires_after_months !== null ? $newYear->addMonths($policy->carry_over_expires_after_months)->toDateString() : null,

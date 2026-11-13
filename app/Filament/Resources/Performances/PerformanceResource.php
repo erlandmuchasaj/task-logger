@@ -21,7 +21,7 @@ use UnitEnum;
  * Performance reviews (W-09). performances.view (superadmin, hr) reads all; a direct manager reads their reports'
  * reviews; an admin who is not the manager can add a review but sees only what the policy lets them read (BR-27).
  */
-class PerformanceResource extends Resource
+final class PerformanceResource extends Resource
 {
     protected static ?string $model = Performance::class;
 
@@ -42,7 +42,7 @@ class PerformanceResource extends Resource
 
         return parent::getEloquentQuery()
             ->with(['employee', 'reviewer'])
-            ->when(! $user?->can(Permissions::PERFORMANCES_VIEW), fn (Builder $query) => $query
+            ->unless($user?->can(Permissions::PERFORMANCES_VIEW), fn (Builder $query) => $query
                 ->whereHas('employee', fn (Builder $employee) => $employee->where('manager_id', $user?->getKey())));
     }
 

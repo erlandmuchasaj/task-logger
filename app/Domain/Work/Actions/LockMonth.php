@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Gate;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /** W-08 step 2. Perm timesheets.lock (superadmin). Locking a month again after an unlock reuses its row. */
-class LockMonth
+final class LockMonth
 {
     public function handle(User $actor, CarbonInterface $month): TimesheetLock
     {
@@ -20,7 +20,7 @@ class LockMonth
 
         $first = TimesheetLocks::monthOf($month)->toDateString();
 
-        return app(CauserResolver::class)->withCauser($actor, function () use ($actor, $first): TimesheetLock {
+        return resolve(CauserResolver::class)->withCauser($actor, function () use ($actor, $first): TimesheetLock {
             $lock = TimesheetLock::query()->whereDate('month', $first)->first() ?? new TimesheetLock(['month' => $first]);
 
             if ($lock->exists && $lock->isLocked()) {

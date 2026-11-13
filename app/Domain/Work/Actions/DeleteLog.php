@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Gate;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /** Soft-deletes a log: your own while the month is open, anyone's in a locked month with logs.edit_locked (BR-07). */
-class DeleteLog
+final class DeleteLog
 {
     public function handle(User $actor, Log $log): void
     {
@@ -20,7 +20,7 @@ class DeleteLog
         $locked = TimesheetLocks::isLocked($log->date);
         $snapshot = $log->only(['date', 'duration_minutes', 'log_type', 'description', 'project_id', 'task_id', 'technology_id', 'rate_minor', 'rate_currency']);
 
-        app(CauserResolver::class)->withCauser($actor, function () use ($log, $locked, $snapshot): void {
+        resolve(CauserResolver::class)->withCauser($actor, function () use ($log, $locked, $snapshot): void {
             $log->delete();
 
             if ($locked) {

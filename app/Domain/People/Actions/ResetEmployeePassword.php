@@ -15,7 +15,7 @@ use Illuminate\Validation\ValidationException;
  * Perm employees.update (the same right that resends the set-password link). The audit records the
  * event, never the value.
  */
-class ResetEmployeePassword
+final class ResetEmployeePassword
 {
     public function handle(User $actor, User $employee): User
     {

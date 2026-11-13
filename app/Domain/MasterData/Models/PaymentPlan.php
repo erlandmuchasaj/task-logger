@@ -15,10 +15,12 @@ use Illuminate\Database\Eloquent\Model;
 /** Client metadata only; no invoice is generated (BR-15). */
 #[Fillable(['name', 'type', 'days', 'description'])]
 #[UseFactory(PaymentPlanFactory::class)]
-class PaymentPlan extends Model
+final class PaymentPlan extends Model
 {
     /** @use HasFactory<PaymentPlanFactory> */
-    use HasFactory, LogsBusinessActivity;
+    use HasFactory;
+
+    use LogsBusinessActivity;
 
     protected function casts(): array
     {

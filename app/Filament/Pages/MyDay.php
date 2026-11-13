@@ -37,9 +37,12 @@ use UnitEnum;
  * they are completed or cancelled (BR-08); submitting the day is never blocked. The checkbox switches
  * between your tasks and the projects you may log to directly (BR-03).
  */
-class MyDay extends Page implements HasTable
+final class MyDay extends Page implements HasTable
 {
     use InteractsWithTable;
+
+    /** @var array<string, mixed>|null */
+    public ?array $data = [];
 
     protected string $view = 'filament.pages.my-day';
 
@@ -51,9 +54,6 @@ class MyDay extends Page implements HasTable
 
     protected static ?string $title = 'My Day';
 
-    /** @var array<string, mixed>|null */
-    public ?array $data = [];
-
     public static function canAccess(): bool
     {
         return (bool) auth()->user()?->can(Permissions::LOGS_CREATE_OWN);
@@ -61,7 +61,7 @@ class MyDay extends Page implements HasTable
 
     public function mount(): void
     {
-        abort_unless(static::canAccess(), 403);
+        abort_unless(self::canAccess(), 403);
 
         $this->getSchema('form')?->fill(['date' => $this->today()->toDateString(), 'hours' => 0, 'minutes' => 0, 'log_type' => 'normal_hours']);
     }
@@ -81,9 +81,9 @@ class MyDay extends Page implements HasTable
         $state = $this->getSchema('form')?->getState() ?? [];
 
         try {
-            $log = app(CreateLog::class)->handle($this->user(), LogForm::data($state));
-        } catch (ValidationException $e) {
-            ActionErrors::report($this, $e, aliases: ['duration' => 'minutes']);
+            $log = resolve(CreateLog::class)->handle($this->user(), LogForm::data($state));
+        } catch (ValidationException $validationException) {
+            ActionErrors::report($this, $validationException, aliases: ['duration' => 'minutes']);
 
             return;
         }
@@ -140,7 +140,7 @@ class MyDay extends Page implements HasTable
                         ->visible(fn (Log $record): bool => (bool) auth()->user()?->can('delete', $record))
                         ->requiresConfirmation()
                         ->action(function (Log $record): void {
-                            app(DeleteLog::class)->handle($this->user(), $record);
+                            resolve(DeleteLog::class)->handle($this->user(), $record);
                             Notification::make()->title('Log deleted')->success()->send();
                         }),
                 ]),

@@ -19,8 +19,11 @@ use Filament\Support\Icons\Heroicon;
 use UnitEnum;
 
 /** App settings (SPEC 2.3): retention period and the leave carry-over default. Perm settings.manage. */
-class ManageSettings extends Page
+final class ManageSettings extends Page
 {
+    /** @var array<string, mixed> */
+    public ?array $data = [];
+
     protected string $view = 'filament.pages.manage-settings';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCog6Tooth;
@@ -31,9 +34,6 @@ class ManageSettings extends Page
 
     protected static ?string $title = 'Settings';
 
-    /** @var array<string, mixed> */
-    public ?array $data = [];
-
     public static function canAccess(): bool
     {
         return (bool) auth()->user()?->can(Permissions::SETTINGS_MANAGE);
@@ -41,11 +41,11 @@ class ManageSettings extends Page
 
     public function mount(): void
     {
-        abort_unless(static::canAccess(), 403);
+        abort_unless(self::canAccess(), 403);
 
         $this->getSchema('form')?->fill([
-            'anonymize_after_months' => app(PrivacySettings::class)->anonymize_after_months,
-            'carry_over_default' => app(LeaveSettings::class)->carry_over_default,
+            'anonymize_after_months' => resolve(PrivacySettings::class)->anonymize_after_months,
+            'carry_over_default' => resolve(LeaveSettings::class)->carry_over_default,
         ]);
     }
 
@@ -70,15 +70,15 @@ class ManageSettings extends Page
 
     public function save(): void
     {
-        abort_unless(static::canAccess(), 403);
+        abort_unless(self::canAccess(), 403);
 
         $state = $this->getSchema('form')?->getState() ?? [];
 
-        $privacy = app(PrivacySettings::class);
+        $privacy = resolve(PrivacySettings::class);
         $privacy->anonymize_after_months = (int) $state['anonymize_after_months'];
         $privacy->save();
 
-        $leave = app(LeaveSettings::class);
+        $leave = resolve(LeaveSettings::class);
         $leave->carry_over_default = (bool) $state['carry_over_default'];
         $leave->save();
 

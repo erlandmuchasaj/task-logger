@@ -16,20 +16,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * is in force while `unlocked_at` is null; unlocking keeps the row so the history stays.
  */
 #[Fillable(['month', 'locked_by', 'locked_at', 'unlocked_by', 'unlocked_at'])]
-class TimesheetLock extends Model
+final class TimesheetLock extends Model
 {
     use LogsBusinessActivity;
-
-    protected static function booted(): void
-    {
-        static::saved(fn () => app(LockedMonths::class)->flush());
-        static::deleted(fn () => app(LockedMonths::class)->flush());
-    }
-
-    protected function casts(): array
-    {
-        return ['month' => 'date', 'locked_at' => 'datetime', 'unlocked_at' => 'datetime'];
-    }
 
     public function isLocked(): bool
     {
@@ -46,5 +35,16 @@ class TimesheetLock extends Model
     public function unlocker(): BelongsTo
     {
         return $this->belongsTo(User::class, 'unlocked_by');
+    }
+
+    protected static function booted(): void
+    {
+        self::saved(fn () => resolve(LockedMonths::class)->flush());
+        self::deleted(fn () => resolve(LockedMonths::class)->flush());
+    }
+
+    protected function casts(): array
+    {
+        return ['month' => 'date', 'locked_at' => 'datetime', 'unlocked_at' => 'datetime'];
     }
 }

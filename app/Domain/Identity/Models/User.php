@@ -51,25 +51,19 @@ use Spatie\Permission\Traits\HasRoles;
 ])]
 #[Hidden(['password', 'remember_token', 'app_authentication_secret', 'app_authentication_recovery_codes'])]
 #[UseFactory(UserFactory::class)]
-class User extends Authenticatable implements BannableContract, FilamentUser, HasAppAuthentication, HasAppAuthenticationRecovery
+final class User extends Authenticatable implements BannableContract, FilamentUser, HasAppAuthentication, HasAppAuthenticationRecovery
 {
-    /** @use HasFactory<UserFactory> */
-    use Bannable, CausesActivity, HasFactory, HasRoles, Impersonate, LogsBusinessActivity, Notifiable, SoftDeletes;
+    use Bannable;
+    use CausesActivity;
 
-    protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'must_change_password' => 'boolean',
-            'employment_type' => EmploymentType::class,
-            'start_date' => 'date',
-            'anonymized_at' => 'datetime',
-            'banned_at' => 'datetime',
-            'app_authentication_secret' => 'encrypted',
-            'app_authentication_recovery_codes' => 'encrypted:array',
-        ];
-    }
+    /** @use HasFactory<UserFactory> */
+    use HasFactory;
+
+    use HasRoles;
+    use Impersonate;
+    use LogsBusinessActivity;
+    use Notifiable;
+    use SoftDeletes;
 
     /** The password hash is fillable but never written to the activity log. */
     public function getActivitylogOptions(): LogOptions
@@ -79,7 +73,7 @@ class User extends Authenticatable implements BannableContract, FilamentUser, Ha
             ->logExcept(['password'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
-            ->useLogName(static::class);
+            ->useLogName(self::class);
     }
 
     public function getAppAuthenticationSecret(): ?string
@@ -142,7 +136,7 @@ class User extends Authenticatable implements BannableContract, FilamentUser, Ha
 
     public function getFilamentName(): string
     {
-        return trim($this->name.' '.$this->surname);
+        return mb_trim($this->name.' '.$this->surname);
     }
 
     /** @return BelongsTo<Country, $this> */
@@ -229,6 +223,21 @@ class User extends Authenticatable implements BannableContract, FilamentUser, Ha
     public function activityLogs(): HasMany
     {
         return $this->hasMany(ActivityLog::class, 'causer_id', 'id')
-            ->where('causer_type', (new User)->getMorphClass());
+            ->where('causer_type', (new self)->getMorphClass());
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'must_change_password' => 'boolean',
+            'employment_type' => EmploymentType::class,
+            'start_date' => 'date',
+            'anonymized_at' => 'datetime',
+            'banned_at' => 'datetime',
+            'app_authentication_secret' => 'encrypted',
+            'app_authentication_recovery_codes' => 'encrypted:array',
+        ];
     }
 }

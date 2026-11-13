@@ -31,27 +31,18 @@ use Spatie\Sluggable\SlugOptions;
     'end_date', 'can_log_directly_to_project', 'status', 'color',
 ])]
 #[UseFactory(ProjectFactory::class)]
-class Project extends Model
+final class Project extends Model
 {
     /** @use HasFactory<ProjectFactory> */
-    use HasFactory, HasSlug, LogsBusinessActivity, SoftDeletes;
+    use HasFactory;
+
+    use HasSlug;
+    use LogsBusinessActivity;
+    use SoftDeletes;
 
     public function getSlugOptions(): SlugOptions
     {
         return SlugOptions::create()->generateSlugsFrom('name')->saveSlugsTo('slug')->doNotGenerateSlugsOnUpdate();
-    }
-
-    protected function casts(): array
-    {
-        return [
-            'project_type' => ProjectType::class,
-            'status' => ProjectStatus::class,
-            'start_date' => 'date',
-            'end_date' => 'date',
-            'can_log_directly_to_project' => 'boolean',
-            'estimated_hours' => 'decimal:2',
-            'budget_minor' => 'integer',
-        ];
     }
 
     public function budget(): Money
@@ -105,5 +96,18 @@ class Project extends Model
     public function tasks(): HasMany
     {
         return $this->hasMany(Task::class);
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'project_type' => ProjectType::class,
+            'status' => ProjectStatus::class,
+            'start_date' => 'date',
+            'end_date' => 'date',
+            'can_log_directly_to_project' => 'boolean',
+            'estimated_hours' => 'decimal:2',
+            'budget_minor' => 'integer',
+        ];
     }
 }

@@ -11,7 +11,7 @@ use Illuminate\Notifications\Notification;
 use SensitiveParameter;
 
 /** D-53: an administrator set a new password for the person. Not queued, so the password never reaches the jobs table. */
-class PasswordResetByAdmin extends Notification
+final class PasswordResetByAdmin extends Notification
 {
     public function __construct(#[SensitiveParameter] public readonly string $password) {}
 

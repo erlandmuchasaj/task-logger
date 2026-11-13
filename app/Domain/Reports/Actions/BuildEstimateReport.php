@@ -23,9 +23,9 @@ use Illuminate\Support\Facades\Gate;
  * time); values need clients.view_rates (D-05, D-49). Money is grouped by currency and never converted (BR-12).
  * Everything is integer arithmetic in SQL and PHP: minutes, hundredths of an hour, minor units.
  */
-class BuildEstimateReport
+final class BuildEstimateReport
 {
-    public const PER_PAGE = 25;
+    public const int PER_PAGE = 25;
 
     /**
      * One page of projects with their lines.
@@ -75,7 +75,7 @@ class BuildEstimateReport
                 $project->customer->displayName(),
                 $project->status->getLabel(),
                 $projectLines,
-                $seesValue ? Money::of(array_sum(array_map(fn (EstimateLine $l): int => $l->value === null ? 0 : $l->value->minor, $projectLines)), $project->customer->currency_code) : null,
+                $seesValue ? Money::of(array_sum(array_map(fn (EstimateLine $l): int => $l->value->minor ?? 0, $projectLines)), $project->customer->currency_code) : null,
             );
         });
 

@@ -18,7 +18,7 @@ use Throwable;
  *   switched on, or when the user was created if that is later [ASSUMED], so new hires also get it.
  *   The end date is computed from the current grace_days, so changing it applies immediately.
  */
-class TwoFactorPolicy
+final class TwoFactorPolicy
 {
     public function isEnabled(): bool
     {
@@ -78,7 +78,7 @@ class TwoFactorPolicy
     private function setting(string $property, mixed $default): mixed
     {
         try {
-            return app(SecuritySettings::class)->{$property};
+            return resolve(SecuritySettings::class)->{$property};
         } catch (Throwable) {
             return $default;
         }

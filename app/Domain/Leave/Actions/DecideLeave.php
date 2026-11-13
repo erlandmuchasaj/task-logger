@@ -24,7 +24,7 @@ use Spatie\Activitylog\Support\CauserResolver;
  * rejection ends it and needs a note (BR-21). Nobody decides their own request, root included (BR-20).
  * Final approval writes the deduction to the ledger.
  */
-class DecideLeave
+final class DecideLeave
 {
     use ValidatesLeave;
 
@@ -32,13 +32,13 @@ class DecideLeave
     {
         Gate::forUser($actor)->authorize($stage === ApprovalStage::Manager ? 'approveManagerStage' : 'approveHrStage', $request);
 
-        $note = filled($note) ? trim((string) $note) : null;
+        $note = filled($note) ? mb_trim($note) : null;
 
         if ($decision === ApprovalDecision::Rejected && $note === null) {
             throw ValidationException::withMessages(['note' => 'A rejection needs a note.']);
         }
 
-        return app(CauserResolver::class)->withCauser($actor, fn (): LeaveRequest => DB::transaction(function () use ($actor, $request, $stage, $decision, $note): LeaveRequest {
+        return resolve(CauserResolver::class)->withCauser($actor, fn (): LeaveRequest => DB::transaction(function () use ($actor, $request, $stage, $decision, $note): LeaveRequest {
             $employee = User::query()->whereKey($request->user_id)->lockForUpdate()->firstOrFail();
             $request = LeaveRequest::query()->with(['approvals', 'leaveType'])->whereKey($request->getKey())->lockForUpdate()->firstOrFail();
 
@@ -64,7 +64,7 @@ class DecideLeave
                 throw ValidationException::withMessages(['stage' => 'The manager must decide before HR.']);
             }
 
-            LeaveRequestApproval::create([
+            LeaveRequestApproval::query()->create([
                 'leave_request_id' => $request->getKey(),
                 'stage' => $stage,
                 'reviewer_id' => $actor->getKey(),
@@ -95,7 +95,7 @@ class DecideLeave
             // The request's own days are no longer "pending" once approved, so exclude it from the reservation.
             $this->assertBalance($employee, $type, $tenths, (int) $request->getKey());
 
-            LeaveLedgerEntry::create([
+            LeaveLedgerEntry::query()->create([
                 'user_id' => $request->user_id,
                 'leave_type_id' => $request->leave_type_id,
                 'entry_type' => LedgerEntryType::Deduction,

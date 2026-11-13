@@ -14,7 +14,7 @@ use Filament\Support\Exceptions\Halt;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 
-class CreateEmployee extends CreateRecord
+final class CreateEmployee extends CreateRecord
 {
     protected static string $resource = EmployeeResource::class;
 
@@ -30,14 +30,14 @@ class CreateEmployee extends CreateRecord
         $withHr = $actor?->can('updateHrRecord', new User) && isset($data['profile']);
 
         try {
-            return app(CreateEmployeeAction::class)->handle(
+            return resolve(CreateEmployeeAction::class)->handle(
                 $actor,
                 FormMapper::employee($data),
                 $withHr ? FormMapper::hrRecord($data) : null,
                 FormMapper::salary((array) ($data['salary'] ?? [])),
             );
-        } catch (ValidationException $e) {
-            FormMapper::report($this, $e);
+        } catch (ValidationException $validationException) {
+            FormMapper::report($this, $validationException);
             throw new Halt;
         }
     }

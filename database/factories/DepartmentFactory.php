@@ -8,7 +8,7 @@ use App\Domain\MasterData\Models\Department;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<Department> */
-class DepartmentFactory extends Factory
+final class DepartmentFactory extends Factory
 {
     protected $model = Department::class;
 

@@ -6,14 +6,14 @@ namespace App\Domain\MasterData\Policies;
 
 use App\Domain\Identity\Permissions;
 
-class CountryPolicy extends MasterDataPolicy
+final class CountryPolicy extends MasterDataPolicy
 {
     protected function managePermission(): string
     {
         return Permissions::COUNTRIES_MANAGE;
     }
 
-    protected function createPermission(): ?string
+    protected function createPermission(): string
     {
         return Permissions::COUNTRIES_CREATE;
     }

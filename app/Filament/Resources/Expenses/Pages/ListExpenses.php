@@ -8,7 +8,7 @@ use App\Filament\Resources\Expenses\ExpenseResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
-class ListExpenses extends ListRecords
+final class ListExpenses extends ListRecords
 {
     protected static string $resource = ExpenseResource::class;
 

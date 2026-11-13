@@ -14,9 +14,9 @@ use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /** Appends a salary row (BR-29). Rows are never edited or deleted; the ledger settles statuses. */
-class RecordSalary
+final readonly class RecordSalary
 {
-    public function __construct(private readonly SalaryLedger $ledger) {}
+    public function __construct(private SalaryLedger $ledger) {}
 
     public function handle(User $actor, User $employee, SalaryData $data): Salary
     {
@@ -26,11 +26,11 @@ class RecordSalary
             throw ValidationException::withMessages(['amount' => 'The salary must be greater than zero.']);
         }
 
-        return app(CauserResolver::class)->withCauser($actor, fn (): Salary => DB::transaction(function () use ($actor, $employee, $data): Salary {
+        return resolve(CauserResolver::class)->withCauser($actor, fn (): Salary => DB::transaction(function () use ($actor, $employee, $data): Salary {
             // Serialise concurrent writes for one employee so statuses settle consistently.
             User::query()->whereKey($employee->getKey())->lockForUpdate()->first();
 
-            $salary = Salary::create([
+            $salary = Salary::query()->create([
                 'user_id' => $employee->getKey(),
                 'created_by' => $actor->getKey(),
                 'amount_minor' => $data->amount->minor,

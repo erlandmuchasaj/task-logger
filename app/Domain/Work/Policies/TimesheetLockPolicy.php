@@ -8,7 +8,7 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Permissions;
 use App\Domain\Work\Models\TimesheetLock;
 
-class TimesheetLockPolicy
+final class TimesheetLockPolicy
 {
     public function viewAny(User $user): bool
     {

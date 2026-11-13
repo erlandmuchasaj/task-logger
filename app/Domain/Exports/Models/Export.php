@@ -14,23 +14,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * A requested export and its file. A tool record, not a business record: its own status changes are not
  * audited; the completion is (event `exported` on the export).
+ *
+ * @property array{client_ip?: ?string, user_agent?: ?string, impersonator_id?: ?int}|null $request_context
  */
 #[Fillable(['user_id', 'type', 'status', 'filters', 'request_context', 'file_path', 'rows', 'error', 'completed_at', 'expires_at'])]
-class Export extends Model
+final class Export extends Model
 {
-    protected function casts(): array
-    {
-        return [
-            'type' => ExportType::class,
-            'status' => ExportStatus::class,
-            'filters' => 'array',
-            'request_context' => 'array',
-            'rows' => 'integer',
-            'completed_at' => 'datetime',
-            'expires_at' => 'datetime',
-        ];
-    }
-
     public function isDownloadable(): bool
     {
         return $this->status === ExportStatus::Completed
@@ -42,5 +31,18 @@ class Export extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'type' => ExportType::class,
+            'status' => ExportStatus::class,
+            'filters' => 'array',
+            'request_context' => 'array',
+            'rows' => 'integer',
+            'completed_at' => 'datetime',
+            'expires_at' => 'datetime',
+        ];
     }
 }

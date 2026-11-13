@@ -12,7 +12,7 @@ use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /** Perm projects.delete. A soft delete: history survives. Refused while the project still has tasks [DERIVED]. */
-class DeleteProject
+final class DeleteProject
 {
     public function handle(User $actor, Project $project): void
     {
@@ -22,6 +22,6 @@ class DeleteProject
             throw ValidationException::withMessages(['project' => 'This project still has tasks or logged time. Cancel the project instead of deleting it.']);
         }
 
-        app(CauserResolver::class)->withCauser($actor, fn () => $project->delete());
+        resolve(CauserResolver::class)->withCauser($actor, fn () => $project->delete());
     }
 }

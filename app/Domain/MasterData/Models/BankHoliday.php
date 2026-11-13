@@ -18,19 +18,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 #[Fillable(['name', 'start_date', 'end_date', 'country_id', 'description'])]
 #[UseFactory(BankHolidayFactory::class)]
-class BankHoliday extends Model
+final class BankHoliday extends Model
 {
     /** @use HasFactory<BankHolidayFactory> */
-    use HasFactory, LogsBusinessActivity;
+    use HasFactory;
 
-    protected function casts(): array
-    {
-        return ['start_date' => 'date', 'end_date' => 'date'];
-    }
+    use LogsBusinessActivity;
 
     /** @return BelongsTo<Country, $this> */
     public function country(): BelongsTo
     {
         return $this->belongsTo(Country::class);
+    }
+
+    protected function casts(): array
+    {
+        return ['start_date' => 'date', 'end_date' => 'date'];
     }
 }

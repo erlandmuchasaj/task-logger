@@ -14,7 +14,7 @@ use App\Domain\People\Models\Performance;
  * (superadmin, admin), and an admin who is not the manager can create but not read it back (FR-15).
  * Reviews are never edited or deleted.
  */
-class PerformancePolicy
+final class PerformancePolicy
 {
     /** Open the list: readers, managers with reports, and creators (who see an empty list but can add). */
     public function viewAny(User $user): bool

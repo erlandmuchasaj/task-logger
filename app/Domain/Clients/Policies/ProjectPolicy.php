@@ -9,7 +9,7 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Permissions;
 
 /** The budget is visible only with clients.view_rates (D-05). */
-class ProjectPolicy
+final class ProjectPolicy
 {
     public function viewAny(User $user): bool
     {

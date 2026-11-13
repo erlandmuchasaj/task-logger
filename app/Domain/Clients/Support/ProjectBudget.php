@@ -21,6 +21,6 @@ final readonly class ProjectBudget
 
     public function estimatedHours(): string
     {
-        return intdiv($this->estimatedHoursHundredths, 100).'.'.str_pad((string) ($this->estimatedHoursHundredths % 100), 2, '0', STR_PAD_LEFT);
+        return intdiv($this->estimatedHoursHundredths, 100).'.'.mb_str_pad((string) ($this->estimatedHoursHundredths % 100), 2, '0', STR_PAD_LEFT);
     }
 }

@@ -46,17 +46,17 @@ $models = [
     Salary::class => ['status', SalaryStatus::Superseded], // the only column a salary row may change (BR-29)
 ];
 
-it('BR-32 records create, update and delete with causer, subject and before/after values', function (string $model, string $attribute, mixed $new) {
+it('BR-32 records create, update and delete with causer, subject and before/after values', function (string $model, string $attribute, mixed $new): void {
     $actor = userWithRole(RoleName::Superadmin);
     $this->actingAs($actor);
     Activity::query()->delete();
 
     $record = $model::factory()->create();
-    $created = Activity::where('event', 'created')->where('subject_type', $record->getMorphClass())->where('subject_id', $record->id)->sole();
+    $created = Activity::query()->where('event', 'created')->where('subject_type', $record->getMorphClass())->where('subject_id', $record->id)->sole();
     expect($created->causer_id)->toBe($actor->id);
 
     $record->update([$attribute => $new]);
-    $updated = Activity::where('event', 'updated')->where('subject_type', $record->getMorphClass())->where('subject_id', $record->id)->sole();
+    $updated = Activity::query()->where('event', 'updated')->where('subject_type', $record->getMorphClass())->where('subject_id', $record->id)->sole();
     expect($updated->causer_id)->toBe($actor->id)
         ->and($updated->attribute_changes)->toHaveKeys(['attributes', 'old'])
         ->and($updated->attribute_changes['attributes'])->toHaveKey($attribute)
@@ -67,6 +67,6 @@ it('BR-32 records create, update and delete with causer, subject and before/afte
     }
 
     $record->delete();
-    $deleted = Activity::where('event', 'deleted')->where('subject_type', $record->getMorphClass())->where('subject_id', $record->id)->sole();
+    $deleted = Activity::query()->where('event', 'deleted')->where('subject_type', $record->getMorphClass())->where('subject_id', $record->id)->sole();
     expect($deleted->causer_id)->toBe($actor->id);
-})->group('BR-32')->with(fn () => collect($models)->map(fn (array $m, string $class) => [$class, $m[0], $m[1]])->all());
+})->group('BR-32')->with(fn () => collect($models)->map(fn (array $m, string $class): array => [$class, $m[0], $m[1]])->all());

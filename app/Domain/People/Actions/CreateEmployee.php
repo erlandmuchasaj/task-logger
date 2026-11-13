@@ -21,15 +21,15 @@ use Spatie\Activitylog\Support\CauserResolver;
  * self-registration. The new user gets a temporary password in a welcome email and is asked to change
  * it after the first sign-in (D-53, replacing the set-password link the account used to receive).
  */
-class CreateEmployee
+final readonly class CreateEmployee
 {
     use ValidatesEmployee;
 
     public function __construct(
-        private readonly AssignUserRole $assignRole,
-        private readonly SyncSkills $syncSkills,
-        private readonly UpdateHrRecord $updateHrRecord,
-        private readonly RecordSalary $recordSalary,
+        private AssignUserRole $assignRole,
+        private SyncSkills $syncSkills,
+        private UpdateHrRecord $updateHrRecord,
+        private RecordSalary $recordSalary,
     ) {}
 
     public function handle(User $actor, EmployeeData $data, ?HrRecordData $hrRecord = null, ?SalaryData $salary = null): User
@@ -39,8 +39,8 @@ class CreateEmployee
 
         $password = TemporaryPassword::generate();
 
-        $employee = app(CauserResolver::class)->withCauser($actor, fn (): User => DB::transaction(function () use ($actor, $data, $hrRecord, $salary, $password): User {
-            $employee = User::create([
+        $employee = resolve(CauserResolver::class)->withCauser($actor, fn (): User => DB::transaction(function () use ($actor, $data, $hrRecord, $salary, $password): User {
+            $employee = User::query()->create([
                 'name' => $data->name,
                 'surname' => $data->surname,
                 'email' => $data->email,
@@ -60,12 +60,12 @@ class CreateEmployee
             $this->assignRole->handle($employee, $data->role);
             $this->syncSkills->handle($employee, $data->skills);
 
-            if ($hrRecord !== null) {
+            if ($hrRecord instanceof HrRecordData) {
                 Gate::forUser($actor)->authorize('updateHrRecord', $employee);
                 $this->updateHrRecord->persist($employee, $hrRecord);
             }
 
-            if ($salary !== null) {
+            if ($salary instanceof SalaryData) {
                 $this->recordSalary->handle($actor, $employee, $salary);
             }
 
@@ -73,7 +73,7 @@ class CreateEmployee
         }));
 
         // W-01 step 4: the grant for the year of joining (due now when the start date has passed, else the job writes it).
-        app(GrantAnnualLeave::class)->grantFor($employee->load('country'));
+        resolve(GrantAnnualLeave::class)->grantFor($employee->load('country'));
 
         $employee->notify(new WelcomeEmployee($password));
 

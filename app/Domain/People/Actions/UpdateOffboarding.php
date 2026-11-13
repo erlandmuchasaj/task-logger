@@ -12,7 +12,7 @@ use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /** Changes the facts of an offboarding (end date, equipment, letter, description) while it is still open. Status moves through ChangeOffboardingStatus. */
-class UpdateOffboarding
+final class UpdateOffboarding
 {
     public function handle(User $actor, Offboarding $offboarding, OffboardingData $data): Offboarding
     {
@@ -23,7 +23,7 @@ class UpdateOffboarding
             throw ValidationException::withMessages(['status' => 'A completed or cancelled offboarding can no longer be changed.']);
         }
 
-        return app(CauserResolver::class)->withCauser($actor, function () use ($offboarding, $data): Offboarding {
+        return resolve(CauserResolver::class)->withCauser($actor, function () use ($offboarding, $data): Offboarding {
             $offboarding->update([
                 'end_date' => $data->endDate->toDateString(),
                 'equipment_returned' => $data->equipmentReturned,

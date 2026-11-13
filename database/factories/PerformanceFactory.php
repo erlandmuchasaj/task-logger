@@ -9,7 +9,7 @@ use App\Domain\People\Models\Performance;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<Performance> */
-class PerformanceFactory extends Factory
+final class PerformanceFactory extends Factory
 {
     protected $model = Performance::class;
 

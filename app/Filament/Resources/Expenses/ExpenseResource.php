@@ -35,7 +35,7 @@ use UnitEnum;
  * Expenses [OPTIONAL] (D-17, D-51, D-52). Only finance and the superadmin hold expenses.* so nobody else sees the
  * menu. Status buttons run ChangeExpenseStatus; drafts can be edited and deleted, nothing else can.
  */
-class ExpenseResource extends Resource
+final class ExpenseResource extends Resource
 {
     protected static ?string $model = Expense::class;
 
@@ -89,9 +89,9 @@ class ExpenseResource extends Resource
                         ->visible(fn (Expense $record): bool => $record->receipt_path !== null && (bool) auth()->user()?->can('view', $record))
                         ->action(function (Expense $record) {
                             try {
-                                return app(DownloadReceipt::class)->handle(auth()->user(), $record);
-                            } catch (ValidationException $e) {
-                                ActionErrors::notify($e);
+                                return resolve(DownloadReceipt::class)->handle(auth()->user(), $record);
+                            } catch (ValidationException $validationException) {
+                                ActionErrors::notify($validationException);
 
                                 return null;
                             }
@@ -100,10 +100,10 @@ class ExpenseResource extends Resource
                         ->visible(fn (Expense $record): bool => $record->status->isEditable() && (bool) auth()->user()?->can('delete', $record))
                         ->action(function (Expense $record): void {
                             try {
-                                app(DeleteExpense::class)->handle(auth()->user(), $record);
+                                resolve(DeleteExpense::class)->handle(auth()->user(), $record);
                                 Notification::make()->title('Expense deleted')->success()->send();
-                            } catch (ValidationException $e) {
-                                ActionErrors::notify($e);
+                            } catch (ValidationException $validationException) {
+                                ActionErrors::notify($validationException);
                             }
                         }),
                 ]),
@@ -113,27 +113,6 @@ class ExpenseResource extends Resource
             ->defaultPaginationPageOption(25);
     }
 
-    /** One status button, visible only when the move is allowed from the current status and the viewer holds the permission. */
-    private static function move(string $name, string $label, ExpenseStatus $to, Heroicon $icon, string $color, bool $withReason = false): Action
-    {
-        $action = Action::make($name)->label($label)->icon($icon)->color($color)
-            ->visible(fn (Expense $record): bool => in_array($to, $record->status->next(), true)
-                && (bool) auth()->user()?->can('transition', [$record, $to])
-                && ! (in_array($to, [ExpenseStatus::Approved, ExpenseStatus::Rejected], true) && $record->user_id === auth()->id()))
-            ->action(function (Expense $record, array $data) use ($to): void {
-                try {
-                    app(ChangeExpenseStatus::class)->handle(auth()->user(), $record, $to, $data['reason'] ?? null);
-                    Notification::make()->title('Expense '.strtolower($to->getLabel()))->success()->send();
-                } catch (ValidationException $e) {
-                    ActionErrors::notify($e);
-                }
-            });
-
-        return $withReason
-            ? $action->schema([Textarea::make('reason')->label('Why is it rejected?')->required()->rows(3)])
-            : $action->requiresConfirmation();
-    }
-
     public static function getPages(): array
     {
         return [
@@ -141,5 +120,26 @@ class ExpenseResource extends Resource
             'create' => CreateExpense::route('/create'),
             'edit' => EditExpense::route('/{record}/edit'),
         ];
+    }
+
+    /** One status button, visible only when the move is allowed from the current status and the viewer holds the permission. */
+    private static function move(string $name, string $label, ExpenseStatus $to, Heroicon $icon, string $color, bool $withReason = false): Action
+    {
+        $action = Action::make($name)->label($label)->icon($icon)->color($color)
+            ->visible(fn (Expense $record): bool => in_array($to, $record->status->next(), true)
+                && (bool) auth()->user()?->can('transition', [$record, $to])
+                && (! in_array($to, [ExpenseStatus::Approved, ExpenseStatus::Rejected], true) || $record->user_id !== auth()->id()))
+            ->action(function (Expense $record, array $data) use ($to): void {
+                try {
+                    resolve(ChangeExpenseStatus::class)->handle(auth()->user(), $record, $to, $data['reason'] ?? null);
+                    Notification::make()->title('Expense '.mb_strtolower($to->getLabel()))->success()->send();
+                } catch (ValidationException $validationException) {
+                    ActionErrors::notify($validationException);
+                }
+            });
+
+        return $withReason
+            ? $action->schema([Textarea::make('reason')->label('Why is it rejected?')->required()->rows(3)])
+            : $action->requiresConfirmation();
     }
 }

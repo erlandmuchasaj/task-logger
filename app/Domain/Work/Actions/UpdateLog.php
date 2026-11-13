@@ -17,7 +17,7 @@ use Spatie\Activitylog\Support\CauserResolver;
  * logs.edit_locked (month-close corrections, BR-07), recorded with before and after values. The rate is
  * copied again only when the date, project or technology changes; later rate changes never alter a log.
  */
-class UpdateLog
+final class UpdateLog
 {
     use ValidatesLog;
 
@@ -42,7 +42,7 @@ class UpdateLog
         $lockedAfter = TimesheetLocks::isLocked($data->date);
         $before = $log->only(['date', 'duration_minutes', 'log_type', 'description', 'project_id', 'task_id', 'technology_id', 'rate_minor', 'rate_currency']);
 
-        return app(CauserResolver::class)->withCauser($actor, fn (): Log => DB::transaction(function () use ($owner, $log, $data, $target, $rate, $lockedBefore, $lockedAfter, $before): Log {
+        return resolve(CauserResolver::class)->withCauser($actor, fn (): Log => DB::transaction(function () use ($owner, $log, $data, $target, $rate, $lockedBefore, $lockedAfter, $before): Log {
             User::query()->whereKey($owner->getKey())->lockForUpdate()->first();
             $this->validateBasics($owner, $data, $target['project'], $log);
 

@@ -37,7 +37,7 @@ use Illuminate\Validation\ValidationException;
 use UnitEnum;
 
 /** Projects: everyone with projects.view reads them; the budget needs clients.view_rates (D-05). */
-class ProjectResource extends Resource
+final class ProjectResource extends Resource
 {
     protected static ?string $model = Project::class;
 
@@ -128,7 +128,7 @@ class ProjectResource extends Resource
                         ->schema([Select::make('status')->options(ProjectStatus::class)->required()])
                         ->fillForm(fn (Project $record): array => ['status' => $record->status->value])
                         ->action(function (Project $record, array $data): void {
-                            app(ChangeProjectStatus::class)->handle(auth()->user(), $record, $data['status'] instanceof ProjectStatus ? $data['status'] : ProjectStatus::from((string) $data['status']));
+                            resolve(ChangeProjectStatus::class)->handle(auth()->user(), $record, $data['status'] instanceof ProjectStatus ? $data['status'] : ProjectStatus::from((string) $data['status']));
                             Notification::make()->title('Status changed')->success()->send();
                         }),
                     Action::make('delete')->icon(Heroicon::OutlinedTrash)->color('danger')
@@ -136,10 +136,10 @@ class ProjectResource extends Resource
                         ->requiresConfirmation()
                         ->action(function (Project $record): void {
                             try {
-                                app(DeleteProject::class)->handle(auth()->user(), $record);
+                                resolve(DeleteProject::class)->handle(auth()->user(), $record);
                                 Notification::make()->title('Project deleted')->success()->send();
-                            } catch (ValidationException $e) {
-                                ActionErrors::notify($e);
+                            } catch (ValidationException $validationException) {
+                                ActionErrors::notify($validationException);
                             }
                         }),
                 ]),

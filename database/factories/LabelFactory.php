@@ -8,7 +8,7 @@ use App\Domain\MasterData\Models\Label;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<Label> */
-class LabelFactory extends Factory
+final class LabelFactory extends Factory
 {
     protected $model = Label::class;
 

@@ -52,7 +52,7 @@ use UnitEnum;
  * Employee management (W-01): the account, skills, private HR record, emergency contacts and salaries.
  * Private fields are gated per column and entry by viewHrRecord and salaries.view (BR-26).
  */
-class EmployeeResource extends Resource
+final class EmployeeResource extends Resource
 {
     protected static ?string $model = User::class;
 
@@ -115,7 +115,7 @@ class EmployeeResource extends Resource
                         'Active' => 'success', 'Deactivated' => 'warning', default => 'gray',
                     }),
                 IconColumn::make('two_factor')->label('2FA')->boolean()->toggleable()
-                    ->visible(fn (): bool => app(TwoFactorPolicy::class)->isEnabled())
+                    ->visible(fn (): bool => resolve(TwoFactorPolicy::class)->isEnabled())
                     ->state(fn (User $record): bool => $record->hasTwoFactorEnabled()),
                 TextColumn::make('created_at')->label('Created')->dateTime()->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -128,7 +128,7 @@ class EmployeeResource extends Resource
                 SelectFilter::make('manager')->relationship('manager', 'name')->searchable()->preload()
                     ->getOptionLabelFromRecordUsing(fn (User $record): string => $record->getFilamentName()),
                 TernaryFilter::make('two_factor')->label('Two-factor authentication')
-                    ->visible(fn (): bool => app(TwoFactorPolicy::class)->isEnabled())
+                    ->visible(fn (): bool => resolve(TwoFactorPolicy::class)->isEnabled())
                     ->trueLabel('Enabled')->falseLabel('Not enabled')
                     ->queries(
                         true: fn (Builder $query): Builder => $query->whereNotNull('app_authentication_secret'),
@@ -149,14 +149,14 @@ class EmployeeResource extends Resource
                         ->modalHeading(fn (User $record): string => $record->getFilamentName())
                         ->slideOver()
                         ->authorize(fn (): bool => (bool) auth()->user()?->can('viewAny', User::class))
-                        ->schema(fn (): array => static::profileEntries()),
+                        ->schema(fn (): array => self::profileEntries()),
                     EditAction::make(),
                     Action::make('resendLink')->label('Send reset-password link')->icon(Heroicon::OutlinedEnvelope)
                         ->visible(fn (User $record): bool => (bool) auth()->user()?->can('updateAccount', $record) && ! $record->isBanned())
                         ->requiresConfirmation()
                         ->modalDescription('Emails the person a link to choose a new password. Their current password keeps working until they do.')
                         ->action(function (User $record): void {
-                            app(SendSetPasswordLink::class)->handle($record);
+                            resolve(SendSetPasswordLink::class)->handle($record);
                             Notification::make()->title('Reset-password link sent')->success()->send();
                         }),
                     Action::make('resetPassword')->label('Reset password and email it')->icon(Heroicon::OutlinedKey)->color('warning')
@@ -166,10 +166,10 @@ class EmployeeResource extends Resource
                         ->modalDescription('Their current password stops working at once. A new temporary password is emailed to them, and they are asked to change it after signing in.')
                         ->action(function (User $record): void {
                             try {
-                                app(ResetEmployeePassword::class)->handle(auth()->user(), $record);
+                                resolve(ResetEmployeePassword::class)->handle(auth()->user(), $record);
                                 Notification::make()->title('Password reset and emailed')->success()->send();
-                            } catch (ValidationException $e) {
-                                Notification::make()->title(collect($e->errors())->flatten()->first())->danger()->send();
+                            } catch (ValidationException $validationException) {
+                                Notification::make()->title(collect($validationException->errors())->flatten()->first())->danger()->send();
                             }
                         }),
                     Action::make('deactivate')->icon(Heroicon::OutlinedNoSymbol)->color('warning')
@@ -177,36 +177,36 @@ class EmployeeResource extends Resource
                         ->requiresConfirmation()->modalDescription('The person can no longer sign in. Their history is kept.')
                         ->action(function (User $record): void {
                             try {
-                                app(DeactivateEmployee::class)->handle(auth()->user(), $record);
+                                resolve(DeactivateEmployee::class)->handle(auth()->user(), $record);
                                 Notification::make()->title('Employee deactivated')->success()->send();
-                            } catch (ValidationException $e) {
-                                Notification::make()->title(collect($e->errors())->flatten()->first())->danger()->send();
+                            } catch (ValidationException $validationException) {
+                                Notification::make()->title(collect($validationException->errors())->flatten()->first())->danger()->send();
                             }
                         }),
                     Action::make('reactivate')->icon(Heroicon::OutlinedArrowUturnLeft)
                         ->visible(fn (User $record): bool => (bool) auth()->user()?->can('deactivate', $record) && $record->isBanned() && $record->anonymized_at === null)
                         ->requiresConfirmation()
                         ->action(function (User $record): void {
-                            app(ReactivateEmployee::class)->handle(auth()->user(), $record);
+                            resolve(ReactivateEmployee::class)->handle(auth()->user(), $record);
                             Notification::make()->title('Employee reactivated')->success()->send();
                         }),
                     Action::make('impersonate')->label('Impersonate')->icon(Heroicon::OutlinedEye)->color('gray')
                         ->visible(fn (User $record): bool => (bool) auth()->user()?->can('impersonate', $record)
-                            && ! $record->is(auth()->user()) && $record->canBeImpersonated() && ! app(ImpersonateManager::class)->isImpersonating())
+                            && ! $record->is(auth()->user()) && $record->canBeImpersonated() && ! resolve(ImpersonateManager::class)->isImpersonating())
                         ->requiresConfirmation()->modalDescription('You will see and act as this person. Everything you change is recorded under their name with you as the impersonator.')
                         ->action(function (User $record, Component $livewire): void {
                             try {
-                                app(StartImpersonation::class)->handle(auth()->user(), $record);
+                                resolve(StartImpersonation::class)->handle(auth()->user(), $record);
                                 $livewire->redirect('/app');
-                            } catch (ValidationException $e) {
-                                Notification::make()->title(collect($e->errors())->flatten()->first())->danger()->send();
+                            } catch (ValidationException $validationException) {
+                                Notification::make()->title(collect($validationException->errors())->flatten()->first())->danger()->send();
                             }
                         }),
                     Action::make('resetTwoFactor')->label('Reset 2FA')->icon(Heroicon::OutlinedShieldExclamation)->color('danger')
                         ->visible(fn (User $record): bool => (bool) auth()->user()?->can('resetTwoFactor', $record) && $record->hasTwoFactorEnabled())
                         ->requiresConfirmation()->modalDescription('Removes their authenticator app and recovery codes. They enrol again at next sign-in if 2FA is required.')
                         ->action(function (User $record): void {
-                            app(ResetTwoFactor::class)->handle(auth()->user(), $record);
+                            resolve(ResetTwoFactor::class)->handle(auth()->user(), $record);
                             Notification::make()->title('Two-factor authentication reset')->success()->send();
                         }),
                 ]),
@@ -243,7 +243,7 @@ class EmployeeResource extends Resource
                         'Active' => 'success', 'Deactivated' => 'warning', default => 'gray',
                     }),
                 TextEntry::make('two_factor')->label('Two-factor authentication')->badge()
-                    ->visible(fn (): bool => app(TwoFactorPolicy::class)->isEnabled())
+                    ->visible(fn (): bool => resolve(TwoFactorPolicy::class)->isEnabled())
                     ->state(fn (User $record): string => $record->hasTwoFactorEnabled() ? 'Enabled' : 'Not enabled')
                     ->color(fn (string $state): string => $state === 'Enabled' ? 'success' : 'gray'),
                 TextEntry::make('password_state')->label('Password')->badge()

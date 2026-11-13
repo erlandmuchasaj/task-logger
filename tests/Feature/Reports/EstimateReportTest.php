@@ -12,14 +12,15 @@ use App\Domain\Reports\Data\EstimateLine;
 use App\Domain\Work\Models\Log;
 use App\Filament\Pages\EstimateVsLogged;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Support\Carbon;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Date;
 use Livewire\Livewire;
 
 /** A client with Angular at 20.00 and .NET at 24.00 an hour; a project estimating Angular 10 h and .NET 5 h. */
 function reportProject(array $customer = []): array
 {
     [$client, $tech] = clientWithRates(['Angular' => 2000, '.NET' => 2400], customer: $customer);
-    $project = app(CreateProject::class)->handle(
+    $project = resolve(CreateProject::class)->handle(
         userWithRole(RoleName::Superadmin),
         projectData($client, [$tech['Angular']->id => '10', $tech['.NET']->id => '5'], ['name' => 'Portal '.fake()->unique()->numerify('####')]),
     );
@@ -39,12 +40,12 @@ function line(array $lines, string $technology): EstimateLine
     return collect($lines)->firstWhere('technology', $technology);
 }
 
-function reportFor(RoleName $role, ?EstimateFilters $filters = null, int $page = 1)
+function reportFor(RoleName $role, ?EstimateFilters $filters = null, int $page = 1): LengthAwarePaginator
 {
-    return app(BuildEstimateReport::class)->handle(userWithRole($role), $filters ?? new EstimateFilters, $page);
+    return resolve(BuildEstimateReport::class)->handle(userWithRole($role), $filters ?? new EstimateFilters, $page);
 }
 
-it('M7 SPEC 1.2 compares estimated and logged hours per technology and prices each log at its own snapshot rate', function () {
+it('M7 SPEC 1.2 compares estimated and logged hours per technology and prices each log at its own snapshot rate', function (): void {
     [$project, $tech] = reportProject();
     loggedMinutes($project, $tech['Angular']->id, 90);                                      // 1.5 h at 20.00 = 30.00
     loggedMinutes($project, $tech['Angular']->id, 45);                                      // 0.75 h = 15.00
@@ -68,7 +69,7 @@ it('M7 SPEC 1.2 compares estimated and logged hours per technology and prices ea
         ->and(EstimateLine::hours(-675))->toBe('-6.75');
 })->group('M7', 'BR-06', 'BR-12');
 
-it('M7 a technology with no logs shows zero, over-use shows a positive difference', function () {
+it('M7 a technology with no logs shows zero, over-use shows a positive difference', function (): void {
     [$project, $tech] = reportProject();
     loggedMinutes($project, $tech['Angular']->id, 12 * 60);
 
@@ -80,26 +81,26 @@ it('M7 a technology with no logs shows zero, over-use shows a positive differenc
         ->and($dotnet->loggedMinutes)->toBe(0)->and($dotnet->value)->toBeNull()->and($dotnet->percentUsed())->toBe(0);
 })->group('M7');
 
-it('M7 the dates limit the logs counted but never the estimate; deleted logs do not count', function () {
+it('M7 the dates limit the logs counted but never the estimate; deleted logs do not count', function (): void {
     [$project, $tech] = reportProject();
     loggedMinutes($project, $tech['Angular']->id, 60, ['date' => '2026-02-10']);
     loggedMinutes($project, $tech['Angular']->id, 120, ['date' => '2026-03-10']);
     loggedMinutes($project, $tech['Angular']->id, 600, ['date' => '2026-03-11'])->delete();
 
-    $march = line(reportFor(RoleName::Admin, new EstimateFilters(from: Carbon::parse('2026-03-01'), to: Carbon::parse('2026-03-31')))->first()->lines, 'Angular');
+    $march = line(reportFor(RoleName::Admin, new EstimateFilters(from: Date::parse('2026-03-01'), to: Date::parse('2026-03-31')))->first()->lines, 'Angular');
     $all = line(reportFor(RoleName::Admin)->first()->lines, 'Angular');
 
     expect($march->loggedMinutes)->toBe(120)->and($march->estimatedHundredths)->toBe(1000)
         ->and($all->loggedMinutes)->toBe(180);
 })->group('M7');
 
-it('M7 D-05 only clients.view_rates holders get values; assistant sees hours only', function () {
+it('M7 D-05 only clients.view_rates holders get values; assistant sees hours only', function (): void {
     [$project, $tech] = reportProject();
     loggedMinutes($project, $tech['Angular']->id, 60);
 
     $assistant = userWithRole(RoleName::Assistant);
-    $row = app(BuildEstimateReport::class)->handle($assistant, new EstimateFilters)->first();
-    $totals = app(BuildEstimateReport::class)->totals($assistant, new EstimateFilters);
+    $row = resolve(BuildEstimateReport::class)->handle($assistant, new EstimateFilters)->first();
+    $totals = resolve(BuildEstimateReport::class)->totals($assistant, new EstimateFilters);
 
     $angular = line($row->lines, 'Angular');
 
@@ -108,38 +109,39 @@ it('M7 D-05 only clients.view_rates holders get values; assistant sees hours onl
         ->and(reportFor(RoleName::Superadmin)->first()->value->minor)->toBe(2000);
 })->group('M7', 'D-05');
 
-it('M7 D-49 needs projects.view and logs.view_any: hr and employees are refused', function (RoleName $role, bool $allowed) {
+it('M7 D-49 needs projects.view and logs.view_any: hr and employees are refused', function (RoleName $role, bool $allowed): void {
     if ($allowed) {
         expect(reportFor($role))->not->toBeNull();
     } else {
-        expect(fn () => reportFor($role))->toThrow(AuthorizationException::class);
+        expect(fn (): LengthAwarePaginator => reportFor($role))->toThrow(AuthorizationException::class);
     }
 })->with([
     [RoleName::Superadmin, true], [RoleName::Admin, true], [RoleName::Assistant, true], [RoleName::Hr, false], [RoleName::Employee, false],
 ])->group('M7', 'D-49');
 
-it('M7 BR-12 groups values by currency and never converts', function () {
+it('M7 BR-12 groups values by currency and never converts', function (): void {
     [$eur, $tech] = reportProject();
     [$usd, $tech2] = reportProject(['currency_code' => 'USD']);
     loggedMinutes($eur, $tech['Angular']->id, 60);
     loggedMinutes($usd, $tech2['Angular']->id, 60, ['rate_currency' => 'USD', 'rate_minor' => 3000]);
 
-    $totals = app(BuildEstimateReport::class)->totals(userWithRole(RoleName::Admin), new EstimateFilters);
+    $totals = resolve(BuildEstimateReport::class)->totals(userWithRole(RoleName::Admin), new EstimateFilters);
 
     expect(array_keys($totals['values']))->toBe(['EUR', 'USD'])
         ->and($totals['values']['EUR']->minor)->toBe(2000)->and($totals['values']['USD']->minor)->toBe(3000)
         ->and($totals['estimated_hundredths'])->toBe(3000)->and($totals['logged_minutes'])->toBe(120);
 })->group('M7', 'BR-12');
 
-it('M7 filters by client, project and status, and paginates projects with totals over all of them', function () {
+it('M7 filters by client, project and status, and paginates projects with totals over all of them', function (): void {
     [$one] = reportProject();
     [$two, , $clientTwo] = reportProject();
     $two->update(['status' => ProjectStatus::Completed]);
     foreach (range(1, 26) as $i) {
         Project::factory()->create(['customer_id' => $clientTwo->id, 'name' => sprintf('Bulk %02d', $i)]);
     }
+
     $admin = userWithRole(RoleName::Admin);
-    $report = app(BuildEstimateReport::class);
+    $report = resolve(BuildEstimateReport::class);
 
     expect($report->handle($admin, new EstimateFilters(customerId: $clientTwo->id))->total())->toBe(27)
         ->and($report->handle($admin, new EstimateFilters(customerId: $clientTwo->id), 2)->count())->toBe(2)   // 27 projects, 25 on a page
@@ -148,7 +150,7 @@ it('M7 filters by client, project and status, and paginates projects with totals
         ->and($report->totals($admin, new EstimateFilters(customerId: $clientTwo->id))['estimated_hundredths'])->toBeGreaterThanOrEqual(1500);
 })->group('M7', 'NFR-11');
 
-it('M7 the report page opens for roles that may and not for those who may not, without N+1 queries', function () {
+it('M7 the report page opens for roles that may and not for those who may not, without N+1 queries', function (): void {
     [$project, $tech] = reportProject();
     foreach (range(1, 5) as $i) {
         loggedMinutes($project, $tech['Angular']->id, 30 * $i);
@@ -157,12 +159,13 @@ it('M7 the report page opens for roles that may and not for those who may not, w
     foreach ([RoleName::Superadmin, RoleName::Admin, RoleName::Assistant] as $role) {
         $this->actingAs(userWithRole($role))->get('/app/estimate-vs-logged')->assertOk();
     }
+
     foreach ([RoleName::Hr, RoleName::Employee] as $role) {
         $this->actingAs(userWithRole($role))->get('/app/estimate-vs-logged')->assertForbidden();
     }
 })->group('M7', 'NFR-09');
 
-it('M7 the page shows hours to everyone allowed and prices only to rate holders', function () {
+it('M7 the page shows hours to everyone allowed and prices only to rate holders', function (): void {
     [$project, $tech] = reportProject();
     loggedMinutes($project, $tech['Angular']->id, 90);
 

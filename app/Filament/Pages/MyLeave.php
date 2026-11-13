@@ -15,7 +15,7 @@ use Filament\Support\Icons\Heroicon;
 use UnitEnum;
 
 /** FR-34 My Leave: the balance per leave type (granted, used, pending, available) and the shortcut to requests. */
-class MyLeave extends Page
+final class MyLeave extends Page
 {
     protected string $view = 'filament.pages.my-leave';
 

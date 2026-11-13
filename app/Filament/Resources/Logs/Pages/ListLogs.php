@@ -10,7 +10,7 @@ use App\Filament\Support\ExportAction;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
-class ListLogs extends ListRecords
+final class ListLogs extends ListRecords
 {
     protected static string $resource = LogResource::class;
 

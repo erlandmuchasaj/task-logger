@@ -15,7 +15,7 @@ use Filament\Support\Exceptions\Halt;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 
-class CreateExpense extends CreateRecord
+final class CreateExpense extends CreateRecord
 {
     protected static string $resource = ExpenseResource::class;
 
@@ -28,13 +28,13 @@ class CreateExpense extends CreateRecord
     protected function handleRecordCreation(array $data): Model
     {
         try {
-            return app(CreateExpenseAction::class)->handle(
+            return resolve(CreateExpenseAction::class)->handle(
                 auth()->user(),
                 User::query()->whereKey($data['user_id'])->firstOrFail(),
                 ExpenseForm::data($data),
             );
-        } catch (ValidationException $e) {
-            ActionErrors::report($this, $e);
+        } catch (ValidationException $validationException) {
+            ActionErrors::report($this, $validationException);
             throw new Halt;
         }
     }

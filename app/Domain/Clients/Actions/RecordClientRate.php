@@ -14,9 +14,9 @@ use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /** Adds an hourly rate for a client and technology from a date (rate history, BR-06). */
-class RecordClientRate
+final readonly class RecordClientRate
 {
-    public function __construct(private readonly RecomputeCustomerBudgets $recompute) {}
+    public function __construct(private RecomputeCustomerBudgets $recompute) {}
 
     public function handle(User $actor, Customer $customer, int $technologyId, int $rateMinor, CarbonInterface $effectiveFrom): ClientTechnologyRate
     {
@@ -32,8 +32,8 @@ class RecordClientRate
             throw ValidationException::withMessages(['effective_from' => 'This technology already has a rate from that date.']);
         }
 
-        return app(CauserResolver::class)->withCauser($actor, fn (): ClientTechnologyRate => DB::transaction(function () use ($customer, $technologyId, $rateMinor, $effectiveFrom): ClientTechnologyRate {
-            $rate = ClientTechnologyRate::create([
+        return resolve(CauserResolver::class)->withCauser($actor, fn (): ClientTechnologyRate => DB::transaction(function () use ($customer, $technologyId, $rateMinor, $effectiveFrom): ClientTechnologyRate {
+            $rate = ClientTechnologyRate::query()->create([
                 'customer_id' => $customer->getKey(),
                 'technology_id' => $technologyId,
                 'rate_minor' => $rateMinor,

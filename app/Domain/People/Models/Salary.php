@@ -11,6 +11,7 @@ use App\Domain\Shared\Money;
 use Carbon\CarbonInterface;
 use Database\Factories\SalaryFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -24,34 +25,12 @@ use LogicException;
  */
 #[Fillable(['user_id', 'created_by', 'amount_minor', 'currency_code', 'effective_date', 'status', 'description'])]
 #[UseFactory(SalaryFactory::class)]
-class Salary extends Model
+final class Salary extends Model
 {
     /** @use HasFactory<SalaryFactory> */
-    use HasFactory, LogsBusinessActivity;
+    use HasFactory;
 
-    protected static function booted(): void
-    {
-        static::updating(function (self $salary): void {
-            $changedBeyondStatus = array_diff(array_keys($salary->getDirty()), ['status', 'updated_at']);
-
-            if ($changedBeyondStatus !== []) {
-                throw new LogicException('Salary history is append-only (BR-29): only the status may change.');
-            }
-        });
-
-        static::deleting(function (): never {
-            throw new LogicException('Salary history is append-only (BR-29): rows cannot be deleted.');
-        });
-    }
-
-    protected function casts(): array
-    {
-        return [
-            'amount_minor' => 'integer',
-            'effective_date' => 'date',
-            'status' => SalaryStatus::class,
-        ];
-    }
+    use LogsBusinessActivity;
 
     public function money(): Money
     {
@@ -70,18 +49,41 @@ class Salary extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    protected static function booted(): void
+    {
+        self::updating(function (self $salary): void {
+            $changedBeyondStatus = array_diff(array_keys($salary->getDirty()), ['status', 'updated_at']);
+
+            throw_if($changedBeyondStatus !== [], LogicException::class, 'Salary history is append-only (BR-29): only the status may change.');
+        });
+
+        self::deleting(function (): never {
+            throw new LogicException('Salary history is append-only (BR-29): rows cannot be deleted.');
+        });
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'amount_minor' => 'integer',
+            'effective_date' => 'date',
+            'status' => SalaryStatus::class,
+        ];
+    }
+
     /**
      * The current salary: the latest active row with effective_date on or before the date.
      *
      * @param  Builder<Salary>  $query
      * @return Builder<Salary>
      */
-    public function scopeCurrentOn(Builder $query, int $userId, CarbonInterface $date): Builder
+    #[Scope]
+    protected function currentOn(Builder $query, int $userId, CarbonInterface $date): Builder
     {
         return $query->where('user_id', $userId)
             ->where('status', SalaryStatus::Active)
             ->whereDate('effective_date', '<=', $date->toDateString())
-            ->orderByDesc('effective_date')
+            ->latest('effective_date')
             ->orderByDesc('id')
             ->limit(1);
     }

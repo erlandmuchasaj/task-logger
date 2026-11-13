@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  *
  * @extends Factory<Log>
  */
-class LogFactory extends Factory
+final class LogFactory extends Factory
 {
     protected $model = Log::class;
 

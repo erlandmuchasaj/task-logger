@@ -7,7 +7,7 @@ namespace App\Domain\People\Actions;
 use App\Domain\Identity\Models\User;
 use Illuminate\Support\Facades\Gate;
 
-class ReactivateEmployee
+final class ReactivateEmployee
 {
     public function handle(User $actor, User $employee): User
     {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Clients\Support;
 
+use App\Domain\Clients\Models\ClientTechnologyRate;
 use App\Domain\Clients\Models\Project;
 use App\Domain\Shared\Money;
 
@@ -29,7 +30,7 @@ final class BudgetCalculator
 
             $rate = ClientRates::forDate($customer->getKey(), $line->technology_id, $project->start_date);
 
-            if ($rate === null) {
+            if (! $rate instanceof ClientTechnologyRate) {
                 $missing[] = $line->technology_id;
 
                 continue;

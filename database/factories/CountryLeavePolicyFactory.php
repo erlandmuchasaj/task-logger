@@ -11,7 +11,7 @@ use App\Domain\MasterData\Models\LeaveType;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<CountryLeavePolicy> */
-class CountryLeavePolicyFactory extends Factory
+final class CountryLeavePolicyFactory extends Factory
 {
     protected $model = CountryLeavePolicy::class;
 

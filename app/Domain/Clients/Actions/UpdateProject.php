@@ -16,14 +16,14 @@ use Spatie\Activitylog\Support\CauserResolver;
  * Perm projects.update. Members need projects.manage_members, a status change projects.change_status.
  * The client cannot change once a project exists [ASSUMED]: rates, budget and later logs are tied to it.
  */
-class UpdateProject
+final readonly class UpdateProject
 {
     use ValidatesProject;
 
     public function __construct(
-        private readonly SyncProjectParts $parts,
-        private readonly ComputeProjectBudget $compute,
-        private readonly ChangeProjectStatus $changeStatus,
+        private SyncProjectParts $parts,
+        private ComputeProjectBudget $compute,
+        private ChangeProjectStatus $changeStatus,
     ) {}
 
     public function handle(User $actor, Project $project, ProjectData $data): Project
@@ -43,7 +43,7 @@ class UpdateProject
         $this->validateProject($data, $project->customer, $project);
         $this->assertTechnologiesNotInUse($project, array_keys($data->technologies));
 
-        return app(CauserResolver::class)->withCauser($actor, fn (): Project => DB::transaction(function () use ($actor, $project, $data, $memberIds, $newMemberIds): Project {
+        return resolve(CauserResolver::class)->withCauser($actor, fn (): Project => DB::transaction(function () use ($actor, $project, $data, $memberIds, $newMemberIds): Project {
             $project->update([
                 'project_type' => $data->type,
                 'name' => $data->name,

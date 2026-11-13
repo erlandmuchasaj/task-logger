@@ -10,7 +10,7 @@ use App\Filament\Support\ExportAction;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
-class ListTasks extends ListRecords
+final class ListTasks extends ListRecords
 {
     protected static string $resource = TaskResource::class;
 

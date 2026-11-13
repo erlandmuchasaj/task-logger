@@ -14,21 +14,21 @@ use App\Filament\Resources\Employees\Pages\EditEmployee;
 use App\Filament\Resources\Employees\RelationManagers\SalariesRelationManager;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
 function salary(User $actor, User $employee, int $minor, string $date, string $currency = 'EUR'): Salary
 {
-    return app(RecordSalary::class)->handle($actor, $employee, new SalaryData(Money::of($minor, $currency), Carbon::parse($date)));
+    return resolve(RecordSalary::class)->handle($actor, $employee, new SalaryData(Money::of($minor, $currency), Date::parse($date)));
 }
 
 function statuses(User $employee): array
 {
-    return $employee->salaries()->orderBy('effective_date')->orderBy('id')->pluck('status')->map->value->all();
+    return $employee->salaries()->oldest('effective_date')->orderBy('id')->pluck('status')->map->value->all();
 }
 
-it('BR-29 the first salary is active and money is integer minor units with a currency', function () {
+it('BR-29 the first salary is active and money is integer minor units with a currency', function (): void {
     $hr = userWithRole(RoleName::Hr);
     $employee = userWithRole(RoleName::Employee);
 
@@ -41,7 +41,7 @@ it('BR-29 the first salary is active and money is integer minor units with a cur
         ->and($salary->money()->equals(Money::of(150000, 'EUR')))->toBeTrue();
 })->group('BR-29');
 
-it('BR-29 a later salary supersedes the previous one and history is kept', function () {
+it('BR-29 a later salary supersedes the previous one and history is kept', function (): void {
     $actor = userWithRole(RoleName::Admin);
     $employee = userWithRole(RoleName::Employee);
 
@@ -50,27 +50,27 @@ it('BR-29 a later salary supersedes the previous one and history is kept', funct
 
     expect(statuses($employee))->toBe(['superseded', 'active'])
         ->and($employee->salaries()->count())->toBe(2)
-        ->and(Salary::currentOn($employee->id, now())->sole()->amount_minor)->toBe(120000);
+        ->and(Salary::query()->currentOn($employee->id, now())->sole()->amount_minor)->toBe(120000);
 })->group('BR-29');
 
-it('BR-29 a future-dated salary is pending until its date, then a daily job activates it', function () {
+it('BR-29 a future-dated salary is pending until its date, then a daily job activates it', function (): void {
     $actor = userWithRole(RoleName::Superadmin);
     $employee = userWithRole(RoleName::Employee);
     salary($actor, $employee, 100000, '2026-01-01');
     salary($actor, $employee, 130000, now()->addDays(10)->toDateString());
 
     expect(statuses($employee))->toBe(['active', 'pending'])
-        ->and(Salary::currentOn($employee->id, now())->sole()->amount_minor)->toBe(100000);
+        ->and(Salary::query()->currentOn($employee->id, now())->sole()->amount_minor)->toBe(100000);
 
     $this->travel(11)->days();
-    expect(app(ActivateDueSalaries::class)->handle())->toBe(1)
+    expect(resolve(ActivateDueSalaries::class)->handle())->toBe(1)
         ->and(statuses($employee))->toBe(['superseded', 'active'])
-        ->and(Salary::currentOn($employee->id, now())->sole()->amount_minor)->toBe(130000);
+        ->and(Salary::query()->currentOn($employee->id, now())->sole()->amount_minor)->toBe(130000);
 
-    expect(app(ActivateDueSalaries::class)->handle())->toBe(0); // idempotent
+    expect(resolve(ActivateDueSalaries::class)->handle())->toBe(0); // idempotent
 })->group('BR-29');
 
-it('BR-29 a back-dated correction lands in history without replacing the current salary', function () {
+it('BR-29 a back-dated correction lands in history without replacing the current salary', function (): void {
     $actor = userWithRole(RoleName::Superadmin);
     $employee = userWithRole(RoleName::Employee);
     salary($actor, $employee, 120000, '2026-01-01');
@@ -78,10 +78,10 @@ it('BR-29 a back-dated correction lands in history without replacing the current
     salary($actor, $employee, 90000, '2024-01-01');
 
     expect(statuses($employee))->toBe(['superseded', 'active'])
-        ->and(Salary::currentOn($employee->id, now())->sole()->amount_minor)->toBe(120000);
+        ->and(Salary::query()->currentOn($employee->id, now())->sole()->amount_minor)->toBe(120000);
 })->group('BR-29');
 
-it('BR-29 salary history is append-only: amount, currency, date and note never change', function (string $attribute, mixed $value) {
+it('BR-29 salary history is append-only: amount, currency, date and note never change', function (string $attribute, mixed $value): void {
     $salary = Salary::factory()->create();
 
     $salary->update([$attribute => $value]);
@@ -89,11 +89,11 @@ it('BR-29 salary history is append-only: amount, currency, date and note never c
     ['amount_minor', 1], ['currency_code', 'USD'], ['effective_date', '2030-01-01'], ['description', 'edited'],
 ]);
 
-it('BR-29 a salary row can never be deleted', function () {
+it('BR-29 a salary row can never be deleted', function (): void {
     Salary::factory()->create()->delete();
 })->group('BR-29')->throws(LogicException::class);
 
-it('BR-29 only the status of a row can move', function () {
+it('BR-29 only the status of a row can move', function (): void {
     $salary = Salary::factory()->create(['status' => SalaryStatus::Active]);
 
     $salary->update(['status' => SalaryStatus::Superseded]);
@@ -101,13 +101,13 @@ it('BR-29 only the status of a row can move', function () {
     expect($salary->fresh()->status)->toBe(SalaryStatus::Superseded);
 })->group('BR-29');
 
-it('BR-29 a salary must be greater than zero', function () {
+it('BR-29 a salary must be greater than zero', function (): void {
     salary(userWithRole(RoleName::Hr), userWithRole(RoleName::Employee), 0, '2026-01-01');
 })->group('BR-29')->throws(ValidationException::class);
 
-it('BR-29 only superadmin, admin and hr record salaries', function (RoleName $role, bool $allowed) {
+it('BR-29 only superadmin, admin and hr record salaries', function (RoleName $role, bool $allowed): void {
     $employee = userWithRole(RoleName::Employee);
-    $record = fn () => salary(userWithRole($role), $employee, 100000, '2026-01-01');
+    $record = fn (): Salary => salary(userWithRole($role), $employee, 100000, '2026-01-01');
 
     $allowed ? expect($record()->exists)->toBeTrue() : expect($record)->toThrow(AuthorizationException::class);
 })->group('BR-29')->with([
@@ -115,7 +115,7 @@ it('BR-29 only superadmin, admin and hr record salaries', function (RoleName $ro
     [RoleName::Assistant, false], [RoleName::Employee, false],
 ]);
 
-it('BR-29 salaries are visible only to superadmin, admin and hr', function (RoleName $role, bool $visible) {
+it('BR-29 salaries are visible only to superadmin, admin and hr', function (RoleName $role, bool $visible): void {
     $employee = userWithRole(RoleName::Employee);
     $salary = Salary::factory()->create(['user_id' => $employee->id]);
     $user = userWithRole($role);
@@ -130,7 +130,7 @@ it('BR-29 salaries are visible only to superadmin, admin and hr', function (Role
     [RoleName::Assistant, false], [RoleName::Employee, false],
 ]);
 
-it('BR-29 the Salaries tab lists history and adds a row for HR, with no edit or delete', function () {
+it('BR-29 the Salaries tab lists history and adds a row for HR, with no edit or delete', function (): void {
     $hr = userWithRole(RoleName::Hr);
     $employee = userWithRole(RoleName::Employee);
     $existing = Salary::factory()->create(['user_id' => $employee->id, 'created_by' => $hr->id]);
@@ -147,7 +147,7 @@ it('BR-29 the Salaries tab lists history and adds a row for HR, with no edit or 
         ->and($employee->salaries()->where('description', 'Promotion')->sole()->amount_minor)->toBe(180000);
 })->group('BR-29');
 
-it('BR-29 an employee cannot see the Salaries tab', function () {
+it('BR-29 an employee cannot see the Salaries tab', function (): void {
     $employee = userWithRole(RoleName::Employee);
     $this->actingAs($employee);
 

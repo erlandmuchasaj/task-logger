@@ -30,7 +30,7 @@ final class ProjectForm
 {
     public static function configure(Schema $schema, ?Project $record): Schema
     {
-        $creating = $record === null;
+        $creating = ! $record instanceof Project;
 
         $components = [
             Section::make('Project')->columns(2)->schema([
@@ -38,7 +38,7 @@ final class ProjectForm
                     ->options(fn (): array => Customer::query()->when($creating, fn ($q) => $q->where('is_active', true))
                         ->orderBy('company_name')->get()->mapWithKeys(fn (Customer $c): array => [$c->id => $c->displayName()])->all())
                     ->searchable()->required()->live()->disabled(! $creating)->dehydrated()
-                    ->helperText($creating ? 'Only active clients. Technologies below come from the client\'s rates.' : 'The client of an existing project cannot change.'),
+                    ->helperText($creating ? "Only active clients. Technologies below come from the client's rates." : 'The client of an existing project cannot change.'),
                 Select::make('project_type')->label('Type')->options(ProjectType::class)->required(),
                 TextInput::make('name')->required()->maxLength(255),
                 Select::make('manager_id')->label('Manager')
@@ -72,7 +72,7 @@ final class ProjectForm
             ]),
         ];
 
-        if ($record && auth()->user()?->can('viewBudget', $record)) {
+        if ($record instanceof Project && auth()->user()?->can('viewBudget', $record)) {
             $components[] = Section::make('Computed budget')->columns(2)->schema([
                 TextEntry::make('estimated_hours_total')->label('Estimated hours')->state($record->estimated_hours),
                 TextEntry::make('budget_total')->label('Budget (hours x rate + fixed costs)')->state($record->budget()->format()),
@@ -122,7 +122,7 @@ final class ProjectForm
             status: $status instanceof ProjectStatus ? $status : ProjectStatus::from((string) $status),
             color: $data['color'] ?? null,
             technologies: $technologies,
-            memberIds: array_values(array_map('intval', (array) ($data['members'] ?? []))),
+            memberIds: array_values(array_map(intval(...), (array) ($data['members'] ?? []))),
         );
     }
 }

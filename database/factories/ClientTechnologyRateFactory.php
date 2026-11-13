@@ -10,7 +10,7 @@ use App\Domain\MasterData\Models\Technology;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<ClientTechnologyRate> */
-class ClientTechnologyRateFactory extends Factory
+final class ClientTechnologyRateFactory extends Factory
 {
     protected $model = ClientTechnologyRate::class;
 

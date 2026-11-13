@@ -70,7 +70,7 @@ function p95(array $values): float
     return $values[(int) ceil(0.95 * count($values)) - 1];
 }
 
-it('NFR-08 NFR-09 NFR-10 stays inside the targets at volume', function () {
+it('NFR-08 NFR-09 NFR-10 stays inside the targets at volume', function (): void {
     $logs = (int) (getenv('PERF_LOGS') ?: 200_000);
 
     // 100 employees, 20 clients with 3 projects each, 3 technologies per project (docs/09-scalability.md)
@@ -81,7 +81,7 @@ it('NFR-08 NFR-09 NFR-10 stays inside the targets at volume', function () {
         foreach (range(1, 3) as $p) {
             $project = Project::factory()->create(['customer_id' => $client->id, 'can_log_directly_to_project' => true]);
             foreach ($techs as $tech) {
-                ProjectTechnology::create(['project_id' => $project->id, 'technology_id' => $tech->id, 'estimated_hours' => 100]);
+                ProjectTechnology::query()->create(['project_id' => $project->id, 'technology_id' => $tech->id, 'estimated_hours' => 100]);
                 $projectTechnologies[] = [$project->id, $tech->id];
             }
         }
@@ -104,11 +104,11 @@ it('NFR-08 NFR-09 NFR-10 stays inside the targets at volume', function () {
     foreach (['Log list (50 rows)' => [$admin, '/app/logs'], 'My Day' => [$me, '/app/my-day'], 'Estimated vs logged' => [$admin, '/app/estimate-vs-logged'], 'Own log list' => [$me, '/app/logs']] as $label => [$user, $url]) {
         $this->actingAs($user);
         timeRequest($this, $url);   // warm-up: opcache, route and view compilation
-        $runs = array_map(fn () => timeRequest($this, $url), range(1, 15));
+        $runs = array_map(fn (): array => timeRequest($this, $url), range(1, 15));
 
         $results[$label] = [
             'p95_ms' => round(p95(array_column($runs, 'ms'))), 'queries' => max(array_column($runs, 'queries')),
-            'ok' => count(array_filter($runs, fn ($r) => $r['status'] === 200)) === 15,
+            'ok' => count(array_filter($runs, fn (array $r): bool => $r['status'] === 200)) === 15,
         ];
     }
 
@@ -118,15 +118,16 @@ it('NFR-08 NFR-09 NFR-10 stays inside the targets at volume', function () {
     memory_reset_peak_usage();
     $before = memory_get_usage();
     $exportStart = hrtime(true);
-    $export = app(RequestExport::class)->handle($superadmin, ExportType::Logs)->fresh();
+    $export = resolve(RequestExport::class)->handle($superadmin, ExportType::Logs)->fresh();
     $exportSeconds = (hrtime(true) - $exportStart) / 1e9;
     $exportPeakMb = round((memory_get_peak_usage() - $before) / 1048576, 1);
-    $rowsExported = substr_count((string) Storage::disk('local')->get($export->file_path), "\n") - 1;
+    $rowsExported = mb_substr_count((string) Storage::disk('local')->get($export->file_path), "\n") - 1;
 
     fwrite(STDOUT, "\n=== Capacity: {$logs} logs, 100 employees, 60 projects (seeded in ".round($seedSeconds, 1)."s) ===\n");
     foreach ($results as $label => $r) {
         fwrite(STDOUT, sprintf("%-22s p95 %4d ms   %2d queries\n", $label, $r['p95_ms'], $r['queries']));
     }
+
     fwrite(STDOUT, sprintf("%-22s %.1f s   +%.1f MB peak   %d rows\n\n", 'Logs export', $exportSeconds, $exportPeakMb, $rowsExported));
 
     foreach ($results as $label => $r) {
@@ -134,6 +135,7 @@ it('NFR-08 NFR-09 NFR-10 stays inside the targets at volume', function () {
             ->and($r['p95_ms'])->toBeLessThanOrEqual(500, "$label p95 over 500 ms (NFR-08)")
             ->and($r['queries'])->toBeLessThanOrEqual(15, "$label ran more than 15 queries (NFR-09)");
     }
+
     expect($rowsExported)->toBe($logs)
         ->and($exportSeconds)->toBeLessThanOrEqual(300, 'export over 5 minutes (NFR-10)')
         ->and($exportPeakMb)->toBeLessThanOrEqual(256, 'export memory over 256 MB (NFR-10)');

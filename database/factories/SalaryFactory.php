@@ -10,7 +10,7 @@ use App\Domain\People\Models\Salary;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<Salary> */
-class SalaryFactory extends Factory
+final class SalaryFactory extends Factory
 {
     protected $model = Salary::class;
 

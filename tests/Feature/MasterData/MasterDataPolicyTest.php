@@ -25,7 +25,7 @@ $matrix = [
     BankHoliday::class => [null, Permissions::BANK_HOLIDAYS_MANAGE, Permissions::BANK_HOLIDAYS_VIEW],
 ];
 
-it('master data policies follow permissions for every role', function (RoleName $role) use ($matrix) {
+it('master data policies follow permissions for every role', function (RoleName $role) use ($matrix): void {
     $user = userWithRole($role);
 
     foreach ($matrix as $model => [$create, $manage, $view]) {
@@ -41,7 +41,7 @@ it('master data policies follow permissions for every role', function (RoleName 
     }
 })->with(RoleName::cases());
 
-it('D-10 assistant can create a country but not update or delete one', function () {
+it('D-10 assistant can create a country but not update or delete one', function (): void {
     $assistant = userWithRole(RoleName::Assistant);
     $country = Country::factory()->create();
 
@@ -50,7 +50,7 @@ it('D-10 assistant can create a country but not update or delete one', function 
         ->and($assistant->can('delete', $country))->toBeFalse();
 });
 
-it('policies never inspect role names', function () {
+it('policies never inspect role names', function (): void {
     foreach (glob(app_path('Domain/*/Policies/*.php')) as $file) {
         expect(file_get_contents($file))->not->toMatch('/hasRole|hasAnyRole|RoleName::/');
     }

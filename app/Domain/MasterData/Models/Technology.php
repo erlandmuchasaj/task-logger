@@ -19,8 +19,10 @@ use Illuminate\Database\Eloquent\Relations\Pivot;
  */
 #[Fillable(['name', 'description'])]
 #[UseFactory(TechnologyFactory::class)]
-class Technology extends Model
+final class Technology extends Model
 {
     /** @use HasFactory<TechnologyFactory> */
-    use HasFactory, LogsBusinessActivity;
+    use HasFactory;
+
+    use LogsBusinessActivity;
 }

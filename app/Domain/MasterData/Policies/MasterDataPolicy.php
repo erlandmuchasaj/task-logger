@@ -19,6 +19,41 @@ abstract class MasterDataPolicy
 {
     abstract protected function managePermission(): string;
 
+    final public function viewAny(User $user): bool
+    {
+        return $this->canView($user);
+    }
+
+    final public function view(User $user, Model $model): bool
+    {
+        return $this->canView($user);
+    }
+
+    final public function create(User $user): bool
+    {
+        return $user->can($this->createPermission() ?? $this->managePermission());
+    }
+
+    final public function update(User $user, Model $model): bool
+    {
+        return $user->can($this->managePermission());
+    }
+
+    final public function delete(User $user, Model $model): bool
+    {
+        return $user->can($this->managePermission());
+    }
+
+    final public function restore(User $user, Model $model): bool
+    {
+        return $user->can($this->managePermission());
+    }
+
+    final public function forceDelete(User $user, Model $model): bool
+    {
+        return $user->can($this->managePermission());
+    }
+
     protected function createPermission(): ?string
     {
         return null;
@@ -27,41 +62,6 @@ abstract class MasterDataPolicy
     protected function viewPermission(): ?string
     {
         return null;
-    }
-
-    public function viewAny(User $user): bool
-    {
-        return $this->canView($user);
-    }
-
-    public function view(User $user, Model $model): bool
-    {
-        return $this->canView($user);
-    }
-
-    public function create(User $user): bool
-    {
-        return $user->can($this->createPermission() ?? $this->managePermission());
-    }
-
-    public function update(User $user, Model $model): bool
-    {
-        return $user->can($this->managePermission());
-    }
-
-    public function delete(User $user, Model $model): bool
-    {
-        return $user->can($this->managePermission());
-    }
-
-    public function restore(User $user, Model $model): bool
-    {
-        return $user->can($this->managePermission());
-    }
-
-    public function forceDelete(User $user, Model $model): bool
-    {
-        return $user->can($this->managePermission());
     }
 
     private function canView(User $user): bool

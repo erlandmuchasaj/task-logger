@@ -21,8 +21,11 @@ use UnitEnum;
  * Superadmin control of two-factor authentication (ADR-0005, D-26): switch it on or off globally,
  * require it for everyone, and set the grace period. Perm two_factor.manage.
  */
-class TwoFactorSettings extends Page
+final class TwoFactorSettings extends Page
 {
+    /** @var array<string, mixed> */
+    public ?array $data = [];
+
     protected string $view = 'filament.pages.two-factor-settings';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShieldCheck;
@@ -33,9 +36,6 @@ class TwoFactorSettings extends Page
 
     protected static ?string $title = 'Two-factor authentication';
 
-    /** @var array<string, mixed> */
-    public ?array $data = [];
-
     public static function canAccess(): bool
     {
         return (bool) auth()->user()?->can(Permissions::TWO_FACTOR_MANAGE);
@@ -43,9 +43,9 @@ class TwoFactorSettings extends Page
 
     public function mount(): void
     {
-        abort_unless(static::canAccess(), 403);
+        abort_unless(self::canAccess(), 403);
 
-        $settings = app(SecuritySettings::class);
+        $settings = resolve(SecuritySettings::class);
 
         $this->getSchema('form')?->fill([
             'two_factor_enabled' => $settings->two_factor_enabled,
@@ -85,10 +85,10 @@ class TwoFactorSettings extends Page
 
     public function save(): void
     {
-        abort_unless(static::canAccess(), 403);
+        abort_unless(self::canAccess(), 403);
 
         $state = $this->getSchema('form')?->getState() ?? [];
-        $settings = app(SecuritySettings::class);
+        $settings = resolve(SecuritySettings::class);
         $before = [
             'two_factor_enabled' => $settings->two_factor_enabled,
             'two_factor_required' => $settings->two_factor_required,

@@ -22,7 +22,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use UnitEnum;
 
-class DepartmentResource extends Resource
+final class DepartmentResource extends Resource
 {
     protected static ?string $model = Department::class;
 
@@ -37,7 +37,7 @@ class DepartmentResource extends Resource
         return $schema->components([
             TextInput::make('name')->required()->maxLength(255),
             Select::make('parent_id')->label('Parent department')
-                ->relationship('parent', 'name', fn ($query, ?Department $record) => $record ? $query->whereKeyNot($record->getKey()) : $query)
+                ->relationship('parent', 'name', fn ($query, ?Department $record) => $record instanceof Department ? $query->whereKeyNot($record->getKey()) : $query)
                 ->searchable()->preload(),
             Textarea::make('description')->columnSpanFull(),
             TextInput::make('color')->maxLength(32),

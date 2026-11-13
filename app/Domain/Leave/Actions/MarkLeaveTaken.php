@@ -9,7 +9,7 @@ use App\Domain\Leave\Models\LeaveRequest;
 use App\Domain\Work\Support\WorkCalendar;
 
 /** BR-19: an approved request becomes taken once its end date has passed in the employee's country. Idempotent. */
-class MarkLeaveTaken
+final class MarkLeaveTaken
 {
     /** @return int requests moved to taken */
     public function handle(): int

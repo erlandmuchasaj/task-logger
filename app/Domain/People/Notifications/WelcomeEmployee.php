@@ -14,7 +14,7 @@ use SensitiveParameter;
  * D-53: the welcome email sent when an account is created, with the sign-in email and a temporary
  * password. Deliberately not queued: a queued notification would store the password in the jobs table.
  */
-class WelcomeEmployee extends Notification
+final class WelcomeEmployee extends Notification
 {
     public function __construct(#[SensitiveParameter] public readonly string $password) {}
 

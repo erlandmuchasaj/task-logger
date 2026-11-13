@@ -33,7 +33,7 @@ use InvalidArgumentException;
  * The client's technologies with an hourly rate and the date it applies from (rate history). Visible
  * only with clients.view_rates (D-05); changed only by people who may also update the client.
  */
-class RatesRelationManager extends RelationManager
+final class RatesRelationManager extends RelationManager
 {
     protected static string $relationship = 'rates';
 
@@ -80,12 +80,12 @@ class RatesRelationManager extends RelationManager
                         $customer = $this->getOwnerRecord();
 
                         try {
-                            return app(RecordClientRate::class)->handle(
+                            return resolve(RecordClientRate::class)->handle(
                                 auth()->user(), $customer, (int) $data['technology_id'],
-                                self::minor($data['rate'], $customer), CarbonImmutable::parse((string) $data['effective_from']),
+                                $this->minor($data['rate'], $customer), CarbonImmutable::parse((string) $data['effective_from']),
                             );
-                        } catch (ValidationException $e) {
-                            ActionErrors::report($this, $e, 'mountedActions.0.data.', ['rate' => 'rate']);
+                        } catch (ValidationException $validationException) {
+                            ActionErrors::report($this, $validationException, 'mountedActions.0.data.', ['rate' => 'rate']);
                             throw new Halt;
                         }
                     }),
@@ -101,22 +101,22 @@ class RatesRelationManager extends RelationManager
                         })
                         ->using(function (ClientTechnologyRate $record, array $data): Model {
                             try {
-                                return app(UpdateClientRate::class)->handle(
-                                    auth()->user(), $record, self::minor($data['rate'], $record->customer), CarbonImmutable::parse((string) $data['effective_from']),
+                                return resolve(UpdateClientRate::class)->handle(
+                                    auth()->user(), $record, $this->minor($data['rate'], $record->customer), CarbonImmutable::parse((string) $data['effective_from']),
                                 );
-                            } catch (ValidationException $e) {
-                                ActionErrors::notify($e);
+                            } catch (ValidationException $validationException) {
+                                ActionErrors::notify($validationException);
                                 throw new Halt;
                             }
                         }),
                     DeleteAction::make()->visible(fn (): bool => ! $this->isReadOnly())
                         ->using(function (ClientTechnologyRate $record): bool {
                             try {
-                                app(DeleteClientRate::class)->handle(auth()->user(), $record);
+                                resolve(DeleteClientRate::class)->handle(auth()->user(), $record);
 
                                 return true;
-                            } catch (ValidationException $e) {
-                                ActionErrors::notify($e);
+                            } catch (ValidationException $validationException) {
+                                ActionErrors::notify($validationException);
                                 throw new Halt;
                             }
                         }),
@@ -124,12 +124,12 @@ class RatesRelationManager extends RelationManager
             ]);
     }
 
-    private static function minor(mixed $rate, Customer $customer): int
+    private function minor(mixed $rate, Customer $customer): int
     {
         try {
             return Money::fromMajor((string) $rate, $customer->currency_code)->minor;
-        } catch (InvalidArgumentException $e) {
-            throw ValidationException::withMessages(['rate' => $e->getMessage()]);
+        } catch (InvalidArgumentException $invalidArgumentException) {
+            throw ValidationException::withMessages(['rate' => $invalidArgumentException->getMessage()]);
         }
     }
 }

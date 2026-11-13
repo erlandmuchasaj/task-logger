@@ -6,14 +6,14 @@ namespace App\Domain\MasterData\Policies;
 
 use App\Domain\Identity\Permissions;
 
-class TechnologyPolicy extends MasterDataPolicy
+final class TechnologyPolicy extends MasterDataPolicy
 {
     protected function managePermission(): string
     {
         return Permissions::TECHNOLOGIES_MANAGE;
     }
 
-    protected function createPermission(): ?string
+    protected function createPermission(): string
     {
         return Permissions::TECHNOLOGIES_CREATE;
     }

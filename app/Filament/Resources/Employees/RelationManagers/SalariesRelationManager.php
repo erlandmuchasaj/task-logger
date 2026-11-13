@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Employees\RelationManagers;
 use App\Domain\Identity\Models\User;
 use App\Domain\People\Actions\RecordSalary;
 use App\Domain\People\Models\Salary;
+use App\Domain\Shared\IsoCurrency;
 use App\Filament\Resources\Employees\Support\FormMapper;
 use Filament\Actions\CreateAction;
 use Filament\Forms\Components\DatePicker;
@@ -24,7 +25,7 @@ use Illuminate\Validation\ValidationException;
  * Salary history (BR-29): append-only. People with salaries.view see it; salaries.manage adds a row.
  * There is no edit or delete.
  */
-class SalariesRelationManager extends RelationManager
+final class SalariesRelationManager extends RelationManager
 {
     protected static string $relationship = 'salaries';
 
@@ -39,14 +40,14 @@ class SalariesRelationManager extends RelationManager
     {
         return $schema->components([
             TextInput::make('amount')->label('Amount (per month, major units)')->numeric()->minValue(0)->required(),
-            TextInput::make('currency')->label('Currency (ISO 4217)')->length(3)->alpha()->required()
+            TextInput::make('currency')->label('Currency (ISO 4217)')->length(3)->alpha()->rules([new IsoCurrency])->required()
                 ->default(function (): ?string {
                     /** @var User $employee */
                     $employee = $this->getOwnerRecord();
 
                     return FormMapper::currencyOf($employee->country_id);
                 })
-                ->dehydrateStateUsing(fn (?string $state): ?string => $state ? strtoupper($state) : null),
+                ->dehydrateStateUsing(fn (?string $state): ?string => $state ? mb_strtoupper($state) : null),
             DatePicker::make('effective_date')->required()->default(now()),
             Textarea::make('description')->label('Note')->columnSpanFull(),
         ]);
@@ -76,9 +77,9 @@ class SalariesRelationManager extends RelationManager
                         try {
                             $salary = FormMapper::salary($data);
 
-                            return app(RecordSalary::class)->handle(auth()->user(), $employee, $salary);
-                        } catch (ValidationException $e) {
-                            FormMapper::report($this, $e, prefix: 'mountedActions.0.data.');
+                            return resolve(RecordSalary::class)->handle(auth()->user(), $employee, $salary);
+                        } catch (ValidationException $validationException) {
+                            FormMapper::report($this, $validationException, prefix: 'mountedActions.0.data.');
                             throw new Halt;
                         }
                     }),

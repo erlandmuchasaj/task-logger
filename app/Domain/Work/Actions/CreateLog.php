@@ -16,7 +16,7 @@ use Spatie\Activitylog\Support\CauserResolver;
  * W-03 step 3 and W-04. A person logs their own time; no approval (BR-01). Needs logs.create_own, and
  * for a locked month also logs.edit_locked (BR-07). The client's rate is copied onto the log (BR-06).
  */
-class CreateLog
+final class CreateLog
 {
     use ValidatesLog;
 
@@ -28,12 +28,12 @@ class CreateLog
         $this->validateBasics($actor, $data, $target['project'], null);
         $rate = $this->snapshotRate($target['project'], $target['technology_id'], $data);
 
-        return app(CauserResolver::class)->withCauser($actor, fn (): Log => DB::transaction(function () use ($actor, $data, $target, $rate): Log {
+        return resolve(CauserResolver::class)->withCauser($actor, fn (): Log => DB::transaction(function () use ($actor, $data, $target, $rate): Log {
             // Serialise this person's logging so the 24 hour cap holds under concurrent requests.
             User::query()->whereKey($actor->getKey())->lockForUpdate()->first();
             $this->validateBasics($actor, $data, $target['project'], null);
 
-            $log = Log::create([
+            $log = Log::query()->create([
                 'user_id' => $actor->getKey(),
                 'date' => $data->date->toDateString(),
                 'project_id' => $target['project']->getKey(),

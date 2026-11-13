@@ -20,7 +20,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Validation\ValidationException;
 
-class ManageOffboardings extends ManageRecords
+final class ManageOffboardings extends ManageRecords
 {
     protected static string $resource = OffboardingResource::class;
 
@@ -42,7 +42,7 @@ class ManageOffboardings extends ManageRecords
                 ])->columns(2))
                 ->action(function (array $data, Action $action): void {
                     try {
-                        app(CreateOffboarding::class)->handle(
+                        resolve(CreateOffboarding::class)->handle(
                             auth()->user(),
                             User::query()->whereKey($data['user_id'])->firstOrFail(),
                             new OffboardingData(
@@ -52,8 +52,8 @@ class ManageOffboardings extends ManageRecords
                             ),
                         );
                         Notification::make()->title('Offboarding started')->success()->send();
-                    } catch (ValidationException $e) {
-                        ActionErrors::notify($e);
+                    } catch (ValidationException $validationException) {
+                        ActionErrors::notify($validationException);
                         $action->halt();
                     }
                 }),

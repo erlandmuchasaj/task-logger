@@ -21,7 +21,7 @@ use Filament\Resources\Pages\ManageRecords;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Validation\ValidationException;
 
-class ManagePerformances extends ManageRecords
+final class ManagePerformances extends ManageRecords
 {
     protected static string $resource = PerformanceResource::class;
 
@@ -40,14 +40,14 @@ class ManagePerformances extends ManageRecords
                 ])
                 ->action(function (array $data, Action $action): void {
                     try {
-                        app(CreatePerformanceReview::class)->handle(
+                        resolve(CreatePerformanceReview::class)->handle(
                             auth()->user(),
                             User::query()->whereKey($data['user_id'])->firstOrFail(),
                             new PerformanceData((int) $data['score'], CarbonImmutable::parse((string) $data['review_date']), $data['notes'] ?? null),
                         );
                         Notification::make()->title('Review saved')->success()->send();
-                    } catch (ValidationException $e) {
-                        ActionErrors::notify($e);
+                    } catch (ValidationException $validationException) {
+                        ActionErrors::notify($validationException);
                         $action->halt();
                     }
                 }),

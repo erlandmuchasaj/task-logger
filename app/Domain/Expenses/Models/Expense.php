@@ -21,15 +21,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /** An expense claim for an employee (SPEC 5.6, D-52). The total is the sum of its lines, in one currency. */
 #[Fillable(['user_id', 'created_by', 'project_id', 'category', 'description', 'number', 'receipt_path', 'notes', 'status'])]
 #[UseFactory(ExpenseFactory::class)]
-class Expense extends Model
+final class Expense extends Model
 {
     /** @use HasFactory<ExpenseFactory> */
-    use HasFactory, LogsBusinessActivity;
+    use HasFactory;
 
-    protected function casts(): array
-    {
-        return ['category' => ExpenseCategory::class, 'status' => ExpenseStatus::class];
-    }
+    use LogsBusinessActivity;
 
     /** @return BelongsTo<User, $this> */
     public function employee(): BelongsTo
@@ -65,5 +62,10 @@ class Expense extends Model
         }
 
         return Money::of((int) $lines->sum('amount_minor'), $lines->first()->currency_code);
+    }
+
+    protected function casts(): array
+    {
+        return ['category' => ExpenseCategory::class, 'status' => ExpenseStatus::class];
     }
 }

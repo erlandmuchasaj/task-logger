@@ -22,7 +22,7 @@ use Filament\Tables\Table;
 use UnitEnum;
 
 /** Client metadata only; no invoice is generated (BR-15). */
-class PaymentPlanResource extends Resource
+final class PaymentPlanResource extends Resource
 {
     protected static ?string $model = PaymentPlan::class;
 
@@ -38,8 +38,8 @@ class PaymentPlanResource extends Resource
             TextInput::make('name')->required()->maxLength(255),
             Select::make('type')->options(PaymentPlanType::class)->required()->live(),
             TextInput::make('days')->numeric()->minValue(0)->maxValue(365)
-                ->visible(fn ($get) => $get('type') === PaymentPlanType::DaysAfterInvoice->value)
-                ->required(fn ($get) => $get('type') === PaymentPlanType::DaysAfterInvoice->value),
+                ->visible(fn ($get): bool => $get('type') === PaymentPlanType::DaysAfterInvoice->value)
+                ->required(fn ($get): bool => $get('type') === PaymentPlanType::DaysAfterInvoice->value),
             Textarea::make('description')->columnSpanFull(),
         ]);
     }

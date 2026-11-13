@@ -7,23 +7,23 @@ use App\Domain\Identity\Permissions;
 use App\Domain\Identity\Support\PermissionCatalog;
 use Spatie\Permission\Models\Permission;
 
-it('permissions are string constants named after their value', function () {
-    $constants = (new ReflectionClass(Permissions::class))->getConstants();
+it('permissions are string constants named after their value', function (): void {
+    $constants = new ReflectionClass(Permissions::class)->getConstants();
 
     foreach ($constants as $name => $value) {
         expect($value)->toMatch('/^[a-z_]+\.[a-z_]+$/', $name)
-            ->and($name)->toBe(strtoupper(str_replace('.', '_', $value)));
+            ->and($name)->toBe(mb_strtoupper(str_replace('.', '_', $value)));
     }
 
     expect(array_values($constants))->toBe(array_values(array_unique($constants)));
 });
 
-it('Permissions::all() is exactly what the seeder created', function () {
+it('Permissions::all() is exactly what the seeder created', function (): void {
     expect(collect(Permissions::all())->sort()->values()->all())
-        ->toBe(Permission::pluck('name')->sort()->values()->all());
+        ->toBe(Permission::query()->pluck('name')->sort()->values()->all());
 });
 
-it('NFR-03 application code never uses a permission string literal, only constants', function () {
+it('NFR-03 application code never uses a permission string literal, only constants', function (): void {
     $offenders = [];
 
     foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(app_path())) as $file) {
@@ -42,13 +42,13 @@ it('NFR-03 application code never uses a permission string literal, only constan
     expect($offenders)->toBe([]);
 });
 
-it('the role map rejects a permission that is not a constant', function () {
+it('the role map rejects a permission that is not a constant', function (): void {
     config(['permission.roles.'.RoleName::Employee->value => ['made.up']]);
 
     PermissionCatalog::forRole(RoleName::Employee);
 })->throws(LogicException::class, 'made.up');
 
-it('D-26 two_factor.manage belongs to the superadmin only', function () {
+it('D-26 two_factor.manage belongs to the superadmin only', function (): void {
     foreach (RoleName::cases() as $role) {
         expect(in_array(Permissions::TWO_FACTOR_MANAGE, PermissionCatalog::forRole($role), true))
             ->toBe($role === RoleName::Superadmin, $role->value);

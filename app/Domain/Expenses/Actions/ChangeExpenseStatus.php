@@ -17,19 +17,19 @@ use Spatie\Activitylog\Support\CauserResolver;
  * Which permission a move needs is the policy's `transition`. Nobody approves or rejects an expense made for
  * themselves, root included (like BR-20). A rejection needs a reason, kept in `notes` (SPEC 5.6 has no review column).
  */
-class ChangeExpenseStatus
+final class ChangeExpenseStatus
 {
     public function handle(User $actor, Expense $expense, ExpenseStatus $to, ?string $reason = null): Expense
     {
         Gate::forUser($actor)->authorize('transition', [$expense, $to]);
 
-        $reason = filled($reason) ? trim((string) $reason) : null;
+        $reason = filled($reason) ? mb_trim($reason) : null;
 
         if ($to === ExpenseStatus::Rejected && $reason === null) {
             throw ValidationException::withMessages(['reason' => 'A rejection needs a reason.']);
         }
 
-        return app(CauserResolver::class)->withCauser($actor, fn (): Expense => DB::transaction(function () use ($actor, $expense, $to, $reason): Expense {
+        return resolve(CauserResolver::class)->withCauser($actor, fn (): Expense => DB::transaction(function () use ($actor, $expense, $to, $reason): Expense {
             $expense = Expense::query()->with('lines')->whereKey($expense->getKey())->lockForUpdate()->firstOrFail();
 
             if (! in_array($to, $expense->status->next(), true)) {
@@ -47,7 +47,7 @@ class ChangeExpenseStatus
             $attributes = ['status' => $to];
 
             if ($to === ExpenseStatus::Rejected) {
-                $attributes['notes'] = trim(($expense->notes !== null ? $expense->notes."\n" : '').'Rejected: '.$reason);
+                $attributes['notes'] = mb_trim(($expense->notes !== null ? $expense->notes."\n" : '').'Rejected: '.$reason);
             }
 
             $expense->update($attributes);

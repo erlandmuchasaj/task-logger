@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Domain\Identity\Support;
 
 use App\Domain\Identity\Models\User;
+use Closure;
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use WeakMap;
 
 /**
  * Who and where an audited change came from (D-38, BR-32): the client IP, the user agent and, when
@@ -20,18 +22,18 @@ use Illuminate\Support\Str;
  */
 final class ActivityContext
 {
-    private const USER_AGENT_LIMIT = 1000;
+    private const int USER_AGENT_LIMIT = 1000;
 
-    /** @var \WeakMap<Request, int|null> resolved impersonator per request (a WeakMap never confuses a new request with a freed one) */
-    private \WeakMap $impersonators;
-
-    public function __construct()
-    {
-        $this->impersonators = new \WeakMap;
-    }
+    /** @var WeakMap<Request, int|null> resolved impersonator per request (a WeakMap never confuses a new request with a freed one) */
+    private WeakMap $impersonators;
 
     /** @var array{client_ip?: ?string, user_agent?: ?string, impersonator_id?: ?int}|null context captured earlier (queued jobs) */
     private ?array $override = null;
+
+    public function __construct()
+    {
+        $this->impersonators = new WeakMap;
+    }
 
     /**
      * The context of the current request, to carry into a queued job (D-38).
@@ -48,7 +50,7 @@ final class ActivityContext
      *
      * @param  array{client_ip?: ?string, user_agent?: ?string, impersonator_id?: ?int}  $context
      */
-    public function using(array $context, \Closure $callback): mixed
+    public function using(array $context, Closure $callback): mixed
     {
         $previous = $this->override;
         $this->override = $context;
@@ -110,13 +112,13 @@ final class ActivityContext
     /** The request's session, or the app's session store when the request carries none (Livewire, tests). Null when no session is started. */
     private function session(Request $request): ?Session
     {
-        $store = $request->hasSession() ? $request->session() : (app()->bound('session.store') ? app('session.store') : null);
+        $store = $request->hasSession() ? $request->session() : (app()->bound('session.store') ? resolve(Session::class) : null);
 
         return $store?->isStarted() ? $store : null;
     }
 
     private function request(): Request
     {
-        return app('request');
+        return resolve('request');
     }
 }

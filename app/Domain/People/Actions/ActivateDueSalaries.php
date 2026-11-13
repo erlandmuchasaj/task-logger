@@ -8,9 +8,9 @@ use App\Domain\People\Enums\SalaryStatus;
 use App\Domain\People\Models\Salary;
 
 /** Daily job: pending salaries whose effective date has arrived become active (idempotent). */
-class ActivateDueSalaries
+final readonly class ActivateDueSalaries
 {
-    public function __construct(private readonly SalaryLedger $ledger) {}
+    public function __construct(private SalaryLedger $ledger) {}
 
     /** @return int number of employees whose salary history was settled */
     public function handle(): int

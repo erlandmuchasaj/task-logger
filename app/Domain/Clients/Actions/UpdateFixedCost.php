@@ -11,11 +11,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Spatie\Activitylog\Support\CauserResolver;
 
-class UpdateFixedCost
+final readonly class UpdateFixedCost
 {
     use ManagesFixedCosts;
 
-    public function __construct(private readonly ComputeProjectBudget $compute) {}
+    public function __construct(private ComputeProjectBudget $compute) {}
 
     public function handle(User $actor, FixedCost $cost, FixedCostData $data): FixedCost
     {
@@ -23,7 +23,7 @@ class UpdateFixedCost
         Gate::forUser($actor)->authorize('manageFixedCosts', $project);
         $attributes = $this->fixedCostAttributes($project, $data);
 
-        return app(CauserResolver::class)->withCauser($actor, fn (): FixedCost => DB::transaction(function () use ($cost, $project, $attributes): FixedCost {
+        return resolve(CauserResolver::class)->withCauser($actor, fn (): FixedCost => DB::transaction(function () use ($cost, $project, $attributes): FixedCost {
             $cost->update($attributes);
             $this->compute->handle($project);
 

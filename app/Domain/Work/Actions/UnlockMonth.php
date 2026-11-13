@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Gate;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /** D-13: the superadmin can unlock a month; it is logged (who and when are stored on the lock and in the activity log). */
-class UnlockMonth
+final class UnlockMonth
 {
     public function handle(User $actor, TimesheetLock $lock): TimesheetLock
     {
@@ -20,7 +20,7 @@ class UnlockMonth
             return $lock;
         }
 
-        return app(CauserResolver::class)->withCauser($actor, function () use ($actor, $lock): TimesheetLock {
+        return resolve(CauserResolver::class)->withCauser($actor, function () use ($actor, $lock): TimesheetLock {
             $lock->update(['unlocked_by' => $actor->getKey(), 'unlocked_at' => now()]);
 
             return $lock;

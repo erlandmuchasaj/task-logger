@@ -38,26 +38,26 @@ use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 use Spatie\Activitylog\Models\Activity;
 
-it('D-20 the superadmin deactivates an employee: login is blocked, sessions end, history stays', function () {
+it('D-20 the superadmin deactivates an employee: login is blocked, sessions end, history stays', function (): void {
     $actor = userWithRole(RoleName::Superadmin);
     $employee = userWithRole(RoleName::Employee);
     DB::table('sessions')->insert(['id' => 's1', 'user_id' => $employee->id, 'payload' => '', 'last_activity' => time()]);
     Activity::query()->delete();
 
-    app(DeactivateEmployee::class)->handle($actor, $employee, 'left the company');
+    resolve(DeactivateEmployee::class)->handle($actor, $employee, 'left the company');
 
     $employee->refresh();
     expect($employee->isBanned())->toBeTrue()
         ->and($employee->canAccessPanel(Filament::getPanel('app')))->toBeFalse()
         ->and(DB::table('sessions')->where('user_id', $employee->id)->count())->toBe(0)
-        ->and(User::find($employee->id))->not->toBeNull()
-        ->and(Activity::where('event', 'deactivated')->where('subject_id', $employee->id)->sole()->causer_id)->toBe($actor->id);
+        ->and(User::query()->find($employee->id))->not->toBeNull()
+        ->and(Activity::query()->where('event', 'deactivated')->where('subject_id', $employee->id)->sole()->causer_id)->toBe($actor->id);
 });
 
-it('D-20 a deactivated user cannot sign in', function () {
+it('D-20 a deactivated user cannot sign in', function (): void {
     Filament::setCurrentPanel('app');
     $employee = userWithRole(RoleName::Employee);
-    app(DeactivateEmployee::class)->handle(userWithRole(RoleName::Superadmin), $employee);
+    resolve(DeactivateEmployee::class)->handle(userWithRole(RoleName::Superadmin), $employee);
 
     Livewire::test(Login::class)
         ->fillForm(['email' => $employee->email, 'password' => 'password'])
@@ -66,77 +66,77 @@ it('D-20 a deactivated user cannot sign in', function () {
     expect(auth()->check())->toBeFalse();
 });
 
-it('D-20 only the superadmin may deactivate or reactivate', function (RoleName $role) {
+it('D-20 only the superadmin may deactivate or reactivate', function (RoleName $role): void {
     $employee = userWithRole(RoleName::Employee);
 
-    app(DeactivateEmployee::class)->handle(userWithRole($role), $employee);
+    resolve(DeactivateEmployee::class)->handle(userWithRole($role), $employee);
 })->throws(AuthorizationException::class)->with([RoleName::Admin, RoleName::Hr, RoleName::Assistant, RoleName::Employee]);
 
-it('D-20 you cannot deactivate yourself or the last superadmin', function () {
+it('D-20 you cannot deactivate yourself or the last superadmin', function (): void {
     $only = userWithRole(RoleName::Superadmin);
 
-    expect(fn () => app(DeactivateEmployee::class)->handle($only, $only))->toThrow(ValidationException::class);
+    expect(fn () => resolve(DeactivateEmployee::class)->handle($only, $only))->toThrow(ValidationException::class);
 
     $other = userWithRole(RoleName::Superadmin);
     $admin = userWithRole(RoleName::Superadmin);
-    app(DeactivateEmployee::class)->handle($admin, $other); // fine: two others remain
-    app(DeactivateEmployee::class)->handle($admin, $only);  // fine: $admin remains
+    resolve(DeactivateEmployee::class)->handle($admin, $other); // fine: two others remain
+    resolve(DeactivateEmployee::class)->handle($admin, $only);  // fine: $admin remains
 
-    expect(fn () => app(DeactivateEmployee::class)->handle($admin, $admin))->toThrow(ValidationException::class);
+    expect(fn () => resolve(DeactivateEmployee::class)->handle($admin, $admin))->toThrow(ValidationException::class);
 });
 
-it('D-20 reactivation restores access and is audited', function () {
+it('D-20 reactivation restores access and is audited', function (): void {
     $actor = userWithRole(RoleName::Superadmin);
     $employee = userWithRole(RoleName::Employee);
-    app(DeactivateEmployee::class)->handle($actor, $employee);
+    resolve(DeactivateEmployee::class)->handle($actor, $employee);
 
-    app(ReactivateEmployee::class)->handle($actor, $employee->fresh());
+    resolve(ReactivateEmployee::class)->handle($actor, $employee->fresh());
 
     expect($employee->fresh()->isBanned())->toBeFalse()
-        ->and(Activity::where('event', 'reactivated')->where('subject_id', $employee->id)->exists())->toBeTrue();
+        ->and(Activity::query()->where('event', 'reactivated')->where('subject_id', $employee->id)->exists())->toBeTrue();
 });
 
-it('D-15 an anonymised account is never reactivated', function () {
+it('D-15 an anonymised account is never reactivated', function (): void {
     $actor = userWithRole(RoleName::Superadmin);
     $employee = User::factory()->create(['anonymized_at' => now()]);
     $employee->ban();
 
-    app(ReactivateEmployee::class)->handle($actor, $employee->fresh());
+    resolve(ReactivateEmployee::class)->handle($actor, $employee->fresh());
 
     expect($employee->fresh()->isBanned())->toBeTrue();
 });
 
-it('ADR-0005 the superadmin resets a lost two-factor device; others cannot', function () {
+it('ADR-0005 the superadmin resets a lost two-factor device; others cannot', function (): void {
     $actor = userWithRole(RoleName::Superadmin);
     $employee = userWithRole(RoleName::Employee);
     $employee->saveAppAuthenticationSecret('JBSWY3DPEHPK3PXP');
     $employee->saveAppAuthenticationRecoveryCodes(['aaaa-bbbb']);
 
-    expect(fn () => app(ResetTwoFactor::class)->handle(userWithRole(RoleName::Admin), $employee))->toThrow(AuthorizationException::class);
+    expect(fn () => resolve(ResetTwoFactor::class)->handle(userWithRole(RoleName::Admin), $employee))->toThrow(AuthorizationException::class);
 
-    app(ResetTwoFactor::class)->handle($actor, $employee);
+    resolve(ResetTwoFactor::class)->handle($actor, $employee);
 
     $employee->refresh();
     expect($employee->hasTwoFactorEnabled())->toBeFalse()
         ->and($employee->getAppAuthenticationRecoveryCodes())->toBeNull()
-        ->and(Activity::where('event', 'two_factor_reset')->where('subject_id', $employee->id)->sole()->causer_id)->toBe($actor->id);
+        ->and(Activity::query()->where('event', 'two_factor_reset')->where('subject_id', $employee->id)->sole()->causer_id)->toBe($actor->id);
 });
 
-it('W-01 the set-password link can be sent again', function () {
+it('W-01 the set-password link can be sent again', function (): void {
     Notification::fake();
     $employee = userWithRole(RoleName::Employee);
 
-    app(SendSetPasswordLink::class)->handle($employee);
-    app(SendSetPasswordLink::class)->handle($employee);
+    resolve(SendSetPasswordLink::class)->handle($employee);
+    resolve(SendSetPasswordLink::class)->handle($employee);
 
     Notification::assertSentToTimes($employee, ResetPassword::class, 2);
 });
 
-it('W-01 the set-password link stays valid for 72 hours', function () {
+it('W-01 the set-password link stays valid for 72 hours', function (): void {
     expect(config('auth.passwords.users.expire'))->toBe(4320);
 });
 
-it('D-14 a user cannot change their own name or email on the profile page', function () {
+it('D-14 a user cannot change their own name or email on the profile page', function (): void {
     $employee = userWithRole(RoleName::Employee);
     $employee->update(['name' => 'Original', 'email' => 'original@example.test']);
     Filament::setCurrentPanel('app');
@@ -150,7 +150,7 @@ it('D-14 a user cannot change their own name or email on the profile page', func
         ->and($employee->fresh()->email)->toBe('original@example.test');
 });
 
-it('FR-01 the employee list actions follow permissions', function () {
+it('FR-01 the employee list actions follow permissions', function (): void {
     $employee = userWithRole(RoleName::Employee);
     $employee->saveAppAuthenticationSecret('JBSWY3DPEHPK3PXP');
 
@@ -169,12 +169,12 @@ it('FR-01 the employee list actions follow permissions', function () {
     expect($employee->fresh()->isBanned())->toBeTrue();
 });
 
-it('D-53 the superadmin resets a password: the old one stops working and the new one is emailed and audited without its value', function () {
+it('D-53 the superadmin resets a password: the old one stops working and the new one is emailed and audited without its value', function (): void {
     Notification::fake();
     $actor = userWithRole(RoleName::Superadmin);
     $employee = User::factory()->withRole(RoleName::Employee)->create(['password' => 'Old-password-123']);
 
-    app(ResetEmployeePassword::class)->handle($actor, $employee);
+    resolve(ResetEmployeePassword::class)->handle($actor, $employee);
 
     $employee->refresh();
     expect(Hash::check('Old-password-123', $employee->password))->toBeFalse();
@@ -184,24 +184,24 @@ it('D-53 the superadmin resets a password: the old one stops working and the new
         return Hash::check($n->password, $employee->password) && str_contains($text, $employee->email) && str_contains($text, $n->password);
     });
 
-    $audit = Activity::where('event', 'password_reset_by_admin')->where('subject_id', $employee->id)->sole();
+    $audit = Activity::query()->where('event', 'password_reset_by_admin')->where('subject_id', $employee->id)->sole();
     expect($audit->causer_id)->toBe($actor->id)
         ->and(json_encode($audit->toArray()))->not->toContain('$2y$');
 });
 
-it('D-53 only employees.update may reset a password, and never for a deactivated account', function () {
+it('D-53 only employees.update may reset a password, and never for a deactivated account', function (): void {
     Notification::fake();
     $employee = userWithRole(RoleName::Employee);
 
-    expect(fn () => app(ResetEmployeePassword::class)->handle(userWithRole(RoleName::Hr), $employee))->toThrow(AuthorizationException::class);
+    expect(fn () => resolve(ResetEmployeePassword::class)->handle(userWithRole(RoleName::Hr), $employee))->toThrow(AuthorizationException::class);
 
     $actor = userWithRole(RoleName::Superadmin);
-    app(DeactivateEmployee::class)->handle($actor, $employee, 'left');
-    expect(fn () => app(ResetEmployeePassword::class)->handle($actor, $employee->fresh()))->toThrow(ValidationException::class);
+    resolve(DeactivateEmployee::class)->handle($actor, $employee, 'left');
+    expect(fn () => resolve(ResetEmployeePassword::class)->handle($actor, $employee->fresh()))->toThrow(ValidationException::class);
     Notification::assertNothingSentTo($employee);
 });
 
-it('D-53 the reset-password action is in the row menu for the superadmin only', function () {
+it('D-53 the reset-password action is in the row menu for the superadmin only', function (): void {
     Notification::fake();
     $employee = userWithRole(RoleName::Employee);
 
@@ -217,11 +217,11 @@ it('D-53 the reset-password action is in the row menu for the superadmin only', 
     Notification::assertSentTo($employee, PasswordResetByAdmin::class);
 });
 
-it('the employee list has status tabs, stats and toggleable columns', function () {
+it('the employee list has status tabs, stats and toggleable columns', function (): void {
     $actor = userWithRole(RoleName::Superadmin);
     $active = userWithRole(RoleName::Employee);
     $inactive = userWithRole(RoleName::Employee);
-    app(DeactivateEmployee::class)->handle($actor, $inactive, 'left');
+    resolve(DeactivateEmployee::class)->handle($actor, $inactive, 'left');
     $this->actingAs($actor);
 
     Livewire::test(ListEmployees::class)
@@ -237,13 +237,13 @@ it('the employee list has status tabs, stats and toggleable columns', function (
     Livewire::test(EmployeeStats::class)->assertSee('Total employees')->assertSee('Active employees')->assertSee('Avg salary')->assertSee('Avg tenure');
 });
 
-it('the average salary card is hidden from people who may not see salaries', function () {
+it('the average salary card is hidden from people who may not see salaries', function (): void {
     $this->actingAs(userWithRole(RoleName::Assistant));
 
     Livewire::test(EmployeeStats::class)->assertSee('Total employees')->assertDontSee('Avg salary');
 });
 
-it('the View profile slide-over shows HR fields and salary only to people allowed to see them', function () {
+it('the View profile slide-over shows HR fields and salary only to people allowed to see them', function (): void {
     $employee = userWithRole(RoleName::Employee);
     EmployeeProfile::factory()->create(['user_id' => $employee->id, 'phone' => '+355692123456']);
     Salary::factory()->create(['user_id' => $employee->id, 'status' => SalaryStatus::Active]);
@@ -258,7 +258,7 @@ it('the View profile slide-over shows HR fields and salary only to people allowe
     expect(auth()->user()->can('viewAny', User::class))->toBeFalse();
 });
 
-it('the View profile slide-over hides the salary from people without salaries.view', function () {
+it('the View profile slide-over hides the salary from people without salaries.view', function (): void {
     $employee = userWithRole(RoleName::Employee);
     // No shipped role opens Employees without salaries.view; a direct grant proves the gate holds anyway.
     $viewer = userWithRole(RoleName::Employee);
@@ -271,13 +271,14 @@ it('the View profile slide-over hides the salary from people without salaries.vi
         ->assertMountedActionModalDontSee(['Current salary', 'Contact', $employee->email]);
 });
 
-it('name, email, role, employment type and status are always shown; the other columns can be hidden', function () {
+it('name, email, role, employment type and status are always shown; the other columns can be hidden', function (): void {
     $this->actingAs(userWithRole(RoleName::Superadmin));
     $page = Livewire::test(ListEmployees::class);
 
     foreach (['name', 'email', 'roles.name', 'employment_type', 'status'] as $column) {
         $page->assertTableColumnExists($column, fn ($c): bool => ! $c->isToggleable() && ! $c->isToggledHiddenByDefault());
     }
+
     foreach (['department.name', 'position', 'manager.name', 'start_date', 'two_factor'] as $column) {
         $page->assertTableColumnExists($column, fn ($c): bool => $c->isToggleable());
     }
@@ -285,7 +286,7 @@ it('name, email, role, employment type and status are always shown; the other co
     expect(EmploymentType::Contractor->getIcon())->toBe(Heroicon::Briefcase);
 });
 
-it('the employee edit page shows Timesheets and Leave requests tabs to people allowed to see them', function () {
+it('the employee edit page shows Timesheets and Leave requests tabs to people allowed to see them', function (): void {
     $employee = userWithRole(RoleName::Employee);
     $log = Log::factory()->create(['user_id' => $employee->id]);
     $leave = LeaveRequest::factory()->create(['user_id' => $employee->id]);
@@ -304,7 +305,7 @@ it('the employee edit page shows Timesheets and Leave requests tabs to people al
         ->assertOk()->assertSee('Timesheets')->assertSee('Leave requests');
 });
 
-it('the Timesheets and Leave requests tabs are hidden from people without the matching permission', function () {
+it('the Timesheets and Leave requests tabs are hidden from people without the matching permission', function (): void {
     $employee = userWithRole(RoleName::Employee);
     $viewer = userWithRole(RoleName::Employee);
     $page = EditEmployee::class;
@@ -314,7 +315,7 @@ it('the Timesheets and Leave requests tabs are hidden from people without the ma
         ->and(LeaveRequestsRelationManager::canViewForRecord($employee, $page))->toBeFalse();
 });
 
-it('employee metadata rows can be reordered', function () {
+it('employee metadata rows can be reordered', function (): void {
     $this->actingAs(userWithRole(RoleName::Superadmin));
     $employee = userWithRole(RoleName::Employee);
 
@@ -322,7 +323,7 @@ it('employee metadata rows can be reordered', function () {
         ->assertFormFieldExists('profile.metadata', fn (KeyValue $field): bool => $field->isReorderable());
 });
 
-it('D-56 an admin sees every leave request, including on the employee page tab', function () {
+it('D-56 an admin sees every leave request, including on the employee page tab', function (): void {
     $admin = userWithRole(RoleName::Admin);
     $employee = userWithRole(RoleName::Employee); // not managed by the admin
     $leave = LeaveRequest::factory()->create(['user_id' => $employee->id]);

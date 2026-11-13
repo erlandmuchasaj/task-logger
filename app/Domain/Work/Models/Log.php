@@ -28,20 +28,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'description', 'rate_minor', 'rate_currency',
 ])]
 #[UseFactory(LogFactory::class)]
-class Log extends Model
+final class Log extends Model
 {
     /** @use HasFactory<LogFactory> */
-    use HasFactory, LogsBusinessActivity, SoftDeletes;
+    use HasFactory;
 
-    protected function casts(): array
-    {
-        return [
-            'date' => 'date',
-            'duration_minutes' => 'integer',
-            'log_type' => LogType::class,
-            'rate_minor' => 'integer',
-        ];
-    }
+    use LogsBusinessActivity;
+    use SoftDeletes;
 
     public function isDirect(): bool
     {
@@ -61,7 +54,7 @@ class Log extends Model
     /** "2:30" */
     public function duration(): string
     {
-        return $this->hours().':'.str_pad((string) $this->minutes(), 2, '0', STR_PAD_LEFT);
+        return $this->hours().':'.mb_str_pad((string) $this->minutes(), 2, '0', STR_PAD_LEFT);
     }
 
     public function rate(): Money
@@ -97,5 +90,15 @@ class Log extends Model
     public function technology(): BelongsTo
     {
         return $this->belongsTo(Technology::class);
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'date' => 'date',
+            'duration_minutes' => 'integer',
+            'log_type' => LogType::class,
+            'rate_minor' => 'integer',
+        ];
     }
 }

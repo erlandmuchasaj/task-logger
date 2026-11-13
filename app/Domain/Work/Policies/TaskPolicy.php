@@ -9,7 +9,7 @@ use App\Domain\Identity\Permissions;
 use App\Domain\Work\Models\Task;
 
 /** Permission-first (SPEC 4.1); relationship rules (assignee, creator) sit on top. */
-class TaskPolicy
+final class TaskPolicy
 {
     /** Open the task list: everyone sees at least their own tasks. */
     public function viewAny(User $user): bool

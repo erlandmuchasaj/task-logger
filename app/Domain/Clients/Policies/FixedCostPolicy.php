@@ -8,7 +8,7 @@ use App\Domain\Clients\Models\FixedCost;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Permissions;
 
-class FixedCostPolicy
+final class FixedCostPolicy
 {
     public function viewAny(User $user): bool
     {

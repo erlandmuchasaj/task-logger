@@ -27,12 +27,12 @@ trait ValidatesExpense
             throw ValidationException::withMessages(['user_id' => 'This employee has been anonymised.']);
         }
 
-        if (trim($data->description) === '') {
+        if (mb_trim($data->description) === '') {
             throw ValidationException::withMessages(['description' => 'Describe the expense.']);
         }
 
-        if (! preg_match('/^[A-Za-z]{3}$/', $data->currency)) {
-            throw ValidationException::withMessages(['currency' => 'Use a three-letter ISO currency code.']);
+        if (! Money::isIsoCurrency($data->currency)) {
+            throw ValidationException::withMessages(['currency' => 'Use a valid ISO 4217 currency code, for example EUR.']);
         }
 
         if ($data->projectId !== null && ! Project::query()->whereKey($data->projectId)->exists()) {
@@ -47,11 +47,11 @@ trait ValidatesExpense
             throw ValidationException::withMessages(['lines' => 'Add at least one line.']);
         }
 
-        $currency = strtoupper($data->currency);
+        $currency = mb_strtoupper($data->currency);
         $lines = [];
 
         foreach ($data->lines as $i => $line) {
-            if (trim($line->description) === '') {
+            if (mb_trim($line->description) === '') {
                 throw ValidationException::withMessages(["lines.{$i}.description" => 'Describe the line.']);
             }
 
@@ -70,7 +70,7 @@ trait ValidatesExpense
             }
 
             $lines[] = [
-                'description' => trim($line->description),
+                'description' => mb_trim($line->description),
                 'quantity' => $line->quantity,
                 'unit_price_minor' => $unit->minor,
                 'amount_minor' => $unit->minor * $line->quantity,

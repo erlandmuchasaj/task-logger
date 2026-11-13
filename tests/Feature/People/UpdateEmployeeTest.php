@@ -32,12 +32,12 @@ function dataFor(User $user, array $overrides = []): EmployeeData
     ], $overrides));
 }
 
-it('FR-01 the superadmin updates account data, role and skills', function () {
+it('FR-01 the superadmin updates account data, role and skills', function (): void {
     $actor = userWithRole(RoleName::Superadmin);
-    $employee = app(CreateEmployee::class)->handle($actor, employeeData(['email' => 'e@example.test']));
+    $employee = resolve(CreateEmployee::class)->handle($actor, employeeData(['email' => 'e@example.test']));
     $tech = Technology::factory()->create();
 
-    app(UpdateEmployee::class)->handle($actor, $employee, dataFor($employee, [
+    resolve(UpdateEmployee::class)->handle($actor, $employee, dataFor($employee, [
         'position' => 'Lead', 'role' => RoleName::Admin, 'skills' => [$tech->id => 6],
     ]));
 
@@ -46,39 +46,39 @@ it('FR-01 the superadmin updates account data, role and skills', function () {
         ->and($employee->skills()->pluck('level', 'technology_id')->all())->toBe([$tech->id => 6]);
 })->group('FR-01');
 
-it('FR-12 changing skills updates levels and removes dropped ones, with an audit trail', function () {
+it('FR-12 changing skills updates levels and removes dropped ones, with an audit trail', function (): void {
     $actor = userWithRole(RoleName::Superadmin);
     $employee = userWithRole(RoleName::Employee);
     [$a, $b] = Technology::factory()->count(2)->create();
-    UserSkill::create(['user_id' => $employee->id, 'technology_id' => $a->id, 'level' => 5]);
-    UserSkill::create(['user_id' => $employee->id, 'technology_id' => $b->id, 'level' => 5]);
+    UserSkill::query()->create(['user_id' => $employee->id, 'technology_id' => $a->id, 'level' => 5]);
+    UserSkill::query()->create(['user_id' => $employee->id, 'technology_id' => $b->id, 'level' => 5]);
     Activity::query()->delete();
 
-    app(UpdateEmployee::class)->handle($actor, $employee, dataFor($employee, ['skills' => [$a->id => 9]]));
+    resolve(UpdateEmployee::class)->handle($actor, $employee, dataFor($employee, ['skills' => [$a->id => 9]]));
 
     expect($employee->skills()->pluck('level', 'technology_id')->all())->toBe([$a->id => 9])
-        ->and(Activity::where('subject_type', (new UserSkill)->getMorphClass())->pluck('event')->sort()->values()->all())->toBe(['deleted', 'updated']);
+        ->and(Activity::query()->where('subject_type', (new UserSkill)->getMorphClass())->pluck('event')->sort()->values()->all())->toBe(['deleted', 'updated']);
 })->group('FR-12', 'BR-32');
 
-it('FR-01 admin, hr, assistant and employee cannot update accounts', function (RoleName $role) {
+it('FR-01 admin, hr, assistant and employee cannot update accounts', function (RoleName $role): void {
     $employee = userWithRole(RoleName::Employee);
 
-    app(UpdateEmployee::class)->handle(userWithRole($role), $employee, dataFor($employee, ['position' => 'Hacked']));
+    resolve(UpdateEmployee::class)->handle(userWithRole($role), $employee, dataFor($employee, ['position' => 'Hacked']));
 })->group('FR-01')->throws(AuthorizationException::class)->with([RoleName::Admin, RoleName::Hr, RoleName::Assistant, RoleName::Employee]);
 
-it('D-09 the last superadmin cannot be demoted, another one can', function () {
+it('D-09 the last superadmin cannot be demoted, another one can', function (): void {
     $only = userWithRole(RoleName::Superadmin);
 
-    expect(fn () => app(UpdateEmployee::class)->handle($only, $only, dataFor($only, ['role' => RoleName::Admin])))
+    expect(fn () => resolve(UpdateEmployee::class)->handle($only, $only, dataFor($only, ['role' => RoleName::Admin])))
         ->toThrow(ValidationException::class);
 
     $second = userWithRole(RoleName::Superadmin);
-    app(UpdateEmployee::class)->handle($only, $second, dataFor($second, ['role' => RoleName::Admin]));
+    resolve(UpdateEmployee::class)->handle($only, $second, dataFor($second, ['role' => RoleName::Admin]));
 
     expect($second->roles()->pluck('name')->all())->toBe(['admin']);
 });
 
-it('DERIVED a manager chain never loops', function () {
+it('DERIVED a manager chain never loops', function (): void {
     [$a, $b, $c] = User::factory()->count(3)->create();
     $b->update(['manager_id' => $a->id]);
     $c->update(['manager_id' => $b->id]);
@@ -89,20 +89,20 @@ it('DERIVED a manager chain never loops', function () {
         ->and(ManagerChain::wouldCycle($a->id, null))->toBeFalse();
 });
 
-it('DERIVED the update action rejects a manager cycle', function () {
+it('DERIVED the update action rejects a manager cycle', function (): void {
     $actor = userWithRole(RoleName::Superadmin);
     $boss = userWithRole(RoleName::Admin);
     $report = userWithRole(RoleName::Employee);
     $report->update(['manager_id' => $boss->id]);
 
-    app(UpdateEmployee::class)->handle($actor, $boss, dataFor($boss, ['managerId' => $report->id]));
+    resolve(UpdateEmployee::class)->handle($actor, $boss, dataFor($boss, ['managerId' => $report->id]));
 })->throws(ValidationException::class);
 
-it('FR-11 superadmin, admin and hr update the HR record; phones are stored as E.164', function (RoleName $role) {
+it('FR-11 superadmin, admin and hr update the HR record; phones are stored as E.164', function (RoleName $role): void {
     $employee = userWithRole(RoleName::Employee);
     $employee->update(['country_id' => Country::factory()->albania()->create()->id]);
 
-    app(UpdateHrRecord::class)->handle(userWithRole($role), $employee, new HrRecordData(
+    resolve(UpdateHrRecord::class)->handle(userWithRole($role), $employee, new HrRecordData(
         phone: '0692123456', address: '1 Rruga', hasHealthInsurance: true,
         contacts: [['name' => 'Ana', 'phone' => '+355 69 212 3457', 'relationship' => 'sister']],
     ));
@@ -112,16 +112,16 @@ it('FR-11 superadmin, admin and hr update the HR record; phones are stored as E.
         ->and($employee->emergencyContacts()->sole()->phone)->toBe('+355692123457');
 })->group('FR-11')->with([RoleName::Superadmin, RoleName::Admin, RoleName::Hr]);
 
-it('FR-11 assistant and employee cannot update an HR record, not even their own', function (RoleName $role) {
+it('FR-11 assistant and employee cannot update an HR record, not even their own', function (RoleName $role): void {
     $actor = userWithRole($role);
 
-    app(UpdateHrRecord::class)->handle($actor, $actor, new HrRecordData(address: 'mine'));
+    resolve(UpdateHrRecord::class)->handle($actor, $actor, new HrRecordData(address: 'mine'));
 })->group('FR-11')->throws(AuthorizationException::class)->with([RoleName::Assistant, RoleName::Employee]);
 
-it('FR-13 emergency contacts are added, updated and removed, each audited', function () {
+it('FR-13 emergency contacts are added, updated and removed, each audited', function (): void {
     $actor = userWithRole(RoleName::Hr);
     $employee = userWithRole(RoleName::Employee);
-    $action = app(UpdateHrRecord::class);
+    $action = resolve(UpdateHrRecord::class);
 
     $action->handle($actor, $employee, new HrRecordData(contacts: [
         ['name' => 'Ana', 'phone' => '+355692123457', 'relationship' => 'sister'],
@@ -137,11 +137,11 @@ it('FR-13 emergency contacts are added, updated and removed, each audited', func
 
     expect($employee->emergencyContacts()->orderBy('id')->pluck('name')->all())->toBe(['Ana K.', 'Cleo'])
         ->and($employee->emergencyContacts()->whereKey($ben->id)->exists())->toBeFalse()
-        ->and(Activity::where('subject_type', (new EmergencyContact)->getMorphClass())->pluck('event')->sort()->values()->all())
+        ->and(Activity::query()->where('subject_type', (new EmergencyContact)->getMorphClass())->pluck('event')->sort()->values()->all())
         ->toBe(['created', 'deleted', 'updated']);
 })->group('FR-13', 'BR-32');
 
-it('FR-11 an HR user changes the HR record on the Edit screen but not the account', function () {
+it('FR-11 an HR user changes the HR record on the Edit screen but not the account', function (): void {
     $hr = userWithRole(RoleName::Hr);
     $employee = userWithRole(RoleName::Employee);
     $employee->update(['name' => 'Original', 'position' => 'Engineer']);
@@ -153,10 +153,10 @@ it('FR-11 an HR user changes the HR record on the Edit screen but not the accoun
 
     expect($employee->fresh()->name)->toBe('Original')
         ->and($employee->fresh()->position)->toBe('Engineer')
-        ->and(EmployeeProfile::where('user_id', $employee->id)->value('address'))->toBe('9 New Road');
+        ->and(EmployeeProfile::query()->where('user_id', $employee->id)->value('address'))->toBe('9 New Road');
 })->group('FR-11');
 
-it('FR-01 the superadmin edits the account on the Edit screen', function () {
+it('FR-01 the superadmin edits the account on the Edit screen', function (): void {
     $this->actingAs(userWithRole(RoleName::Superadmin));
     $employee = userWithRole(RoleName::Employee);
     $employee->update(['position' => 'Engineer']);
@@ -169,7 +169,7 @@ it('FR-01 the superadmin edits the account on the Edit screen', function () {
     expect($employee->fresh()->position)->toBe('Principal Engineer');
 })->group('FR-01');
 
-it('FR-11 the Edit screen of an HR user loads the private HR record', function () {
+it('FR-11 the Edit screen of an HR user loads the private HR record', function (): void {
     $employee = userWithRole(RoleName::Employee);
     EmployeeProfile::factory()->create(['user_id' => $employee->id, 'address' => '5 Visible Lane']);
     $this->actingAs(userWithRole(RoleName::Hr));
@@ -178,13 +178,13 @@ it('FR-11 the Edit screen of an HR user loads the private HR record', function (
         ->assertSchemaStateSet(['profile.address' => '5 Visible Lane']);
 })->group('FR-11');
 
-it('FR-11 employee and assistant cannot open the Edit screen', function (RoleName $role) {
+it('FR-11 employee and assistant cannot open the Edit screen', function (RoleName $role): void {
     $target = userWithRole(RoleName::Employee);
 
     $this->actingAs(userWithRole($role))->get("/app/employees/{$target->id}/edit")->assertForbidden();
 })->group('FR-11')->with([RoleName::Employee, RoleName::Assistant]);
 
-it('the HR record accepts "Married with kids" as a marital status', function () {
+it('the HR record accepts "Married with kids" as a marital status', function (): void {
     $employee = userWithRole(RoleName::Employee);
     $profile = EmployeeProfile::factory()->create([
         'user_id' => $employee->id,

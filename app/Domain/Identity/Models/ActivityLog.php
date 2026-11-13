@@ -15,7 +15,7 @@ use Spatie\Activitylog\Models\Activity;
  * @property string|null $user_agent
  * @property int|null $impersonator_id
  */
-class ActivityLog extends Activity
+final class ActivityLog extends Activity
 {
     /** @return BelongsTo<User, $this> */
     public function impersonator(): BelongsTo

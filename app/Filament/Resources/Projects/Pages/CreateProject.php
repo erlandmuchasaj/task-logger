@@ -14,7 +14,7 @@ use Filament\Support\Exceptions\Halt;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 
-class CreateProject extends CreateRecord
+final class CreateProject extends CreateRecord
 {
     protected static string $resource = ProjectResource::class;
 
@@ -27,9 +27,9 @@ class CreateProject extends CreateRecord
     protected function handleRecordCreation(array $data): Model
     {
         try {
-            return app(CreateProjectAction::class)->handle(auth()->user(), ProjectForm::data($data));
-        } catch (ValidationException $e) {
-            ActionErrors::report($this, $e);
+            return resolve(CreateProjectAction::class)->handle(auth()->user(), ProjectForm::data($data));
+        } catch (ValidationException $validationException) {
+            ActionErrors::report($this, $validationException);
             throw new Halt;
         }
     }

@@ -18,8 +18,11 @@ use Illuminate\Validation\ValidationException;
  * D-53: shown instead of every other page while the account still holds a temporary password (a new
  * account, or a password reset by an administrator). ForcePasswordChange sends the person here.
  */
-class ChangePassword extends Page
+final class ChangePassword extends Page
 {
+    /** @var array<string, mixed> */
+    public ?array $data = [];
+
     protected string $view = 'filament.pages.change-password';
 
     protected static ?string $slug = 'change-password';
@@ -27,9 +30,6 @@ class ChangePassword extends Page
     protected static ?string $title = 'Choose your password';
 
     protected static bool $shouldRegisterNavigation = false;
-
-    /** @var array<string, mixed> */
-    public ?array $data = [];
 
     /** Only reachable while the signed-in account still holds a temporary password (default deny, NFR-03). */
     public static function canAccess(): bool
@@ -70,9 +70,9 @@ class ChangePassword extends Page
         $state = $this->getSchema('form')?->getState() ?? [];
 
         try {
-            app(ChangeOwnPassword::class)->handle($this->user(), (string) $state['password']);
-        } catch (ValidationException $e) {
-            throw ValidationException::withMessages(['data.password' => $e->errors()['password'] ?? $e->getMessage()]);
+            resolve(ChangeOwnPassword::class)->handle($this->user(), (string) $state['password']);
+        } catch (ValidationException $validationException) {
+            throw ValidationException::withMessages(['data.password' => $validationException->errors()['password'] ?? $validationException->getMessage()]);
         }
 
         // The password hash changed: refresh it in the session so AuthenticateSession keeps the user signed in.

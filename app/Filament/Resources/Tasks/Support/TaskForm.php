@@ -25,7 +25,7 @@ final class TaskForm
 {
     public static function configure(Schema $schema, ?Task $record): Schema
     {
-        $creating = $record === null;
+        $creating = ! $record instanceof Task;
         $canAssign = (bool) auth()->user()?->can('assign', $record ?? new Task);
 
         return $schema->components([
@@ -40,7 +40,7 @@ final class TaskForm
                 Select::make('technology_id')->label('Technology')
                     ->options(fn (callable $get): array => Project::query()->find((int) $get('project_id'))?->technologyLines()->with('technology')->get()
                         ->mapWithKeys(fn ($l): array => [$l->technology_id => $l->technology->name])->all() ?? [])
-                    ->searchable()->required()->helperText('One of the project\'s technologies.'),
+                    ->searchable()->required()->helperText("One of the project's technologies."),
                 TextInput::make('name')->required()->maxLength(255)->columnSpanFull(),
                 Textarea::make('description')->columnSpanFull(),
                 Select::make('status')->options(TaskStatus::class)->required()->default(TaskStatus::Backlog),
@@ -58,7 +58,7 @@ final class TaskForm
                     ->searchable()->helperText('Optional, in the same project.'),
                 Select::make('labels')->multiple()
                     ->options(fn (): array => Label::query()->orderBy('name')->pluck('name', 'id')->all())->preload(),
-                Toggle::make('force_to_log')->label('Pin in the assignee\'s daily log until closed'),
+                Toggle::make('force_to_log')->label("Pin in the assignee's daily log until closed"),
             ]),
         ]);
     }
@@ -93,7 +93,7 @@ final class TaskForm
             parentId: filled($data['parent_id'] ?? null) ? (int) $data['parent_id'] : null,
             forceToLog: (bool) ($data['force_to_log'] ?? false),
             dueDate: filled($data['due_date'] ?? null) ? CarbonImmutable::parse((string) $data['due_date']) : null,
-            labelIds: array_values(array_map('intval', (array) ($data['labels'] ?? []))),
+            labelIds: array_values(array_map(intval(...), (array) ($data['labels'] ?? []))),
         );
     }
 }

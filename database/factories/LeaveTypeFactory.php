@@ -8,7 +8,7 @@ use App\Domain\MasterData\Models\LeaveType;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<LeaveType> */
-class LeaveTypeFactory extends Factory
+final class LeaveTypeFactory extends Factory
 {
     protected $model = LeaveType::class;
 

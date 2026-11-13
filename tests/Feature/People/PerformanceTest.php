@@ -9,33 +9,33 @@ use App\Domain\People\Data\PerformanceData;
 use App\Domain\People\Models\Performance;
 use App\Filament\Resources\Performances\Pages\ManagePerformances;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
 function review(User $actor, User $employee, int $score = 8): Performance
 {
-    return app(CreatePerformanceReview::class)->handle($actor, $employee, new PerformanceData($score, Carbon::parse('2026-06-30'), 'Good work'));
+    return resolve(CreatePerformanceReview::class)->handle($actor, $employee, new PerformanceData($score, Date::parse('2026-06-30'), 'Good work'));
 }
 
-it('FR-15 W-09 superadmin and admin create reviews; hr, assistant and employee cannot', function (RoleName $role, bool $allowed) {
+it('FR-15 W-09 superadmin and admin create reviews; hr, assistant and employee cannot', function (RoleName $role, bool $allowed): void {
     $employee = userWithRole(RoleName::Employee);
     $actor = userWithRole($role);
 
     if ($allowed) {
         expect(review($actor, $employee))->score->toBe(8)->created_by->toBe($actor->id)->user_id->toBe($employee->id);
     } else {
-        expect(fn () => review($actor, $employee))->toThrow(AuthorizationException::class);
+        expect(fn (): Performance => review($actor, $employee))->toThrow(AuthorizationException::class);
     }
 })->with([
     [RoleName::Superadmin, true], [RoleName::Admin, true], [RoleName::Hr, false], [RoleName::Assistant, false], [RoleName::Employee, false],
 ])->group('FR-15', 'W-09');
 
-it('FR-15 the score is 1 to 10, in the action and in the database', function (int $score) {
-    expect(fn () => review(userWithRole(RoleName::Admin), userWithRole(RoleName::Employee), $score))->toThrow(ValidationException::class, 'between 1 and 10');
+it('FR-15 the score is 1 to 10, in the action and in the database', function (int $score): void {
+    expect(fn (): Performance => review(userWithRole(RoleName::Admin), userWithRole(RoleName::Employee), $score))->toThrow(ValidationException::class, 'between 1 and 10');
 })->with([0, 11, -3])->group('FR-15');
 
-it('BR-27 D-21 only superadmin, hr and the direct manager read a review', function () {
+it('BR-27 D-21 only superadmin, hr and the direct manager read a review', function (): void {
     $manager = userWithRole(RoleName::Admin);
     $employee = User::factory()->withRole(RoleName::Employee)->create(['manager_id' => $manager->id]);
     $review = review(userWithRole(RoleName::Superadmin), $employee);
@@ -51,7 +51,7 @@ it('BR-27 D-21 only superadmin, hr and the direct manager read a review', functi
         ->and($reader(userWithRole(RoleName::Employee)))->toBeFalse();
 })->group('BR-27', 'D-21');
 
-it('BR-27 an employee who manages people reads their reports\' reviews through the relationship', function () {
+it("BR-27 an employee who manages people reads their reports' reviews through the relationship", function (): void {
     $teamLead = userWithRole(RoleName::Employee);
     $report = User::factory()->withRole(RoleName::Employee)->create(['manager_id' => $teamLead->id]);
     $other = userWithRole(RoleName::Employee);
@@ -63,7 +63,7 @@ it('BR-27 an employee who manages people reads their reports\' reviews through t
     Livewire::test(ManagePerformances::class)->assertCanSeeTableRecords([$mine])->assertCanNotSeeTableRecords([$theirs]);
 })->group('BR-27', 'D-21', 'ADR-0007');
 
-it('FR-15 an admin who is not the manager can add a review but reads nothing back', function () {
+it('FR-15 an admin who is not the manager can add a review but reads nothing back', function (): void {
     $admin = userWithRole(RoleName::Admin);
     $employee = userWithRole(RoleName::Employee);
     $this->actingAs($admin);
@@ -72,13 +72,13 @@ it('FR-15 an admin who is not the manager can add a review but reads nothing bac
         ->callAction('review', ['user_id' => $employee->id, 'score' => 9, 'review_date' => '2026-06-30', 'notes' => 'Great'])
         ->assertHasNoActionErrors();
 
-    $review = Performance::sole();
+    $review = Performance::query()->sole();
 
     Livewire::test(ManagePerformances::class)->assertCanNotSeeTableRecords([$review]);
     expect($admin->can('view', $review->load('employee')))->toBeFalse();
 })->group('FR-15', 'BR-27');
 
-it('BR-27 reviews can be read and added from the screen by hr and superadmin as designed', function () {
+it('BR-27 reviews can be read and added from the screen by hr and superadmin as designed', function (): void {
     $review = review(userWithRole(RoleName::Superadmin), userWithRole(RoleName::Employee));
 
     $this->actingAs(userWithRole(RoleName::Hr));
@@ -87,14 +87,14 @@ it('BR-27 reviews can be read and added from the screen by hr and superadmin as 
     $this->actingAs(userWithRole(RoleName::Employee))->get('/app/performances')->assertForbidden();
 })->group('BR-27');
 
-it('D-45 nobody edits or deletes a review, root included', function () {
+it('D-45 nobody edits or deletes a review, root included', function (): void {
     $review = review(userWithRole(RoleName::Superadmin), userWithRole(RoleName::Employee));
     $root = userWithRole(RoleName::Superadmin);
 
     expect($root->can('update', $review))->toBeFalse()->and($root->can('delete', $review))->toBeFalse()->and($root->can('view', $review))->toBeTrue();
 })->group('D-45', 'D-41');
 
-it('BR-32 a review is audited', function () {
+it('BR-32 a review is audited', function (): void {
     review(userWithRole(RoleName::Admin), userWithRole(RoleName::Employee));
 
     expect(latestActivity()->subject_type)->toBe(Performance::class);

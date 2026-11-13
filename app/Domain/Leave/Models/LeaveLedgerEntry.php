@@ -19,19 +19,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable([
     'user_id', 'leave_type_id', 'entry_type', 'days', 'effective_on', 'expires_on', 'leave_request_id', 'note', 'created_by',
 ])]
-class LeaveLedgerEntry extends Model
+final class LeaveLedgerEntry extends Model
 {
     use LogsBusinessActivity;
-
-    protected function casts(): array
-    {
-        return [
-            'entry_type' => LedgerEntryType::class,
-            'days' => 'decimal:1',
-            'effective_on' => 'date',
-            'expires_on' => 'date',
-        ];
-    }
 
     /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
@@ -49,5 +39,15 @@ class LeaveLedgerEntry extends Model
     public function leaveRequest(): BelongsTo
     {
         return $this->belongsTo(LeaveRequest::class);
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'entry_type' => LedgerEntryType::class,
+            'days' => 'decimal:1',
+            'effective_on' => 'date',
+            'expires_on' => 'date',
+        ];
     }
 }

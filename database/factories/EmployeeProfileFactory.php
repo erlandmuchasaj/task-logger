@@ -11,7 +11,7 @@ use App\Domain\People\Models\EmployeeProfile;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<EmployeeProfile> */
-class EmployeeProfileFactory extends Factory
+final class EmployeeProfileFactory extends Factory
 {
     protected $model = EmployeeProfile::class;
 

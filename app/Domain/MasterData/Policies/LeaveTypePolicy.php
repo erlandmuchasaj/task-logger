@@ -6,7 +6,7 @@ namespace App\Domain\MasterData\Policies;
 
 use App\Domain\Identity\Permissions;
 
-class LeaveTypePolicy extends MasterDataPolicy
+final class LeaveTypePolicy extends MasterDataPolicy
 {
     protected function managePermission(): string
     {

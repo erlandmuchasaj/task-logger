@@ -13,7 +13,7 @@ use App\Domain\Identity\Permissions;
  * Permission-only (SPEC 4.1, D-51): finance and superadmin hold every expenses.* permission, nobody else holds any.
  * What an expense's status allows (draft-only edits, no self-approval) is checked in the actions so root cannot skip it.
  */
-class ExpensePolicy
+final class ExpensePolicy
 {
     public function viewAny(User $user): bool
     {

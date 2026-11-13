@@ -26,7 +26,7 @@ use Illuminate\Support\Str;
 use UnitEnum;
 
 /** The audit trail (BR-32): read-only, activity_logs.view (superadmin). Shows before and after values. */
-class ActivityLogResource extends Resource
+final class ActivityLogResource extends Resource
 {
     protected static ?string $model = ActivityLog::class;
 
@@ -77,7 +77,7 @@ class ActivityLogResource extends Resource
                     ->queries(
                         true: fn (Builder $query) => $query->whereNotNull('impersonator_id'),
                         false: fn (Builder $query) => $query->whereNull('impersonator_id'),
-                        blank: fn (Builder $query) => $query,
+                        blank: fn (Builder $query): Builder => $query,
                     ),
                 SelectFilter::make('event')->options(fn (): array => ActivityLog::query()->distinct()->orderBy('event')->pluck('event', 'event')->all()),
                 SelectFilter::make('subject_type')->label('Record type')

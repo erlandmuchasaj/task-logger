@@ -14,7 +14,7 @@ use Filament\Actions\EditAction;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Support\Icons\Heroicon;
 
-class ViewTask extends ViewRecord
+final class ViewTask extends ViewRecord
 {
     protected static string $resource = TaskResource::class;
 

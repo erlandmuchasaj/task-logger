@@ -13,7 +13,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ManageRecords;
 use Filament\Support\Icons\Heroicon;
 
-class ManageTimesheetLocks extends ManageRecords
+final class ManageTimesheetLocks extends ManageRecords
 {
     protected static string $resource = TimesheetLockResource::class;
 
@@ -26,7 +26,7 @@ class ManageTimesheetLocks extends ManageRecords
                 ])
                 ->modalDescription('Employees can no longer create, edit or delete logs in that month. Export the logs first (W-08).')
                 ->action(function (array $data): void {
-                    app(LockMonth::class)->handle(auth()->user(), CarbonImmutable::parse((string) $data['month']));
+                    resolve(LockMonth::class)->handle(auth()->user(), CarbonImmutable::parse((string) $data['month']));
                     Notification::make()->title('Month locked')->success()->send();
                 }),
         ];

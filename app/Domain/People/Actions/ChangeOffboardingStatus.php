@@ -18,13 +18,13 @@ use Spatie\Activitylog\Support\CauserResolver;
  * completed and cancelled are final. Completing deactivates the login as a system effect of offboardings.manage,
  * not of employees.deactivate (ADR-0008); it is refused for the last superadmin and for yourself (D-32).
  */
-class ChangeOffboardingStatus
+final class ChangeOffboardingStatus
 {
     public function handle(User $actor, Offboarding $offboarding, OffboardingStatus $to): Offboarding
     {
         Gate::forUser($actor)->authorize('changeStatus', $offboarding);
 
-        return app(CauserResolver::class)->withCauser($actor, fn (): Offboarding => DB::transaction(function () use ($actor, $offboarding, $to): Offboarding {
+        return resolve(CauserResolver::class)->withCauser($actor, fn (): Offboarding => DB::transaction(function () use ($actor, $offboarding, $to): Offboarding {
             $offboarding = Offboarding::query()->with('employee')->whereKey($offboarding->getKey())->lockForUpdate()->firstOrFail();
 
             if (! in_array($to, $offboarding->status->next(), true)) {

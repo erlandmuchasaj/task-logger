@@ -31,7 +31,7 @@ final class ExportAction
 
         return $action->action(function (array $data) use ($type): void {
             $filters = array_map(fn (mixed $v): ?string => $v === null ? null : (string) $v, $data);
-            app(RequestExport::class)->handle(auth()->user(), $type, $filters);
+            resolve(RequestExport::class)->handle(auth()->user(), $type, $filters);
 
             Notification::make()->title('Export queued')->body('It will appear under Work > Exports when it is ready.')->success()->send();
         });

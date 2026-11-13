@@ -1,5 +1,7 @@
 includes:
     - vendor/larastan/larastan/extension.neon
+    - vendor/nesbot/carbon/extension.neon
+    - phar://phpstan.phar/conf/bleedingEdge.neon
 
 parameters:
     # Read the literal arrays in our casts() methods so date, enum and array casts are typed.
@@ -7,8 +9,12 @@ parameters:
     level: 7
     paths:
         - app
+        - bootstrap/app.php
         - database
         - routes
+        - config
+        - public
     excludePaths:
         - database/migrations/*
     tmpDir: storage/framework/phpstan
+

@@ -15,7 +15,7 @@ use Filament\Support\Exceptions\Halt;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 
-class EditLog extends EditRecord
+final class EditLog extends EditRecord
 {
     protected static string $resource = LogResource::class;
 
@@ -44,9 +44,9 @@ class EditLog extends EditRecord
     {
         /** @var Log $record */
         try {
-            return app(UpdateLog::class)->handle(auth()->user(), $record, LogForm::data($data));
-        } catch (ValidationException $e) {
-            ActionErrors::report($this, $e, aliases: ['duration' => 'minutes']);
+            return resolve(UpdateLog::class)->handle(auth()->user(), $record, LogForm::data($data));
+        } catch (ValidationException $validationException) {
+            ActionErrors::report($this, $validationException, aliases: ['duration' => 'minutes']);
             throw new Halt;
         }
     }

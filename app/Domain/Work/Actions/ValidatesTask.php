@@ -19,8 +19,8 @@ trait ValidatesTask
         $errors = [];
 
         // BR-31: no new tasks for a deactivated client (existing tasks keep working).
-        if ($existing === null && ! $project->customer->is_active) {
-            $errors['project_id'] = 'This project\'s client is deactivated and cannot receive new tasks.';
+        if (! $existing instanceof Task && ! $project->customer->is_active) {
+            $errors['project_id'] = "This project's client is deactivated and cannot receive new tasks.";
         }
 
         // BR-10: the task's technology belongs to the task's project.

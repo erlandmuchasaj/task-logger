@@ -12,19 +12,9 @@ use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
 use Illuminate\Database\Eloquent\Builder;
 
-class ListEmployees extends ListRecords
+final class ListEmployees extends ListRecords
 {
     protected static string $resource = EmployeeResource::class;
-
-    protected function getHeaderActions(): array
-    {
-        return [CreateAction::make()];
-    }
-
-    protected function getHeaderWidgets(): array
-    {
-        return [EmployeeStats::class];
-    }
 
     /** Predefined views over account status. "All" includes anonymised accounts, as the list always has. */
     public function getTabs(): array
@@ -47,5 +37,15 @@ class ListEmployees extends ListRecords
                 ->badge(fn (): int => $base()->whereBetween('start_date', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])->count())
                 ->badgeColor('info'),
         ];
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [CreateAction::make()];
+    }
+
+    protected function getHeaderWidgets(): array
+    {
+        return [EmployeeStats::class];
     }
 }

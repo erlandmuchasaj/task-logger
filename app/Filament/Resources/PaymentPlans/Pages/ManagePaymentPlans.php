@@ -8,7 +8,7 @@ use App\Filament\Resources\PaymentPlans\PaymentPlanResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ManageRecords;
 
-class ManagePaymentPlans extends ManageRecords
+final class ManagePaymentPlans extends ManageRecords
 {
     protected static string $resource = PaymentPlanResource::class;
 

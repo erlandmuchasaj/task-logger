@@ -17,20 +17,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /** W-10. Completing it deactivates the login (ADR-0008) and starts the anonymisation clock (BR-28). */
 #[Fillable(['user_id', 'created_by', 'end_date', 'equipment_returned', 'resignation_letter_signed', 'description', 'status'])]
 #[UseFactory(OffboardingFactory::class)]
-class Offboarding extends Model
+final class Offboarding extends Model
 {
     /** @use HasFactory<OffboardingFactory> */
-    use HasFactory, LogsBusinessActivity;
+    use HasFactory;
 
-    protected function casts(): array
-    {
-        return [
-            'end_date' => 'date',
-            'equipment_returned' => 'boolean',
-            'resignation_letter_signed' => 'boolean',
-            'status' => OffboardingStatus::class,
-        ];
-    }
+    use LogsBusinessActivity;
 
     /** @return BelongsTo<User, $this> */
     public function employee(): BelongsTo
@@ -42,5 +34,15 @@ class Offboarding extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'end_date' => 'date',
+            'equipment_returned' => 'boolean',
+            'resignation_letter_signed' => 'boolean',
+            'status' => OffboardingStatus::class,
+        ];
     }
 }

@@ -29,7 +29,7 @@ use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 /** BR-14: fixed costs for a month, in the client's currency, added to the budget. Perm fixed_costs.manage (superadmin). */
-class FixedCostsRelationManager extends RelationManager
+final class FixedCostsRelationManager extends RelationManager
 {
     protected static string $relationship = 'fixedCosts';
 
@@ -76,9 +76,9 @@ class FixedCostsRelationManager extends RelationManager
                     $project = $this->getOwnerRecord();
 
                     try {
-                        return app(AddFixedCost::class)->handle(auth()->user(), $project, self::data($data, $project));
-                    } catch (ValidationException $e) {
-                        ActionErrors::report($this, $e, 'mountedActions.0.data.', ['currency' => 'amount']);
+                        return resolve(AddFixedCost::class)->handle(auth()->user(), $project, $this->data($data, $project));
+                    } catch (ValidationException $validationException) {
+                        ActionErrors::report($this, $validationException, 'mountedActions.0.data.', ['currency' => 'amount']);
                         throw new Halt;
                     }
                 }),
@@ -94,14 +94,14 @@ class FixedCostsRelationManager extends RelationManager
                         })
                         ->using(function (FixedCost $record, array $data): Model {
                             try {
-                                return app(UpdateFixedCost::class)->handle(auth()->user(), $record, self::data($data, $record->project));
-                            } catch (ValidationException $e) {
-                                ActionErrors::notify($e);
+                                return resolve(UpdateFixedCost::class)->handle(auth()->user(), $record, $this->data($data, $record->project));
+                            } catch (ValidationException $validationException) {
+                                ActionErrors::notify($validationException);
                                 throw new Halt;
                             }
                         }),
                     DeleteAction::make()->using(function (FixedCost $record): bool {
-                        app(DeleteFixedCost::class)->handle(auth()->user(), $record);
+                        resolve(DeleteFixedCost::class)->handle(auth()->user(), $record);
 
                         return true;
                     }),
@@ -110,12 +110,12 @@ class FixedCostsRelationManager extends RelationManager
     }
 
     /** @param  array<string, mixed>  $data */
-    private static function data(array $data, Project $project): FixedCostData
+    private function data(array $data, Project $project): FixedCostData
     {
         try {
             $amount = Money::fromMajor((string) $data['amount'], $project->customer->currency_code);
-        } catch (InvalidArgumentException $e) {
-            throw ValidationException::withMessages(['amount' => $e->getMessage()]);
+        } catch (InvalidArgumentException $invalidArgumentException) {
+            throw ValidationException::withMessages(['amount' => $invalidArgumentException->getMessage()]);
         }
 
         return new FixedCostData((string) $data['name'], CarbonImmutable::parse((string) $data['date']), $amount);

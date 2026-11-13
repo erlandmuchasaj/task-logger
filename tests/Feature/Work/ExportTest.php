@@ -22,9 +22,10 @@ use App\Filament\Resources\Projects\Pages\ListProjects;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Bus\Dispatcher;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Livewire\Livewire;
 use Spatie\Activitylog\Models\Activity;
 
@@ -34,17 +35,18 @@ beforeEach(fn () => Storage::fake('local'));
 function csvRows(Export $export): array
 {
     $text = Storage::disk('local')->get($export->file_path);
-    expect(substr($text, 0, 3))->toBe("\xEF\xBB\xBF"); // UTF-8 byte order mark for Excel
+    $byteOrderMark = "\xEF\xBB\xBF"; // UTF-8 byte order mark for Excel
+    expect(str_starts_with($text, $byteOrderMark))->toBeTrue();
 
-    $lines = array_map(fn (string $l) => str_getcsv($l, ',', '"', ''), array_filter(preg_split('/\r?\n/', substr($text, 3))));
+    $lines = array_map(fn (string $l): array => str_getcsv($l, ',', '"', ''), array_filter(preg_split('/\r?\n/', Str::chopStart($text, $byteOrderMark))));
     $headings = array_shift($lines);
 
-    return array_map(fn (array $row) => array_combine($headings, $row), $lines);
+    return array_map(fn (array $row): array => array_combine($headings, $row), $lines);
 }
 
 function exportNow(User $actor, ExportType $type, array $filters = []): Export
 {
-    $export = app(RequestExport::class)->handle($actor, $type, $filters);
+    $export = resolve(RequestExport::class)->handle($actor, $type, $filters);
 
     return $export->fresh();
 }
@@ -54,13 +56,14 @@ function twoLogs(): array
     $setup = loggingSetup(2000);
     $me = $setup['employee'];
     $me->update(['name' => 'Elira', 'surname' => 'Çela']);
-    $a = app(CreateLog::class)->handle($me, logData(['taskId' => $setup['task']->id, 'date' => Carbon::parse('2026-03-10'), 'minutes' => 150, 'description' => 'Login page']));
-    $b = app(CreateLog::class)->handle($me, logData(['taskId' => null, 'projectId' => $setup['project']->id, 'technologyId' => $setup['technology']->id, 'date' => Carbon::parse('2026-04-02'), 'minutes' => 45, 'description' => '=HYPERLINK("http://evil.test")']));
+
+    $a = resolve(CreateLog::class)->handle($me, logData(['taskId' => $setup['task']->id, 'date' => Date::parse('2026-03-10'), 'minutes' => 150, 'description' => 'Login page']));
+    $b = resolve(CreateLog::class)->handle($me, logData(['taskId' => null, 'projectId' => $setup['project']->id, 'technologyId' => $setup['technology']->id, 'date' => Date::parse('2026-04-02'), 'minutes' => 45, 'description' => '=HYPERLINK("http://evil.test")']));
 
     return [...$setup, 'a' => $a, 'b' => $b];
 }
 
-it('BR-33 the superadmin exports all logs; the file has every column including rate and amount', function () {
+it('BR-33 the superadmin exports all logs; the file has every column including rate and amount', function (): void {
     twoLogs();
 
     $export = exportNow(userWithRole(RoleName::Superadmin), ExportType::Logs);
@@ -75,7 +78,7 @@ it('BR-33 the superadmin exports all logs; the file has every column including r
     ]);
 })->group('BR-33');
 
-it('BR-33 D-05 the assistant exports logs without any rate or amount column', function () {
+it('BR-33 D-05 the assistant exports logs without any rate or amount column', function (): void {
     twoLogs();
 
     $headings = array_keys(csvRows(exportNow(userWithRole(RoleName::Assistant), ExportType::Logs))[0]);
@@ -83,9 +86,9 @@ it('BR-33 D-05 the assistant exports logs without any rate or amount column', fu
     expect($headings)->not->toContain('Hourly rate')->not->toContain('Currency')->not->toContain('Amount')->toContain('Employee', 'Hours');
 })->group('BR-33');
 
-it('BR-33 only superadmin and assistant may export logs, projects, clients and tasks', function (RoleName $role, bool $allowed) {
+it('BR-33 only superadmin and assistant may export logs, projects, clients and tasks', function (RoleName $role, bool $allowed): void {
     foreach (ExportType::cases() as $type) {
-        $request = fn () => app(RequestExport::class)->handle(userWithRole($role), $type);
+        $request = fn () => resolve(RequestExport::class)->handle(userWithRole($role), $type);
 
         $allowed ? expect($request()->exists)->toBeTrue() : expect($request)->toThrow(AuthorizationException::class);
     }
@@ -93,52 +96,52 @@ it('BR-33 only superadmin and assistant may export logs, projects, clients and t
     [RoleName::Superadmin, true], [RoleName::Assistant, true], [RoleName::Admin, false], [RoleName::Hr, false], [RoleName::Employee, false],
 ]);
 
-it('BR-33 exports are queued, not built in the request', function () {
+it('BR-33 exports are queued, not built in the request', function (): void {
     Queue::fake();
     twoLogs();
 
-    $export = app(RequestExport::class)->handle(userWithRole(RoleName::Superadmin), ExportType::Logs);
+    $export = resolve(RequestExport::class)->handle(userWithRole(RoleName::Superadmin), ExportType::Logs);
 
-    Queue::assertPushed(RunExport::class, fn (RunExport $job) => $job->exportId === $export->id);
+    Queue::assertPushed(RunExport::class, fn (RunExport $job): bool => $job->exportId === $export->id);
     expect($export->fresh()->status)->toBe(ExportStatus::Queued)->and($export->file_path)->toBeNull();
 })->group('BR-33');
 
-it('BR-33 permissions are checked again when the job runs', function () {
+it('BR-33 permissions are checked again when the job runs', function (): void {
     Queue::fake();
     twoLogs();
     $assistant = userWithRole(RoleName::Assistant);
-    $export = app(RequestExport::class)->handle($assistant, ExportType::Logs);
+    $export = resolve(RequestExport::class)->handle($assistant, ExportType::Logs);
 
     $assistant->syncRoles([RoleName::Employee->value]); // loses logs.export before the worker runs
-    app(Dispatcher::class);
-    (new RunExport($export->id))->handle();
+    resolve(Dispatcher::class);
+    new RunExport($export->id)->handle();
 
     expect($export->fresh()->status)->toBe(ExportStatus::Failed)->and($export->fresh()->error)->toContain('no longer allowed')->and($export->fresh()->file_path)->toBeNull();
 })->group('BR-33');
 
-it('BR-33 a deactivated requester gets no file', function () {
+it('BR-33 a deactivated requester gets no file', function (): void {
     Queue::fake();
     twoLogs();
     $superadmin = userWithRole(RoleName::Superadmin);
-    $export = app(RequestExport::class)->handle($superadmin, ExportType::Logs);
+    $export = resolve(RequestExport::class)->handle($superadmin, ExportType::Logs);
     $superadmin->ban();
 
-    (new RunExport($export->id))->handle();
+    new RunExport($export->id)->handle();
 
     expect($export->fresh()->status)->toBe(ExportStatus::Failed);
 })->group('BR-33');
 
-it('BR-33 the job is idempotent: a finished export is not rebuilt', function () {
+it('BR-33 the job is idempotent: a finished export is not rebuilt', function (): void {
     twoLogs();
     $export = exportNow(userWithRole(RoleName::Superadmin), ExportType::Logs);
     $path = $export->file_path;
 
-    (new RunExport($export->id))->handle();
+    new RunExport($export->id)->handle();
 
     expect($export->fresh()->file_path)->toBe($path)->and(Storage::disk('local')->allFiles('exports'))->toHaveCount(1);
 })->group('BR-33');
 
-it('BR-33 filters: a date range and a project narrow the logs', function () {
+it('BR-33 filters: a date range and a project narrow the logs', function (): void {
     ['a' => $a, 'project' => $project] = twoLogs();
     $superadmin = userWithRole(RoleName::Superadmin);
 
@@ -152,14 +155,14 @@ it('BR-33 filters: a date range and a project narrow the logs', function () {
         ->and($a->exists)->toBeTrue();
 })->group('BR-33');
 
-it('BR-33 a deleted log is not exported', function () {
+it('BR-33 a deleted log is not exported', function (): void {
     ['a' => $a] = twoLogs();
     $a->delete();
 
     expect(exportNow(userWithRole(RoleName::Superadmin), ExportType::Logs)->rows)->toBe(1);
 })->group('BR-33');
 
-it('BR-33 cells that would be read as spreadsheet formulas are neutralised', function () {
+it('BR-33 cells that would be read as spreadsheet formulas are neutralised', function (): void {
     twoLogs();
 
     $rows = csvRows(exportNow(userWithRole(RoleName::Superadmin), ExportType::Logs));
@@ -174,9 +177,9 @@ it('BR-33 cells that would be read as spreadsheet formulas are neutralised', fun
         ->and(CsvSafe::cell(null))->toBe('');
 })->group('BR-33');
 
-it('BR-33 a large export streams in chunks without losing rows', function () {
+it('BR-33 a large export streams in chunks without losing rows', function (): void {
     ['employee' => $me, 'project' => $project, 'technology' => $tech] = loggingSetup();
-    Log::factory()->count(1200)->sequence(fn ($s) => ['date' => Carbon::parse('2026-01-01')->addDays($s->index % 28)->toDateString()])->create([
+    Log::factory()->count(1200)->sequence(fn ($s): array => ['date' => Date::parse('2026-01-01')->addDays($s->index % 28)->toDateString()])->create([
         'user_id' => $me->id, 'project_id' => $project->id, 'technology_id' => $tech->id, 'duration_minutes' => 30,
     ]);
 
@@ -185,7 +188,7 @@ it('BR-33 a large export streams in chunks without losing rows', function () {
     expect($export->rows)->toBe(1200)->and(csvRows($export))->toHaveCount(1200);
 })->group('BR-33');
 
-it('BR-33 D-05 the projects export has the budget only for people who may see rates', function () {
+it('BR-33 D-05 the projects export has the budget only for people who may see rates', function (): void {
     ['project' => $project] = loggingSetup(2000);
     $project->update(['name' => 'Visible Project']);
 
@@ -196,7 +199,7 @@ it('BR-33 D-05 the projects export has the budget only for people who may see ra
         ->and($superadmin)->toHaveKeys(['Budget', 'Currency'])->and($superadmin['Budget'])->toBe('2000.00');
 })->group('BR-33');
 
-it('BR-33 D-05 the clients export has no payment plan or currency for the assistant', function () {
+it('BR-33 D-05 the clients export has no payment plan or currency for the assistant', function (): void {
     $client = Customer::factory()->create(['company_name' => 'Acme', 'payment_plan_id' => PaymentPlan::factory()->create(['name' => 'Net30Secret'])->id]);
 
     $assistant = csvRows(exportNow(userWithRole(RoleName::Assistant), ExportType::Clients));
@@ -208,7 +211,7 @@ it('BR-33 D-05 the clients export has no payment plan or currency for the assist
         ->and($client->exists)->toBeTrue();
 })->group('BR-33');
 
-it('BR-33 the tasks export lists tasks with their labels and assignee', function () {
+it('BR-33 the tasks export lists tasks with their labels and assignee', function (): void {
     ['task' => $task] = loggingSetup();
     $task->labels()->attach(Label::factory()->create(['name' => 'Bug']));
 
@@ -217,19 +220,19 @@ it('BR-33 the tasks export lists tasks with their labels and assignee', function
     expect($rows)->toHaveCount(1)->and($rows[0]['Labels'])->toBe('Bug')->and($rows[0]['Assignee'])->not->toBe('');
 })->group('BR-33');
 
-it('BR-33 D-38 the finished export is audited with the original request context', function () {
+it('BR-33 D-38 the finished export is audited with the original request context', function (): void {
     twoLogs();
     $admin = userWithRole(RoleName::Admin);
     $assistant = userWithRole(RoleName::Assistant);
     $this->actingAs($assistant);
     asRequest(ip: '198.51.100.77', agent: 'ExportBrowser/2', impersonatedBy: $admin->id);
     Queue::fake();
-    $export = app(RequestExport::class)->handle($assistant, ExportType::Logs);
+    $export = resolve(RequestExport::class)->handle($assistant, ExportType::Logs);
 
     asRequest(ip: '203.0.113.1', agent: 'Worker/1');   // a later, different request context (the queue worker)
-    (new RunExport($export->id))->handle();
+    new RunExport($export->id)->handle();
 
-    $entry = Activity::where('event', 'exported')->where('subject_id', $export->id)->sole();
+    $entry = Activity::query()->where('event', 'exported')->where('subject_id', $export->id)->sole();
     expect($entry->causer_id)->toBe($assistant->id)
         ->and($entry->client_ip)->toBe('198.51.100.77')
         ->and($entry->user_agent)->toBe('ExportBrowser/2')
@@ -237,7 +240,7 @@ it('BR-33 D-38 the finished export is audited with the original request context'
         ->and($entry->properties['type'])->toBe('logs')->and($entry->properties['rows'])->toBe(2);
 })->group('BR-32', 'BR-33');
 
-it('BR-33 you can download your own completed export and nobody else\'s', function () {
+it("BR-33 you can download your own completed export and nobody else's", function (): void {
     twoLogs();
     $owner = userWithRole(RoleName::Superadmin);
     $export = exportNow($owner, ExportType::Logs);
@@ -254,7 +257,7 @@ it('BR-33 you can download your own completed export and nobody else\'s', functi
     Livewire::test(ListExports::class)->assertCanNotSeeTableRecords([$export]);
 })->group('BR-33');
 
-it('BR-33 an assistant who loses the right can no longer download an old export', function () {
+it('BR-33 an assistant who loses the right can no longer download an old export', function (): void {
     twoLogs();
     $assistant = userWithRole(RoleName::Assistant);
     $export = exportNow($assistant, ExportType::Logs);
@@ -265,7 +268,7 @@ it('BR-33 an assistant who loses the right can no longer download an old export'
     expect($assistant->fresh()->can('download', $export))->toBeFalse();
 })->group('BR-33');
 
-it('BR-33 files expire: the daily job deletes them and marks the export expired, idempotently', function () {
+it('BR-33 files expire: the daily job deletes them and marks the export expired, idempotently', function (): void {
     twoLogs();
     $export = exportNow(userWithRole(RoleName::Superadmin), ExportType::Logs);
     $path = $export->file_path;
@@ -274,19 +277,19 @@ it('BR-33 files expire: the daily job deletes them and marks the export expired,
     $this->travel(config('task-logger.exports.keep_days') + 1)->days();
 
     expect($export->fresh()->isDownloadable())->toBeFalse()
-        ->and(app(PruneExports::class)->handle())->toBe(1)
+        ->and(resolve(PruneExports::class)->handle())->toBe(1)
         ->and(Storage::disk('local')->exists($path))->toBeFalse()
         ->and($export->fresh()->status)->toBe(ExportStatus::Expired)
-        ->and(app(PruneExports::class)->handle())->toBe(0);
+        ->and(resolve(PruneExports::class)->handle())->toBe(0);
 })->group('BR-33');
 
-it('BR-33 the export and prune jobs are scheduled', function () {
-    $events = collect(app(Schedule::class)->events())->map(fn ($e) => $e->description);
+it('BR-33 the export and prune jobs are scheduled', function (): void {
+    $events = collect(resolve(Schedule::class)->events())->map(fn ($e) => $e->description);
 
     expect($events)->toContain('exports.prune');
 })->group('BR-33');
 
-it('BR-33 the Export button shows on the list screens only for people who may export', function (RoleName $role, bool $sees) {
+it('BR-33 the Export button shows on the list screens only for people who may export', function (RoleName $role, bool $sees): void {
     $this->actingAs(userWithRole($role));
 
     foreach ([ListLogs::class, ListProjects::class] as $page) {
@@ -297,17 +300,17 @@ it('BR-33 the Export button shows on the list screens only for people who may ex
     [RoleName::Superadmin, true], [RoleName::Assistant, true], [RoleName::Admin, false], [RoleName::Hr, false], [RoleName::Employee, false],
 ]);
 
-it('BR-33 the Export button queues an export for the chosen dates', function () {
+it('BR-33 the Export button queues an export for the chosen dates', function (): void {
     twoLogs();
     $this->actingAs(userWithRole(RoleName::Superadmin));
 
     Livewire::test(ListLogs::class)->callAction('export', ['date_from' => '2026-04-01', 'date_to' => '2026-04-30'])->assertHasNoActionErrors();
 
-    $export = Export::sole();
+    $export = Export::query()->sole();
     expect($export->filters)->toEqual(['date_from' => '2026-04-01', 'date_to' => '2026-04-30'])->and($export->rows)->toBe(1);
 })->group('BR-33');
 
-it('BR-33 the Exports screen is for people who can export; the file never sits in a public path', function () {
+it('BR-33 the Exports screen is for people who can export; the file never sits in a public path', function (): void {
     $this->actingAs(userWithRole(RoleName::Employee))->get('/app/exports')->assertForbidden();
     $this->actingAs(userWithRole(RoleName::Assistant))->get('/app/exports')->assertOk();
 

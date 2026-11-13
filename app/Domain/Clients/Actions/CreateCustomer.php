@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Gate;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /** W-02 step 2: create a client. Perm clients.create (superadmin, admin). Rates are added separately. */
-class CreateCustomer
+final class CreateCustomer
 {
     use ValidatesCustomer;
 
@@ -20,7 +20,7 @@ class CreateCustomer
         Gate::forUser($actor)->authorize('create', Customer::class);
         $checked = $this->validateCustomer($data, null);
 
-        return app(CauserResolver::class)->withCauser($actor, fn (): Customer => Customer::create([
+        return resolve(CauserResolver::class)->withCauser($actor, fn (): Customer => Customer::query()->create([
             'created_by' => $actor->getKey(),
             'name' => $data->name,
             'surname' => $data->surname,

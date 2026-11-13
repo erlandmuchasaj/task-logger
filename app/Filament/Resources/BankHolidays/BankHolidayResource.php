@@ -26,7 +26,7 @@ use UnitEnum;
  * BR-25 / W-07. A holiday on a weekend is not shifted: HR adds the observed Monday as its own
  * entry (D-08).
  */
-class BankHolidayResource extends Resource
+final class BankHolidayResource extends Resource
 {
     protected static ?string $model = BankHoliday::class;
 

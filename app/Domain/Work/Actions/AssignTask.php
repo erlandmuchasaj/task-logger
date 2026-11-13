@@ -12,7 +12,7 @@ use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /** Perm tasks.assign. One assignee per task (BR-09); null unassigns. */
-class AssignTask
+final class AssignTask
 {
     public function handle(User $actor, Task $task, ?int $assigneeId): Task
     {
@@ -28,7 +28,7 @@ class AssignTask
 
         $previousAssigneeId = $task->assignee_id;
 
-        $task = app(CauserResolver::class)->withCauser($actor, function () use ($task, $assigneeId): Task {
+        $task = resolve(CauserResolver::class)->withCauser($actor, function () use ($task, $assigneeId): Task {
             $task->update(['assignee_id' => $assigneeId]);
 
             return $task->refresh();

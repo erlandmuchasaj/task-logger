@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Storage;
 use UnitEnum;
 
 /** Your own exports (BR-33). The file is on the private disk and is downloaded through this screen only. */
-class ExportResource extends Resource
+final class ExportResource extends Resource
 {
     protected static ?string $model = Export::class;
 
@@ -59,7 +59,7 @@ class ExportResource extends Resource
                 TextColumn::make('status')->badge(),
                 TextColumn::make('rows')->placeholder('-'),
                 TextColumn::make('filters')->label('Filters')->placeholder('-')
-                    ->formatStateUsing(fn (mixed $state, Export $record): string => collect($record->filters ?? [])->map(fn ($v, $k) => "{$k}: {$v}")->implode(', ')),
+                    ->formatStateUsing(fn (mixed $state, Export $record): string => collect($record->filters ?? [])->map(fn ($v, $k): string => "{$k}: {$v}")->implode(', ')),
                 TextColumn::make('expires_at')->label('Available until')->dateTime()->placeholder('-'),
                 TextColumn::make('error')->limit(60)->placeholder('-')->visible(fn (): bool => Export::query()->where('user_id', auth()->id())->where('status', ExportStatus::Failed)->exists()),
             ])

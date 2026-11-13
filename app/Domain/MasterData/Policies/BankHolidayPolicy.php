@@ -6,14 +6,14 @@ namespace App\Domain\MasterData\Policies;
 
 use App\Domain\Identity\Permissions;
 
-class BankHolidayPolicy extends MasterDataPolicy
+final class BankHolidayPolicy extends MasterDataPolicy
 {
     protected function managePermission(): string
     {
         return Permissions::BANK_HOLIDAYS_MANAGE;
     }
 
-    protected function viewPermission(): ?string
+    protected function viewPermission(): string
     {
         return Permissions::BANK_HOLIDAYS_VIEW;
     }

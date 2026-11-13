@@ -18,7 +18,7 @@ use Illuminate\Auth\Access\AuthorizationException;
  *
  * @phpstan-type Filters array<string, mixed>
  */
-class RequestExport
+final class RequestExport
 {
     /** @param  array<string, mixed>  $filters */
     public function handle(User $actor, ExportType $type, array $filters = []): Export
@@ -27,15 +27,15 @@ class RequestExport
             throw new AuthorizationException('You may not export '.$type->value.'.');
         }
 
-        $export = Export::create([
+        $export = Export::query()->create([
             'user_id' => $actor->getKey(),
             'type' => $type,
             'status' => ExportStatus::Queued,
             'filters' => array_filter($filters, fn (mixed $v): bool => $v !== null && $v !== ''),
-            'request_context' => app(ActivityContext::class)->snapshot(),
+            'request_context' => resolve(ActivityContext::class)->snapshot(),
         ]);
 
-        RunExport::dispatch($export->getKey());
+        dispatch(new RunExport($export->getKey()));
 
         return $export;
     }

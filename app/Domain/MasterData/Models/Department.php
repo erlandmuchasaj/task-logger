@@ -17,19 +17,17 @@ use Spatie\Sluggable\SlugOptions;
 
 #[Fillable(['parent_id', 'name', 'description', 'color', 'is_active'])]
 #[UseFactory(DepartmentFactory::class)]
-class Department extends Model
+final class Department extends Model
 {
     /** @use HasFactory<DepartmentFactory> */
-    use HasFactory, HasSlug, LogsBusinessActivity;
+    use HasFactory;
+
+    use HasSlug;
+    use LogsBusinessActivity;
 
     public function getSlugOptions(): SlugOptions
     {
         return SlugOptions::create()->generateSlugsFrom('name')->saveSlugsTo('slug');
-    }
-
-    protected function casts(): array
-    {
-        return ['is_active' => 'boolean'];
     }
 
     /** @return BelongsTo<Department, $this> */
@@ -42,5 +40,10 @@ class Department extends Model
     public function children(): HasMany
     {
         return $this->hasMany(self::class, 'parent_id');
+    }
+
+    protected function casts(): array
+    {
+        return ['is_active' => 'boolean'];
     }
 }

@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Countries;
 use App\Domain\Identity\Permissions;
 use App\Domain\MasterData\Enums\Proration;
 use App\Domain\MasterData\Models\Country;
+use App\Domain\Shared\IsoCurrency;
 use App\Filament\Resources\Countries\Pages\ManageCountries;
 use BackedEnum;
 use Closure;
@@ -27,7 +28,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use UnitEnum;
 
-class CountryResource extends Resource
+final class CountryResource extends Resource
 {
     protected static ?string $model = Country::class;
 
@@ -46,14 +47,14 @@ class CountryResource extends Resource
             TextInput::make('code')
                 ->label('Code (ISO 3166-1 alpha-2)')
                 ->required()->length(2)->alpha()
-                ->dehydrateStateUsing(fn (?string $state) => $state === null ? null : strtoupper($state))
+                ->dehydrateStateUsing(fn (?string $state): ?string => $state === null ? null : mb_strtoupper($state))
                 ->unique(ignoreRecord: true),
             TextInput::make('prefix')->label('Phone prefix')->required()->maxLength(8)->placeholder('+355'),
             Select::make('timezone')->options($timezones)->searchable()->required(),
             TextInput::make('currency_code')
                 ->label('Currency (ISO 4217)')
-                ->required()->length(3)->alpha()
-                ->dehydrateStateUsing(fn (?string $state) => $state === null ? null : strtoupper($state)),
+                ->required()->length(3)->alpha()->rules([new IsoCurrency])
+                ->dehydrateStateUsing(fn (?string $state): ?string => $state === null ? null : mb_strtoupper($state)),
             CheckboxList::make('working_days')
                 ->options([1 => 'Monday', 2 => 'Tuesday', 3 => 'Wednesday', 4 => 'Thursday', 5 => 'Friday', 6 => 'Saturday', 7 => 'Sunday'])
                 ->default(Country::defaultWorkingDays())
@@ -65,7 +66,7 @@ class CountryResource extends Resource
                 ->columnSpanFull()
                 ->defaultItems(0)
                 ->rules([
-                    fn () => function (string $attribute, mixed $value, Closure $fail): void {
+                    fn (): Closure => function (string $attribute, mixed $value, Closure $fail): void {
                         $rows = is_array($value) ? $value : [];
                         $keys = array_map(
                             fn (mixed $row): string => is_array($row) ? ($row['leave_type_id'] ?? '').'|'.($row['effective_from'] ?? '') : '',

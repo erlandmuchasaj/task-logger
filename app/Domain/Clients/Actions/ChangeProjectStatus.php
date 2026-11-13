@@ -11,13 +11,13 @@ use Illuminate\Support\Facades\Gate;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /** Perm projects.change_status. SPEC defines no restrictions between statuses. */
-class ChangeProjectStatus
+final class ChangeProjectStatus
 {
     public function handle(User $actor, Project $project, ProjectStatus $status): Project
     {
         Gate::forUser($actor)->authorize('changeStatus', $project);
 
-        return app(CauserResolver::class)->withCauser($actor, function () use ($project, $status): Project {
+        return resolve(CauserResolver::class)->withCauser($actor, function () use ($project, $status): Project {
             $project->update(['status' => $status]);
 
             return $project->refresh();

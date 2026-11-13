@@ -15,7 +15,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateBansTable extends Migration
+final class CreateBansTable extends Migration
 {
     /**
      * Run the migrations.

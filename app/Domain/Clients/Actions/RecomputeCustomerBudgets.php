@@ -7,9 +7,9 @@ namespace App\Domain\Clients\Actions;
 use App\Domain\Clients\Models\Customer;
 
 /** Rates changed: every project of the client gets its budget snapshot recomputed (D-04). */
-class RecomputeCustomerBudgets
+final readonly class RecomputeCustomerBudgets
 {
-    public function __construct(private readonly ComputeProjectBudget $compute) {}
+    public function __construct(private ComputeProjectBudget $compute) {}
 
     public function handle(Customer $customer): void
     {

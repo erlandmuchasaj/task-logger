@@ -22,7 +22,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Validation\ValidationException;
 
-class ManageLeaveRequests extends ManageRecords
+final class ManageLeaveRequests extends ManageRecords
 {
     protected static string $resource = LeaveRequestResource::class;
 
@@ -34,10 +34,10 @@ class ManageLeaveRequests extends ManageRecords
                 ->schema(fn (Schema $schema): Schema => $schema->components(LeaveRequestResource::requestFields())->columns(2))
                 ->action(function (array $data, Action $action): void {
                     try {
-                        $request = app(RequestLeave::class)->handle(auth()->user(), self::input($data));
+                        $request = resolve(RequestLeave::class)->handle(auth()->user(), $this->input($data));
                         Notification::make()->title('Leave requested: '.$request->days_requested.' days')->success()->send();
-                    } catch (ValidationException $e) {
-                        ActionErrors::notify($e);
+                    } catch (ValidationException $validationException) {
+                        ActionErrors::notify($validationException);
                         $action->halt();
                     }
                 }),
@@ -54,10 +54,10 @@ class ManageLeaveRequests extends ManageRecords
                 ->action(function (array $data, Action $action): void {
                     try {
                         $employee = User::query()->whereKey($data['user_id'])->firstOrFail();
-                        app(CreateDirectDayOff::class)->handle(auth()->user(), $employee, self::input($data), (bool) ($data['override_balance'] ?? false));
+                        resolve(CreateDirectDayOff::class)->handle(auth()->user(), $employee, $this->input($data), (bool) ($data['override_balance'] ?? false));
                         Notification::make()->title('Day off recorded')->success()->send();
-                    } catch (ValidationException $e) {
-                        ActionErrors::notify($e);
+                    } catch (ValidationException $validationException) {
+                        ActionErrors::notify($validationException);
                         $action->halt();
                     }
                 }),
@@ -65,7 +65,7 @@ class ManageLeaveRequests extends ManageRecords
     }
 
     /** @param  array<string, mixed>  $data */
-    private static function input(array $data): LeaveRequestData
+    private function input(array $data): LeaveRequestData
     {
         $part = fn (mixed $value): DayPart => $value instanceof DayPart ? $value : DayPart::from((string) $value);
 

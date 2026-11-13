@@ -17,10 +17,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 #[Fillable(['name', 'code', 'prefix', 'timezone', 'currency_code', 'working_days'])]
 #[UseFactory(CountryFactory::class)]
-class Country extends Model
+final class Country extends Model
 {
     /** @use HasFactory<CountryFactory> */
-    use HasFactory, LogsBusinessActivity;
+    use HasFactory;
+
+    use LogsBusinessActivity;
 
     /**
      * ISO weekdays, 1 = Monday. Default Monday to Friday (D-08), configurable per country.
@@ -33,18 +35,6 @@ class Country extends Model
         $days = config('task-logger.default_working_days');
 
         return $days;
-    }
-
-    protected static function booted(): void
-    {
-        static::creating(function (self $country): void {
-            $country->working_days ??= self::defaultWorkingDays();
-        });
-    }
-
-    protected function casts(): array
-    {
-        return ['working_days' => 'array'];
     }
 
     /** @return HasMany<CountryLeavePolicy, $this> */
@@ -62,5 +52,17 @@ class Country extends Model
     public function isWorkingDay(int $isoWeekday): bool
     {
         return in_array($isoWeekday, $this->working_days, true);
+    }
+
+    protected static function booted(): void
+    {
+        self::creating(function (self $country): void {
+            $country->working_days ??= self::defaultWorkingDays();
+        });
+    }
+
+    protected function casts(): array
+    {
+        return ['working_days' => 'array'];
     }
 }

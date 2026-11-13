@@ -10,7 +10,7 @@ use App\Domain\Identity\Models\User;
 use Illuminate\Database\Seeder;
 
 /** Creates the first superadmin only when SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD are set. */
-class SuperadminSeeder extends Seeder
+final class SuperadminSeeder extends Seeder
 {
     public function run(): void
     {

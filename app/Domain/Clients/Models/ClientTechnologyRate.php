@@ -20,15 +20,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 #[Fillable(['customer_id', 'technology_id', 'rate_minor', 'effective_from'])]
 #[UseFactory(ClientTechnologyRateFactory::class)]
-class ClientTechnologyRate extends Model
+final class ClientTechnologyRate extends Model
 {
     /** @use HasFactory<ClientTechnologyRateFactory> */
-    use HasFactory, LogsBusinessActivity;
+    use HasFactory;
 
-    protected function casts(): array
-    {
-        return ['rate_minor' => 'integer', 'effective_from' => 'date'];
-    }
+    use LogsBusinessActivity;
 
     public function money(): Money
     {
@@ -45,5 +42,10 @@ class ClientTechnologyRate extends Model
     public function technology(): BelongsTo
     {
         return $this->belongsTo(Technology::class);
+    }
+
+    protected function casts(): array
+    {
+        return ['rate_minor' => 'integer', 'effective_from' => 'date'];
     }
 }

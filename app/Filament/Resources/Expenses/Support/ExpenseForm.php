@@ -10,6 +10,7 @@ use App\Domain\Expenses\Data\ExpenseLineData;
 use App\Domain\Expenses\Enums\ExpenseCategory;
 use App\Domain\Expenses\Models\Expense;
 use App\Domain\Identity\Models\User;
+use App\Domain\Shared\IsoCurrency;
 use Carbon\CarbonImmutable;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
@@ -33,7 +34,7 @@ final class ExpenseForm
             TextInput::make('description')->required()->maxLength(255),
             Select::make('project_id')->label('Project (optional)')->searchable()->native(false)
                 ->options(fn (): array => Project::query()->orderBy('name')->limit(300)->pluck('name', 'id')->all()),
-            TextInput::make('currency')->label('Currency (ISO code)')->required()->length(3)->default('EUR')->extraInputAttributes(['style' => 'text-transform: uppercase']),
+            TextInput::make('currency')->label('Currency (ISO code)')->required()->length(3)->alpha()->rules([new IsoCurrency])->default('EUR')->extraInputAttributes(['style' => 'text-transform: uppercase']),
             Section::make('Lines')->schema([
                 Repeater::make('lines')->required()->minItems(1)->addActionLabel('Add line')->columns(4)->schema([
                     TextInput::make('description')->required()->maxLength(255)->columnSpan(2),
@@ -64,7 +65,7 @@ final class ExpenseForm
             lines: array_values(array_map(fn (array $line): ExpenseLineData => new ExpenseLineData(
                 (string) ($line['description'] ?? ''),
                 (int) ($line['quantity'] ?? 0),
-                trim((string) ($line['unit_price'] ?? '')),
+                mb_trim((string) ($line['unit_price'] ?? '')),
                 CarbonImmutable::parse((string) ($line['date'] ?? 'now')),
             ), (array) ($data['lines'] ?? []))),
             projectId: filled($data['project_id'] ?? null) ? (int) $data['project_id'] : null,

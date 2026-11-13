@@ -28,23 +28,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'days_requested', 'reason', 'status', 'reviewed_by', 'reviewed_at', 'review_note',
 ])]
 #[UseFactory(LeaveRequestFactory::class)]
-class LeaveRequest extends Model
+final class LeaveRequest extends Model
 {
     /** @use HasFactory<LeaveRequestFactory> */
-    use HasFactory, LogsBusinessActivity, SoftDeletes;
+    use HasFactory;
 
-    protected function casts(): array
-    {
-        return [
-            'start_date' => 'date',
-            'end_date' => 'date',
-            'start_day_part' => DayPart::class,
-            'end_day_part' => DayPart::class,
-            'days_requested' => 'decimal:1',
-            'status' => LeaveStatus::class,
-            'reviewed_at' => 'datetime',
-        ];
-    }
+    use LogsBusinessActivity;
+    use SoftDeletes;
 
     /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
@@ -91,5 +81,18 @@ class LeaveRequest extends Model
     public function stageDecision(ApprovalStage $stage): ?LeaveRequestApproval
     {
         return $this->approvals->firstWhere('stage', $stage);
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'start_date' => 'date',
+            'end_date' => 'date',
+            'start_day_part' => DayPart::class,
+            'end_day_part' => DayPart::class,
+            'days_requested' => 'decimal:1',
+            'status' => LeaveStatus::class,
+            'reviewed_at' => 'datetime',
+        ];
     }
 }

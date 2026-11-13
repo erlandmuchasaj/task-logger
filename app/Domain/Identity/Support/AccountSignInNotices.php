@@ -10,9 +10,9 @@ use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\PasswordReset;
 
 /** Listeners for sign-in and password-reset events (D-53, D-26). */
-class AccountSignInNotices
+final readonly class AccountSignInNotices
 {
-    public function __construct(private readonly TwoFactorPolicy $twoFactor) {}
+    public function __construct(private TwoFactorPolicy $twoFactor) {}
 
     /** A password chosen through the emailed reset link is the person's own: no forced change afterwards. */
     public function passwordReset(PasswordReset $event): void

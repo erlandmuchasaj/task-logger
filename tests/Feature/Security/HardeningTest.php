@@ -13,8 +13,9 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
+use Livewire\Livewire;
 
-it('NFR-05 D-50 every web response carries the baseline security headers', function () {
+it('NFR-05 D-50 every web response carries the baseline security headers', function (): void {
     $response = $this->get('/app/login');
 
     $response->assertOk()
@@ -24,27 +25,27 @@ it('NFR-05 D-50 every web response carries the baseline security headers', funct
         ->assertHeaderMissing('Strict-Transport-Security');   // plain HTTP in local development
 })->group('NFR-05', 'D-50');
 
-it('NFR-05 HSTS is sent on HTTPS responses', function () {
+it('NFR-05 HSTS is sent on HTTPS responses', function (): void {
     $this->withServerVariables(['HTTPS' => 'on'])->get('https://localhost/app/login')
         ->assertHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 })->group('NFR-05');
 
-it('NFR-05 session cookies are HttpOnly and SameSite, and secure in production', function () {
+it('NFR-05 session cookies are HttpOnly and SameSite, and secure in production', function (): void {
     expect(config('session.http_only'))->toBeTrue()->and(config('session.same_site'))->toBe('lax');
 
     $config = (static function (): array {
         putenv('APP_ENV=production');
-        $_ENV['APP_ENV'] = 'production';
+        $_ENV['APP_ENV'] = $_SERVER['APP_ENV'] = 'production';
 
         return require base_path('config/session.php');
     })();
     putenv('APP_ENV=testing');
-    $_ENV['APP_ENV'] = 'testing';
+    $_ENV['APP_ENV'] = $_SERVER['APP_ENV'] = 'testing';
 
     expect($config['secure'])->toBeTrue();
 })->group('NFR-05');
 
-it('D-50 passwords need 12 characters, mixed case and a number', function (string $password, bool $valid) {
+it('D-50 passwords need 12 characters, mixed case and a number', function (string $password, bool $valid): void {
     $passes = Validator::make(['password' => $password], ['password' => Password::default()])->passes();
 
     expect($passes)->toBe($valid);
@@ -55,10 +56,10 @@ it('D-50 passwords need 12 characters, mixed case and a number', function (strin
     'good' => ['Correct-Horse-Battery-9', true],
 ])->group('D-50');
 
-it('NFR-01 login is rate limited', function () {
+it('NFR-01 login is rate limited', function (): void {
     $user = User::factory()->create();
 
-    $login = Livewire\Livewire::test(Login::class);
+    $login = Livewire::test(Login::class);
 
     foreach (range(1, 6) as $attempt) {
         $login->fillForm(['email' => $user->email, 'password' => 'wrong-password-'.$attempt])->call('authenticate');
@@ -68,12 +69,12 @@ it('NFR-01 login is rate limited', function () {
     $this->assertGuest();
 })->group('NFR-01');
 
-it('NFR-01 there is no registration route', function () {
+it('NFR-01 there is no registration route', function (): void {
     $this->get('/app/register')->assertNotFound();
     $this->get('/register')->assertNotFound();
 })->group('NFR-01', 'FR-01');
 
-it('NFR-03 every panel page redirects a guest to the login page', function () {
+it('NFR-03 every panel page redirects a guest to the login page', function (): void {
     $public = ['login', 'password-reset', 'register', 'email-verification', 'tenant', 'logout'];
     $checked = 0;
 
@@ -92,7 +93,7 @@ it('NFR-03 every panel page redirects a guest to the login page', function () {
     expect($checked)->toBeGreaterThan(15);
 })->group('NFR-03');
 
-it('NFR-03 default deny: a signed-in user with no role reaches no resource, page or relation manager except their own profile', function () {
+it('NFR-03 default deny: a signed-in user with no role reaches no resource, page or relation manager except their own profile', function (): void {
     $nobody = User::factory()->create();   // no role, so no permission (D-10)
     $this->actingAs($nobody);
     $panel = Filament::getDefaultPanel();
@@ -127,7 +128,7 @@ it('NFR-03 default deny: a signed-in user with no role reaches no resource, page
     expect($open)->toBe([]);
 })->group('NFR-03', 'FR-02');
 
-it('NFR-03 no model switches off mass-assignment protection', function () {
+it('NFR-03 no model switches off mass-assignment protection', function (): void {
     foreach (glob(app_path('Domain/*/Models/*.php')) as $file) {
         expect(file_get_contents($file))->not->toMatch('/\$guarded\s*=\s*\[\s*\]/');
     }

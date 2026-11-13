@@ -6,7 +6,7 @@ namespace App\Domain\MasterData\Policies;
 
 use App\Domain\Identity\Permissions;
 
-class PaymentPlanPolicy extends MasterDataPolicy
+final class PaymentPlanPolicy extends MasterDataPolicy
 {
     protected function managePermission(): string
     {

@@ -34,7 +34,8 @@ jobs:
       - run: composer install --no-interaction --prefer-dist
       - run: composer audit
       - run: cp .env.example .env && php artisan key:generate
-      - run: vendor/bin/pint --test
-      - run: vendor/bin/phpstan analyse --memory-limit=1G
+      - run: composer test:lint
+      - run: composer test:types
+      - run: composer test:type-coverage
       - run: npm ci && npm run build
-      - run: vendor/bin/pest
+      - run: composer test:unit

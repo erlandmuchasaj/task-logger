@@ -14,13 +14,13 @@ use Illuminate\Support\Facades\Gate;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /** Writes the private HR record and emergency contacts (D-14). Perm employees.update_hr_record. */
-class UpdateHrRecord
+final class UpdateHrRecord
 {
     public function handle(User $actor, User $employee, HrRecordData $data): EmployeeProfile
     {
         Gate::forUser($actor)->authorize('updateHrRecord', $employee);
 
-        return app(CauserResolver::class)->withCauser($actor, fn (): EmployeeProfile => DB::transaction(fn () => $this->persist($employee, $data)));
+        return resolve(CauserResolver::class)->withCauser($actor, fn (): EmployeeProfile => DB::transaction(fn (): EmployeeProfile => $this->persist($employee, $data)));
     }
 
     /** For callers that already authorised the actor (CreateEmployee). */
@@ -28,22 +28,19 @@ class UpdateHrRecord
     {
         $country = $employee->country()->value('code');
 
-        $profile = EmployeeProfile::updateOrCreate(
-            ['user_id' => $employee->getKey()],
-            [
-                'date_of_birth' => $data->dateOfBirth?->toDateString(),
-                'phone' => Phones::toE164($data->phone, $country),
-                'gender' => $data->gender,
-                'address' => $data->address,
-                'university' => $data->university,
-                'field_of_study' => $data->fieldOfStudy,
-                'marital_status' => $data->maritalStatus,
-                'source_of_hire' => $data->sourceOfHire,
-                'has_health_insurance' => $data->hasHealthInsurance,
-                'description' => $data->description,
-                'metadata' => $data->metadata === [] ? null : $data->metadata,
-            ],
-        );
+        $profile = EmployeeProfile::query()->updateOrCreate(['user_id' => $employee->getKey()], [
+            'date_of_birth' => $data->dateOfBirth?->toDateString(),
+            'phone' => Phones::toE164($data->phone, $country),
+            'gender' => $data->gender,
+            'address' => $data->address,
+            'university' => $data->university,
+            'field_of_study' => $data->fieldOfStudy,
+            'marital_status' => $data->maritalStatus,
+            'source_of_hire' => $data->sourceOfHire,
+            'has_health_insurance' => $data->hasHealthInsurance,
+            'description' => $data->description,
+            'metadata' => $data->metadata === [] ? null : $data->metadata,
+        ]);
 
         $this->syncContacts($employee, $data->contacts, $country);
 

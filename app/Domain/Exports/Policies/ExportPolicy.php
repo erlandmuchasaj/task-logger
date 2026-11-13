@@ -9,7 +9,7 @@ use App\Domain\Exports\Models\Export;
 use App\Domain\Identity\Models\User;
 
 /** People see and download their own exports, and only while they may still export that type (BR-33). */
-class ExportPolicy
+final class ExportPolicy
 {
     public function viewAny(User $user): bool
     {

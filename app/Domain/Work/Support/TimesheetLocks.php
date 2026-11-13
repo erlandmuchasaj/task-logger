@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domain\Work\Support;
 
-use App\Domain\Work\Models\TimesheetLock;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 
@@ -23,6 +22,6 @@ final class TimesheetLocks
      */
     public static function isLocked(CarbonInterface $date): bool
     {
-        return in_array(self::monthOf($date)->toDateString(), app(LockedMonths::class)->months(), true);
+        return in_array(self::monthOf($date)->toDateString(), resolve(LockedMonths::class)->months(), true);
     }
 }

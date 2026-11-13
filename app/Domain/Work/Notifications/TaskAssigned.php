@@ -12,7 +12,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /** D-55: tells the new assignee about the task, with links to the task page and to log hours on it. */
-class TaskAssigned extends Notification
+final class TaskAssigned extends Notification
 {
     public function __construct(public readonly Task $task, public readonly ?User $assignedBy = null) {}
 

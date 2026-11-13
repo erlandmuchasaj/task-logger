@@ -33,7 +33,7 @@ use Illuminate\Validation\ValidationException;
 use UnitEnum;
 
 /** Offboardings (W-10). Perms offboardings.view / offboardings.manage (superadmin, admin, hr). Completing one deactivates the login (ADR-0008). */
-class OffboardingResource extends Resource
+final class OffboardingResource extends Resource
 {
     protected static ?string $model = Offboarding::class;
 
@@ -96,13 +96,13 @@ class OffboardingResource extends Resource
                         ->schema(fn (Schema $schema): Schema => $schema->components(self::factFields())->columns(2))
                         ->action(function (Offboarding $record, array $data, Action $action): void {
                             try {
-                                app(UpdateOffboarding::class)->handle(auth()->user(), $record, new OffboardingData(
+                                resolve(UpdateOffboarding::class)->handle(auth()->user(), $record, new OffboardingData(
                                     CarbonImmutable::parse((string) $data['end_date']), (bool) $data['equipment_returned'],
                                     (bool) $data['resignation_letter_signed'], $data['description'] ?? null,
                                 ));
                                 Notification::make()->title('Offboarding updated')->success()->send();
-                            } catch (ValidationException $e) {
-                                ActionErrors::notify($e);
+                            } catch (ValidationException $validationException) {
+                                ActionErrors::notify($validationException);
                                 $action->halt();
                             }
                         }),
@@ -117,6 +117,11 @@ class OffboardingResource extends Resource
             ->defaultPaginationPageOption(25);
     }
 
+    public static function getPages(): array
+    {
+        return ['index' => ManageOffboardings::route('/')];
+    }
+
     private static function move(string $name, string $label, OffboardingStatus $to, Heroicon $icon, string $color, ?string $warning = null): Action
     {
         return Action::make($name)->label($label)->icon($icon)->color($color)->requiresConfirmation()
@@ -124,16 +129,11 @@ class OffboardingResource extends Resource
             ->visible(fn (Offboarding $record): bool => in_array($to, $record->status->next(), true) && (bool) auth()->user()?->can('changeStatus', $record))
             ->action(function (Offboarding $record) use ($to): void {
                 try {
-                    app(ChangeOffboardingStatus::class)->handle(auth()->user(), $record, $to);
-                    Notification::make()->title('Offboarding '.strtolower($to->getLabel()))->success()->send();
-                } catch (ValidationException $e) {
-                    ActionErrors::notify($e);
+                    resolve(ChangeOffboardingStatus::class)->handle(auth()->user(), $record, $to);
+                    Notification::make()->title('Offboarding '.mb_strtolower($to->getLabel()))->success()->send();
+                } catch (ValidationException $validationException) {
+                    ActionErrors::notify($validationException);
                 }
             });
-    }
-
-    public static function getPages(): array
-    {
-        return ['index' => ManageOffboardings::route('/')];
     }
 }

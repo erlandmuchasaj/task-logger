@@ -13,6 +13,7 @@ use App\Domain\Leave\Enums\ApprovalStage;
 use App\Domain\Leave\Enums\DayPart;
 use App\Domain\Leave\Enums\LeaveStatus;
 use App\Domain\Leave\Models\LeaveRequest;
+use App\Domain\Leave\Models\LeaveRequestApproval;
 use App\Domain\MasterData\Models\LeaveType;
 use App\Filament\Resources\LeaveRequests\Pages\ManageLeaveRequests;
 use App\Filament\Support\ActionErrors;
@@ -40,7 +41,7 @@ use UnitEnum;
  * manager also sees their reports' requests so the manager stage can work (D-28). The row actions run the
  * two approval stages (D-07) and cancellation; the header actions request leave and record a day off.
  */
-class LeaveRequestResource extends Resource
+final class LeaveRequestResource extends Resource
 {
     protected static ?string $model = LeaveRequest::class;
 
@@ -57,7 +58,7 @@ class LeaveRequestResource extends Resource
     /** @return Builder<Model> */
     public static function getEloquentQuery(): Builder
     {
-        return static::visibleTo(auth()->user(), parent::getEloquentQuery())->with(['user', 'leaveType', 'approvals']);
+        return self::visibleTo(auth()->user(), parent::getEloquentQuery())->with(['user', 'leaveType', 'approvals']);
     }
 
     /**
@@ -68,7 +69,7 @@ class LeaveRequestResource extends Resource
      */
     public static function visibleTo(?User $user, Builder $query): Builder
     {
-        if ($user === null) {
+        if (! $user instanceof User) {
             return $query->whereRaw('1 = 0');
         }
 
@@ -113,7 +114,7 @@ class LeaveRequestResource extends Resource
 
     public static function table(Table $table): Table
     {
-        $seesOthers = fn (): bool => (bool) (auth()->user()?->can(Permissions::LEAVE_REQUESTS_VIEW_ANY) || auth()->user()?->can(Permissions::LEAVE_REQUESTS_APPROVE_DIRECT_REPORTS));
+        $seesOthers = fn (): bool => auth()->user()?->can(Permissions::LEAVE_REQUESTS_VIEW_ANY) || auth()->user()?->can(Permissions::LEAVE_REQUESTS_APPROVE_DIRECT_REPORTS);
 
         return $table
             ->columns([
@@ -148,10 +149,10 @@ class LeaveRequestResource extends Resource
                             && (bool) auth()->user()?->can('cancel', $record))
                         ->action(function (LeaveRequest $record): void {
                             try {
-                                app(CancelLeave::class)->handle(auth()->user(), $record);
+                                resolve(CancelLeave::class)->handle(auth()->user(), $record);
                                 Notification::make()->title('Leave cancelled')->success()->send();
-                            } catch (ValidationException $e) {
-                                ActionErrors::notify($e);
+                            } catch (ValidationException $validationException) {
+                                ActionErrors::notify($validationException);
                             }
                         }),
                 ]),
@@ -159,6 +160,11 @@ class LeaveRequestResource extends Resource
             ->defaultSort('start_date', 'desc')
             ->paginated([25, 50, 100])
             ->defaultPaginationPageOption(25);
+    }
+
+    public static function getPages(): array
+    {
+        return ['index' => ManageLeaveRequests::route('/')];
     }
 
     private static function part(DayPart $part): string
@@ -181,26 +187,21 @@ class LeaveRequestResource extends Resource
                 return $user !== null
                     && $record->status === LeaveStatus::Pending
                     && $record->user_id !== $user->getKey()
-                    && $record->stageDecision($stage) === null
+                    && ! $record->stageDecision($stage) instanceof LeaveRequestApproval
                     && ($stage === ApprovalStage::Manager ? $record->user->manager_id !== null : ($managerDone || $record->user->manager_id === null))
                     && $user->can($stage === ApprovalStage::Manager ? 'approveManagerStage' : 'approveHrStage', $record);
             })
             ->action(function (LeaveRequest $record, array $data) use ($stage, $decision): void {
                 try {
-                    app(DecideLeave::class)->handle(auth()->user(), $record, $stage, $decision, $data['note'] ?? null);
+                    resolve(DecideLeave::class)->handle(auth()->user(), $record, $stage, $decision, $data['note'] ?? null);
                     Notification::make()->title($decision === ApprovalDecision::Approved ? 'Decision recorded' : 'Request rejected')->success()->send();
-                } catch (ValidationException $e) {
-                    ActionErrors::notify($e);
+                } catch (ValidationException $validationException) {
+                    ActionErrors::notify($validationException);
                 }
             });
 
         return $approving
             ? $action->requiresConfirmation()
             : $action->schema([Textarea::make('note')->label('Why is it rejected?')->required()->rows(3)]);
-    }
-
-    public static function getPages(): array
-    {
-        return ['index' => ManageLeaveRequests::route('/')];
     }
 }

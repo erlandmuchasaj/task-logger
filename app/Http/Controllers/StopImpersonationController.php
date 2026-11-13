@@ -7,7 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Identity\Actions\StopImpersonation;
 use Illuminate\Http\RedirectResponse;
 
-class StopImpersonationController
+final class StopImpersonationController
 {
     public function __invoke(StopImpersonation $stop): RedirectResponse
     {

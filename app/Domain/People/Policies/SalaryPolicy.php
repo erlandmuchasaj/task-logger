@@ -9,7 +9,7 @@ use App\Domain\Identity\Permissions;
 use App\Domain\People\Models\Salary;
 
 /** BR-29: visible to salaries.view holders; created by salaries.manage; never edited or deleted. */
-class SalaryPolicy
+final class SalaryPolicy
 {
     public function viewAny(User $user): bool
     {

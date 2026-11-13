@@ -9,6 +9,7 @@ use App\Domain\Shared\LogsBusinessActivity;
 use Carbon\CarbonInterface;
 use Database\Factories\CountryLeavePolicyFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,22 +21,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'carry_over_enabled', 'carry_over_max_days', 'carry_over_expires_after_months',
 ])]
 #[UseFactory(CountryLeavePolicyFactory::class)]
-class CountryLeavePolicy extends Model
+final class CountryLeavePolicy extends Model
 {
     /** @use HasFactory<CountryLeavePolicyFactory> */
-    use HasFactory, LogsBusinessActivity;
+    use HasFactory;
 
-    protected function casts(): array
-    {
-        return [
-            'days_per_year' => 'decimal:1',
-            'effective_from' => 'date',
-            'proration' => Proration::class,
-            'carry_over_enabled' => 'boolean',
-            'carry_over_max_days' => 'decimal:1',
-            'carry_over_expires_after_months' => 'integer',
-        ];
-    }
+    use LogsBusinessActivity;
 
     /** @return BelongsTo<Country, $this> */
     public function country(): BelongsTo
@@ -49,13 +40,26 @@ class CountryLeavePolicy extends Model
         return $this->belongsTo(LeaveType::class);
     }
 
+    protected function casts(): array
+    {
+        return [
+            'days_per_year' => 'decimal:1',
+            'effective_from' => 'date',
+            'proration' => Proration::class,
+            'carry_over_enabled' => 'boolean',
+            'carry_over_max_days' => 'decimal:1',
+            'carry_over_expires_after_months' => 'integer',
+        ];
+    }
+
     /**
      * The active policy for a date is the row with the latest effective_from on or before it (FR-06).
      *
      * @param  Builder<CountryLeavePolicy>  $query
      * @return Builder<CountryLeavePolicy>
      */
-    public function scopeActiveOn(Builder $query, int $countryId, int $leaveTypeId, CarbonInterface $date): Builder
+    #[Scope]
+    protected function activeOn(Builder $query, int $countryId, int $leaveTypeId, CarbonInterface $date): Builder
     {
         return $query->where('country_id', $countryId)
             ->where('leave_type_id', $leaveTypeId)

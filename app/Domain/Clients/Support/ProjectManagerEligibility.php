@@ -16,12 +16,12 @@ final class ProjectManagerEligibility
 {
     public static function isEligible(?User $user): bool
     {
-        return $user !== null && $user->hasRole(RoleName::Admin->value) && ! $user->isBanned();
+        return $user instanceof User && $user->hasRole(RoleName::Admin->value) && ! $user->isBanned();
     }
 
     /** @return list<int> ids of users who can be picked as a manager */
     public static function eligibleIds(): array
     {
-        return array_values(User::role(RoleName::Admin->value)->whereNull('banned_at')->pluck('id')->map(fn ($id): int => (int) $id)->all());
+        return array_values(User::query()->role(RoleName::Admin->value)->whereNull('banned_at')->pluck('id')->map(fn ($id): int => (int) $id)->all());
     }
 }

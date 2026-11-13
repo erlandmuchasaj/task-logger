@@ -18,7 +18,7 @@ use Illuminate\Support\Str;
  * again; the audit entries that already hold personal values are scrubbed. Idempotent. A system action: the job
  * authorises it by selecting only completed offboardings past their retention date.
  */
-class AnonymizeEmployee
+final class AnonymizeEmployee
 {
     public function handle(User $employee): bool
     {

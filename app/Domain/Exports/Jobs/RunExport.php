@@ -11,6 +11,8 @@ use App\Domain\Identity\Support\ActivityContext;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\Attributes\Timeout;
+use Illuminate\Queue\Attributes\Tries;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
@@ -24,13 +26,13 @@ use Throwable;
  * person is allowed to see, streams in chunks so memory stays flat, and writes to the private disk.
  * Idempotent: only a queued export is processed.
  */
-class RunExport implements ShouldQueue
+#[Timeout(600)]
+#[Tries(1)]
+final class RunExport implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, SerializesModels;
-
-    public int $tries = 1;
-
-    public int $timeout = 600;
+    use Dispatchable;
+    use InteractsWithQueue;
+    use SerializesModels;
 
     public function __construct(public readonly int $exportId) {}
 
@@ -48,18 +50,14 @@ class RunExport implements ShouldQueue
             $actor = $export->user;
             $exporter = $export->type->exporter();
 
-            if ($actor->isBanned() || ! $exporter->canExport($actor)) {
-                throw new RuntimeException('The requester is no longer allowed to export this.');
-            }
+            throw_if($actor->isBanned() || ! $exporter->canExport($actor), RuntimeException::class, 'The requester is no longer allowed to export this.');
 
             $columns = $exporter->columns($actor);
             $disk = Storage::disk((string) config('task-logger.exports.disk'));
             $path = 'exports/'.$export->getKey().'-'.Str::random(24).'.csv';
 
             $stream = fopen('php://temp/maxmemory:'.(4 * 1024 * 1024), 'w+');
-            if ($stream === false) {
-                throw new RuntimeException('Could not open a temporary file.');
-            }
+            throw_if($stream === false, RuntimeException::class, 'Could not open a temporary file.');
 
             fwrite($stream, "\xEF\xBB\xBF"); // UTF-8 byte order mark so Excel reads names correctly
             fputcsv($stream, array_values($columns), ',', '"', '');
@@ -87,14 +85,14 @@ class RunExport implements ShouldQueue
             ]);
 
             // Audit (BR-32, D-38): the requester is the causer, with the IP and impersonator of the original request.
-            app(ActivityContext::class)->using($export->request_context ?? [], fn () => app(CauserResolver::class)->withCauser($actor, function () use ($export, $rows, $columns): void {
+            resolve(ActivityContext::class)->using($export->request_context ?? [], fn () => resolve(CauserResolver::class)->withCauser($actor, function () use ($export, $rows, $columns): void {
                 activity()->performedOn($export)->event('exported')
                     ->withProperties(['type' => $export->type->value, 'rows' => $rows, 'columns' => array_keys($columns), 'filters' => $export->filters])
                     ->log('exported');
             }));
-        } catch (Throwable $e) {
-            report($e);
-            $export->update(['status' => ExportStatus::Failed, 'error' => Str::limit($e->getMessage(), 500)]);
+        } catch (Throwable $throwable) {
+            report($throwable);
+            $export->update(['status' => ExportStatus::Failed, 'error' => Str::limit($throwable->getMessage(), 500)]);
         }
     }
 }

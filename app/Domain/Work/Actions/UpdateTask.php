@@ -17,11 +17,11 @@ use Spatie\Activitylog\Support\CauserResolver;
  * Perm tasks.update. Reassigning needs tasks.assign and a status change follows BR-35. The project of
  * a task cannot change [ASSUMED]: parent, technology and later logs are tied to it.
  */
-class UpdateTask
+final readonly class UpdateTask
 {
     use ValidatesTask;
 
-    public function __construct(private readonly ChangeTaskStatus $changeStatus) {}
+    public function __construct(private ChangeTaskStatus $changeStatus) {}
 
     public function handle(User $actor, Task $task, TaskData $data): Task
     {
@@ -38,7 +38,7 @@ class UpdateTask
         $this->validateTask($data, $task->project()->with('customer')->firstOrFail(), $task);
         $previousAssigneeId = $task->assignee_id;
 
-        $task = app(CauserResolver::class)->withCauser($actor, fn (): Task => DB::transaction(function () use ($actor, $task, $data): Task {
+        $task = resolve(CauserResolver::class)->withCauser($actor, fn (): Task => DB::transaction(function () use ($actor, $task, $data): Task {
             $task->update([
                 'name' => $data->name,
                 'description' => $data->description,

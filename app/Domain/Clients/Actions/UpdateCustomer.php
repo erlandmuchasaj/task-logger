@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Gate;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /** Perm clients.update. Activation is a separate action (clients.activate / clients.deactivate). */
-class UpdateCustomer
+final class UpdateCustomer
 {
     use ValidatesCustomer;
 
@@ -20,7 +20,7 @@ class UpdateCustomer
         Gate::forUser($actor)->authorize('update', $customer);
         $checked = $this->validateCustomer($data, $customer);
 
-        return app(CauserResolver::class)->withCauser($actor, function () use ($customer, $data, $checked): Customer {
+        return resolve(CauserResolver::class)->withCauser($actor, function () use ($customer, $data, $checked): Customer {
             $customer->update([
                 'name' => $data->name,
                 'surname' => $data->surname,

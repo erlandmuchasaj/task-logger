@@ -14,13 +14,13 @@ use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /** Updates account-level data, role and skills. Perm employees.update (superadmin). */
-class UpdateEmployee
+final readonly class UpdateEmployee
 {
     use ValidatesEmployee;
 
     public function __construct(
-        private readonly AssignUserRole $assignRole,
-        private readonly SyncSkills $syncSkills,
+        private AssignUserRole $assignRole,
+        private SyncSkills $syncSkills,
     ) {}
 
     public function handle(User $actor, User $employee, EmployeeData $data): User
@@ -29,7 +29,7 @@ class UpdateEmployee
         $this->validateEmployee($data, $employee, creating: false);
         $this->guardLastSuperadmin($employee, $data->role);
 
-        return app(CauserResolver::class)->withCauser($actor, fn (): User => DB::transaction(function () use ($employee, $data): User {
+        return resolve(CauserResolver::class)->withCauser($actor, fn (): User => DB::transaction(function () use ($employee, $data): User {
             $employee->update([
                 'name' => $data->name,
                 'surname' => $data->surname,
@@ -59,7 +59,7 @@ class UpdateEmployee
             return;
         }
 
-        $others = User::role(RoleName::Superadmin->value)->whereKeyNot($employee->getKey())->whereNull('banned_at')->exists();
+        $others = User::query()->role(RoleName::Superadmin->value)->whereKeyNot($employee->getKey())->whereNull('banned_at')->exists();
 
         if (! $others) {
             throw ValidationException::withMessages(['role' => 'The last superadmin cannot be demoted.']);

@@ -21,10 +21,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'marital_status', 'source_of_hire', 'has_health_insurance', 'description', 'metadata',
 ])]
 #[UseFactory(EmployeeProfileFactory::class)]
-class EmployeeProfile extends Model
+final class EmployeeProfile extends Model
 {
     /** @use HasFactory<EmployeeProfileFactory> */
-    use HasFactory, LogsBusinessActivity;
+    use HasFactory;
+
+    use LogsBusinessActivity;
+
+    /** @return BelongsTo<User, $this> */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 
     protected function casts(): array
     {
@@ -35,11 +43,5 @@ class EmployeeProfile extends Model
             'has_health_insurance' => 'boolean',
             'metadata' => 'array',
         ];
-    }
-
-    /** @return BelongsTo<User, $this> */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
     }
 }

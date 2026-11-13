@@ -12,7 +12,7 @@ use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /** The only way to read a receipt: permission checked, from the private disk, no public URL (D-52). */
-class DownloadReceipt
+final class DownloadReceipt
 {
     public function handle(User $actor, Expense $expense): StreamedResponse
     {

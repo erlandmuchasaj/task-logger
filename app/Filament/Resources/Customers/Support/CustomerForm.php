@@ -8,6 +8,7 @@ use App\Domain\Clients\Data\CustomerData;
 use App\Domain\Clients\Models\Customer;
 use App\Domain\MasterData\Models\Country;
 use App\Domain\MasterData\Models\PaymentPlan;
+use App\Domain\Shared\IsoCurrency;
 use App\Domain\Shared\Priority;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
@@ -43,8 +44,8 @@ final class CustomerForm
                         }
                     }),
                 Select::make('priority')->options(Priority::class)->required(),
-                TextInput::make('currency_code')->label('Currency (ISO 4217)')->length(3)->alpha()->required()
-                    ->dehydrateStateUsing(fn (?string $state): ?string => $state ? strtoupper($state) : null)
+                TextInput::make('currency_code')->label('Currency (ISO 4217)')->length(3)->alpha()->rules([new IsoCurrency])->required()
+                    ->dehydrateStateUsing(fn (?string $state): ?string => $state ? mb_strtoupper($state) : null)
                     ->disabled($record?->currencyIsLocked() ?? false)->dehydrated()
                     ->helperText(($record?->currencyIsLocked() ?? false) ? 'Fixed: this client has rates or logged work.' : 'Defaults to the country currency.'),
                 Select::make('payment_plan_id')->label('Payment plan')

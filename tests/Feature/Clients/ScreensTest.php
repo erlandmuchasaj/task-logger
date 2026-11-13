@@ -16,11 +16,11 @@ function populatedWork(): Project
     $last = null;
     foreach (range(1, 3) as $i) {
         [$client, $tech] = clientWithRates(["Tech{$i}A" => 2000, "Tech{$i}B" => 2400]);
-        $project = app(CreateProject::class)->handle(
+        $project = resolve(CreateProject::class)->handle(
             userWithRole(RoleName::Superadmin),
-            projectData($client, collect($tech)->mapWithKeys(fn ($t) => [$t->id => '40'])->all(), ['name' => "Project {$i}", 'memberIds' => [userWithRole(RoleName::Employee)->id]]),
+            projectData($client, collect($tech)->mapWithKeys(fn ($t): array => [$t->id => '40'])->all(), ['name' => "Project {$i}", 'memberIds' => [userWithRole(RoleName::Employee)->id]]),
         );
-        app(AddFixedCost::class)->handle(userWithRole(RoleName::Superadmin), $project, new FixedCostData('Mgmt', now(), Money::of(5000, 'EUR')));
+        resolve(AddFixedCost::class)->handle(userWithRole(RoleName::Superadmin), $project, new FixedCostData('Mgmt', now(), Money::of(5000, 'EUR')));
         Task::factory()->count(3)->create(['project_id' => $project->id, 'technology_id' => $project->technologyLines()->value('technology_id'), 'assignee_id' => userWithRole(RoleName::Employee)->id]);
         $last = $project;
     }
@@ -28,7 +28,7 @@ function populatedWork(): Project
     return $last->load('customer');
 }
 
-it('M3 every clients, projects and tasks screen renders for the roles that may see it, without N+1 queries', function (RoleName $role, array $urls) {
+it('M3 every clients, projects and tasks screen renders for the roles that may see it, without N+1 queries', function (RoleName $role, array $urls): void {
     $project = populatedWork();
     $task = $project->tasks()->first();
     $this->actingAs(userWithRole($role));

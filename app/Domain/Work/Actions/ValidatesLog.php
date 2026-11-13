@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Work\Actions;
 
+use App\Domain\Clients\Models\ClientTechnologyRate;
 use App\Domain\Clients\Models\Project;
 use App\Domain\Clients\Support\ClientRates;
 use App\Domain\Identity\Models\User;
@@ -48,7 +49,7 @@ trait ValidatesLog
         }
 
         if ($data->technologyId === null || ! $project->technologyLines()->where('technology_id', $data->technologyId)->exists()) {
-            throw ValidationException::withMessages(['technology_id' => 'Choose one of the project\'s technologies.']);
+            throw ValidationException::withMessages(['technology_id' => "Choose one of the project's technologies."]);
         }
 
         return ['project' => $project, 'task' => null, 'technology_id' => $data->technologyId];
@@ -80,8 +81,8 @@ trait ValidatesLog
         }
 
         // BR-31: a deactivated client gets no new logs. Editing an existing log is still fine.
-        if ($existing === null && ! $project->customer->is_active) {
-            $errors['project_id'] = 'This project\'s client is deactivated and cannot receive new logs.';
+        if (! $existing instanceof Log && ! $project->customer->is_active) {
+            $errors['project_id'] = "This project's client is deactivated and cannot receive new logs.";
         }
 
         if ($errors !== []) {
@@ -100,7 +101,7 @@ trait ValidatesLog
     {
         $rate = ClientRates::forDate($project->customer_id, $technologyId, $data->date);
 
-        if ($rate === null) {
+        if (! $rate instanceof ClientTechnologyRate) {
             $technology = $project->technologyLines()->with('technology')->where('technology_id', $technologyId)->first()?->technology->name ?? 'this technology';
 
             throw ValidationException::withMessages([

@@ -20,7 +20,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use UnitEnum;
 
-class LeaveTypeResource extends Resource
+final class LeaveTypeResource extends Resource
 {
     protected static ?string $model = LeaveType::class;
 

@@ -15,9 +15,9 @@ use Illuminate\Validation\ValidationException;
  * transaction of whatever changed technologies, estimates, rates, fixed costs or the start date: it
  * throws when a technology has no rate on the start date, which rolls that change back.
  */
-class ComputeProjectBudget
+final readonly class ComputeProjectBudget
 {
-    public function __construct(private readonly BudgetCalculator $calculator) {}
+    public function __construct(private BudgetCalculator $calculator) {}
 
     public function handle(Project $project): ProjectBudget
     {

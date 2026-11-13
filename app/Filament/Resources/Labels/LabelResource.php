@@ -18,7 +18,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use UnitEnum;
 
-class LabelResource extends Resource
+final class LabelResource extends Resource
 {
     protected static ?string $model = Label::class;
 

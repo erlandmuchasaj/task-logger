@@ -9,7 +9,7 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Permissions;
 
 /** Hourly rates and the payment plan are visible only with clients.view_rates (D-05). */
-class CustomerPolicy
+final class CustomerPolicy
 {
     public function viewAny(User $user): bool
     {

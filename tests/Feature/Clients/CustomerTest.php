@@ -33,10 +33,10 @@ function customerData(array $o = []): CustomerData
     ], $o));
 }
 
-it('FR-17 superadmin and admin create a client; the currency defaults to the country currency', function (RoleName $role) {
+it('FR-17 superadmin and admin create a client; the currency defaults to the country currency', function (RoleName $role): void {
     $actor = userWithRole($role);
 
-    $client = app(CreateCustomer::class)->handle($actor, customerData(['paymentPlanId' => PaymentPlan::factory()->create()->id]));
+    $client = resolve(CreateCustomer::class)->handle($actor, customerData(['paymentPlanId' => PaymentPlan::factory()->create()->id]));
 
     expect($client->currency_code)->toBe('ALL')
         ->and($client->phone)->toBe('+355692123456')
@@ -45,60 +45,79 @@ it('FR-17 superadmin and admin create a client; the currency defaults to the cou
         ->and($client->created_by)->toBe($actor->id);
 })->group('FR-17')->with([RoleName::Superadmin, RoleName::Admin]);
 
-it('FR-17 hr, assistant and employee cannot create or edit clients', function (RoleName $role) {
+it('FR-17 hr, assistant and employee cannot create or edit clients', function (RoleName $role): void {
     $actor = userWithRole($role);
     $client = Customer::factory()->create();
 
-    expect(fn () => app(CreateCustomer::class)->handle($actor, customerData()))->toThrow(AuthorizationException::class)
-        ->and(fn () => app(UpdateCustomer::class)->handle($actor, $client, customerData()))->toThrow(AuthorizationException::class);
+    expect(fn () => resolve(CreateCustomer::class)->handle($actor, customerData()))->toThrow(AuthorizationException::class)
+        ->and(fn () => resolve(UpdateCustomer::class)->handle($actor, $client, customerData()))->toThrow(AuthorizationException::class);
 })->group('FR-17')->with([RoleName::Hr, RoleName::Assistant, RoleName::Employee]);
 
-it('D-18 the currency is fixed once the client has rates', function () {
+it('FR-17 a client cannot be given a currency that is not in ISO 4217', function (): void {
+    $actor = userWithRole(RoleName::Admin);
+
+    expect(fn () => resolve(CreateCustomer::class)->handle($actor, customerData(['currencyCode' => 'ZZZ'])))->toThrow(ValidationException::class, 'valid ISO 4217')
+        ->and(Customer::query()->count())->toBe(0);
+})->group('FR-17');
+
+it('FR-17 the Create screen refuses a currency that is not in ISO 4217', function (): void {
+    $this->actingAs(userWithRole(RoleName::Admin));
+    $country = Country::factory()->albania()->create();
+
+    Livewire::test(CreateCustomerPage::class)
+        ->fillForm(['name' => 'Elira', 'email' => 'elira@example.test', 'country_id' => $country->id, 'priority' => 'critical', 'currency_code' => 'ZZZ', 'company_name' => 'Elira Ltd'])
+        ->call('create')
+        ->assertHasFormErrors(['currency_code']);
+
+    expect(Customer::query()->count())->toBe(0);
+})->group('FR-17');
+
+it('D-18 the currency is fixed once the client has rates', function (): void {
     [$client] = clientWithRates(['Angular' => 2000]);
 
-    app(UpdateCustomer::class)->handle(userWithRole(RoleName::Admin), $client, customerData([
+    resolve(UpdateCustomer::class)->handle(userWithRole(RoleName::Admin), $client, customerData([
         'countryId' => $client->country_id, 'currencyCode' => 'USD', 'email' => $client->email, 'phone' => null,
     ]));
 })->group('D-18')->throws(ValidationException::class, 'currency cannot change');
 
-it('D-18 the currency can change while the client has no rates', function () {
+it('D-18 the currency can change while the client has no rates', function (): void {
     $client = Customer::factory()->create(['currency_code' => 'EUR']);
 
-    app(UpdateCustomer::class)->handle(userWithRole(RoleName::Admin), $client, customerData(['countryId' => $client->country_id, 'currencyCode' => 'usd', 'email' => $client->email, 'phone' => null]));
+    resolve(UpdateCustomer::class)->handle(userWithRole(RoleName::Admin), $client, customerData(['countryId' => $client->country_id, 'currencyCode' => 'usd', 'email' => $client->email, 'phone' => null]));
 
     expect($client->fresh()->currency_code)->toBe('USD');
 })->group('D-18');
 
-it('FR-17 an invalid phone or email is rejected', function (array $override) {
-    app(CreateCustomer::class)->handle(userWithRole(RoleName::Admin), customerData($override));
+it('FR-17 an invalid phone or email is rejected', function (array $override): void {
+    resolve(CreateCustomer::class)->handle(userWithRole(RoleName::Admin), customerData($override));
 })->group('FR-17')->throws(ValidationException::class)->with([
     'phone' => [['phone' => '12']],
     'email' => [['email' => 'not-an-email']],
 ]);
 
-it('D-02 priority belongs to the client; projects have no priority column', function () {
+it('D-02 priority belongs to the client; projects have no priority column', function (): void {
     expect(Schema::hasColumn('customers', 'priority'))->toBeTrue()
         ->and(Schema::hasColumn('projects', 'priority'))->toBeFalse()
         ->and(Schema::hasColumn('tasks', 'priority'))->toBeTrue();
 })->group('D-02');
 
-it('BR-15 payment plans are metadata: there are no invoice tables or models', function () {
+it('BR-15 payment plans are metadata: there are no invoice tables or models', function (): void {
     $tables = collect(Schema::getTables(schema: DB::getDatabaseName()))->pluck('name'); // this database only, not the whole MySQL server
 
-    expect($tables->filter(fn (string $t) => str_contains(strtolower($t), 'invoice'))->all())->toBe([])
+    expect($tables->filter(fn (string $t): bool => str_contains(mb_strtolower($t), 'invoice'))->all())->toBe([])
         ->and(glob(app_path('Domain/*/Models/*Invoice*.php')))->toBe([]);
 })->group('BR-15');
 
-it('FR-17 superadmin and admin deactivate and activate; others cannot', function (RoleName $role, bool $allowed) {
+it('FR-17 superadmin and admin deactivate and activate; others cannot', function (RoleName $role, bool $allowed): void {
     $client = Customer::factory()->create();
-    $toggle = fn () => app(SetCustomerActive::class)->handle(userWithRole($role), $client, false);
+    $toggle = fn () => resolve(SetCustomerActive::class)->handle(userWithRole($role), $client, false);
 
     $allowed ? expect($toggle()->is_active)->toBeFalse() : expect($toggle)->toThrow(AuthorizationException::class);
 })->group('FR-17')->with([
     [RoleName::Superadmin, true], [RoleName::Admin, true], [RoleName::Hr, false], [RoleName::Assistant, false], [RoleName::Employee, false],
 ]);
 
-it('D-05 clients are readable by everyone, rates and the payment plan only by superadmin and admin', function (RoleName $role, bool $seesRates) {
+it('D-05 clients are readable by everyone, rates and the payment plan only by superadmin and admin', function (RoleName $role, bool $seesRates): void {
     $user = userWithRole($role);
     $client = Customer::factory()->create();
 
@@ -111,7 +130,7 @@ it('D-05 clients are readable by everyone, rates and the payment plan only by su
     [RoleName::Superadmin, true], [RoleName::Admin, true], [RoleName::Hr, false], [RoleName::Assistant, false], [RoleName::Employee, false],
 ]);
 
-it('D-05 an employee sees client contact data but no payment plan, currency or rates', function (RoleName $role) {
+it('D-05 an employee sees client contact data but no payment plan, currency or rates', function (RoleName $role): void {
     [$client] = clientWithRates(['Angular' => 2000], '2025-01-01', ['company_name' => 'Visible Co', 'email' => 'contact@visible.test']);
     $client->update(['payment_plan_id' => PaymentPlan::factory()->create(['name' => 'SecretPlan30'])->id]);
     $this->actingAs(userWithRole($role));
@@ -125,7 +144,7 @@ it('D-05 an employee sees client contact data but no payment plan, currency or r
     expect(RatesRelationManager::canViewForRecord($client, ViewCustomer::class))->toBeFalse();
 })->group('D-05')->with([RoleName::Employee, RoleName::Assistant, RoleName::Hr]);
 
-it('D-05 the superadmin and admin see the payment plan and the rates tab', function (RoleName $role) {
+it('D-05 the superadmin and admin see the payment plan and the rates tab', function (RoleName $role): void {
     [$client] = clientWithRates(['Angular' => 2000], '2025-01-01', ['company_name' => 'Visible Co']);
     $client->update(['payment_plan_id' => PaymentPlan::factory()->create(['name' => 'Net30Plan'])->id]);
     $this->actingAs(userWithRole($role));
@@ -134,7 +153,7 @@ it('D-05 the superadmin and admin see the payment plan and the rates tab', funct
     expect(RatesRelationManager::canViewForRecord($client, ViewCustomer::class))->toBeTrue();
 })->group('D-05')->with([RoleName::Superadmin, RoleName::Admin]);
 
-it('FR-17 employee, assistant and hr cannot open the edit or create screens', function (RoleName $role) {
+it('FR-17 employee, assistant and hr cannot open the edit or create screens', function (RoleName $role): void {
     $client = Customer::factory()->create();
     $this->actingAs(userWithRole($role));
 
@@ -142,7 +161,7 @@ it('FR-17 employee, assistant and hr cannot open the edit or create screens', fu
     $this->get('/app/clients/create')->assertForbidden();
 })->group('FR-17')->with([RoleName::Employee, RoleName::Assistant, RoleName::Hr]);
 
-it('FR-17 the Create screen creates a client for an admin', function () {
+it('FR-17 the Create screen creates a client for an admin', function (): void {
     $this->actingAs(userWithRole(RoleName::Admin));
     $country = Country::factory()->albania()->create();
 
@@ -151,10 +170,10 @@ it('FR-17 the Create screen creates a client for an admin', function () {
         ->call('create')
         ->assertHasNoFormErrors();
 
-    expect(Customer::where('email', 'elira@example.test')->sole()->priority)->toBe(Priority::Critical);
+    expect(Customer::query()->where('email', 'elira@example.test')->sole()->priority)->toBe(Priority::Critical);
 })->group('FR-17');
 
-it('FR-18 the rates tab adds a rate for a technology', function () {
+it('FR-18 the rates tab adds a rate for a technology', function (): void {
     $admin = userWithRole(RoleName::Admin);
     [$client] = clientWithRates(['Angular' => 2000]);
     $ionic = Technology::factory()->create(['name' => 'Ionic']);

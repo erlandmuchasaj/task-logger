@@ -15,8 +15,10 @@ use App\Domain\People\Notifications\WelcomeEmployee;
 use App\Domain\Shared\Money;
 use App\Filament\Resources\Employees\Pages\CreateEmployee as CreateEmployeePage;
 use Filament\Auth\Notifications\ResetPassword;
+use Filament\Facades\Filament;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
@@ -24,13 +26,13 @@ use Spatie\Activitylog\Models\Activity;
 
 beforeEach(fn () => Notification::fake());
 
-it('FR-01 W-01 the superadmin creates an employee with role, skills, HR record, contacts and first salary', function () {
+it('FR-01 W-01 the superadmin creates an employee with role, skills, HR record, contacts and first salary', function (): void {
     $actor = userWithRole(RoleName::Superadmin);
     $laravel = Technology::factory()->create();
     $angular = Technology::factory()->create();
     $manager = userWithRole(RoleName::Admin);
 
-    $employee = app(CreateEmployee::class)->handle(
+    $employee = resolve(CreateEmployee::class)->handle(
         $actor,
         employeeData(['role' => RoleName::Hr, 'managerId' => $manager->id, 'skills' => [$laravel->id => 7, $angular->id => 9]]),
         new HrRecordData(
@@ -53,8 +55,8 @@ it('FR-01 W-01 the superadmin creates an employee with role, skills, HR record, 
         ->and($employee->salaries()->sole()->created_by)->toBe($actor->id);
 })->group('FR-01');
 
-it('FR-01 W-01 D-53 the new user gets a welcome email with their email and the temporary password they sign in with', function () {
-    $employee = app(CreateEmployee::class)->handle(userWithRole(RoleName::Superadmin), employeeData());
+it('FR-01 W-01 D-53 the new user gets a welcome email with their email and the temporary password they sign in with', function (): void {
+    $employee = resolve(CreateEmployee::class)->handle(userWithRole(RoleName::Superadmin), employeeData());
 
     Notification::assertSentTo($employee, WelcomeEmployee::class, function (WelcomeEmployee $n) use ($employee): bool {
         $mail = $n->toMail($employee);
@@ -65,74 +67,74 @@ it('FR-01 W-01 D-53 the new user gets a welcome email with their email and the t
             && str_contains($text, $employee->email)
             && str_contains($text, $n->password)
             && str_contains($text, 'choose your own password')
-            && $mail->actionUrl === Filament\Facades\Filament::getLoginUrl();
+            && $mail->actionUrl === Filament::getLoginUrl();
     });
     Notification::assertNotSentTo($employee, ResetPassword::class);
 })->group('FR-01');
 
-it('D-53 the welcome email is sent at once, not queued, so the password never reaches the jobs table', function () {
+it('D-53 the welcome email is sent at once, not queued, so the password never reaches the jobs table', function (): void {
     expect(new WelcomeEmployee('x'))->not->toBeInstanceOf(ShouldQueue::class);
 });
 
-it('D-53 the password hash is never written to the activity log', function () {
-    $employee = app(CreateEmployee::class)->handle(userWithRole(RoleName::Superadmin), employeeData());
+it('D-53 the password hash is never written to the activity log', function (): void {
+    $employee = resolve(CreateEmployee::class)->handle(userWithRole(RoleName::Superadmin), employeeData());
 
-    $created = Activity::where('subject_type', $employee->getMorphClass())->where('subject_id', $employee->id)->where('event', 'created')->sole();
+    $created = Activity::query()->where('subject_type', $employee->getMorphClass())->where('subject_id', $employee->id)->where('event', 'created')->sole();
     expect($created->attribute_changes?->get('attributes'))->toHaveKey('email')->not->toHaveKey('password');
 });
 
-it('FR-01 only the superadmin may create employees; there is no self-registration', function (RoleName $role) {
-    app(CreateEmployee::class)->handle(userWithRole($role), employeeData());
+it('FR-01 only the superadmin may create employees; there is no self-registration', function (RoleName $role): void {
+    resolve(CreateEmployee::class)->handle(userWithRole($role), employeeData());
 })->group('FR-01')->throws(AuthorizationException::class)->with([RoleName::Admin, RoleName::Hr, RoleName::Assistant, RoleName::Employee]);
 
-it('FR-01 W-01 requires country, department, position, employment type and start date', function () {
-    app(CreateEmployee::class)->handle(userWithRole(RoleName::Superadmin), employeeData([
+it('FR-01 W-01 requires country, department, position, employment type and start date', function (): void {
+    resolve(CreateEmployee::class)->handle(userWithRole(RoleName::Superadmin), employeeData([
         'countryId' => null, 'departmentId' => null, 'position' => null, 'employmentType' => null, 'startDate' => null,
     ]));
 })->group('FR-01')->throws(ValidationException::class);
 
-it('FR-01 rejects a duplicate email, including a soft-deleted account', function () {
+it('FR-01 rejects a duplicate email, including a soft-deleted account', function (): void {
     $actor = userWithRole(RoleName::Superadmin);
     User::factory()->create(['email' => 'taken@example.test'])->delete();
 
-    app(CreateEmployee::class)->handle($actor, employeeData(['email' => 'taken@example.test']));
+    resolve(CreateEmployee::class)->handle($actor, employeeData(['email' => 'taken@example.test']));
 })->group('FR-01')->throws(ValidationException::class);
 
-it('FR-12 skill levels outside 1 to 10 are rejected and nothing is created', function (int $level) {
+it('FR-12 skill levels outside 1 to 10 are rejected and nothing is created', function (int $level): void {
     $actor = userWithRole(RoleName::Superadmin);
-    $before = User::count();
+    $before = User::query()->count();
 
     try {
-        app(CreateEmployee::class)->handle($actor, employeeData(['email' => 'level@example.test', 'skills' => [Technology::factory()->create()->id => $level]]));
+        resolve(CreateEmployee::class)->handle($actor, employeeData(['email' => 'level@example.test', 'skills' => [Technology::factory()->create()->id => $level]]));
     } catch (ValidationException) {
     }
 
-    expect(User::count())->toBe($before)->and(User::where('email', 'level@example.test')->exists())->toBeFalse();
+    expect(User::query()->count())->toBe($before)->and(User::query()->where('email', 'level@example.test')->exists())->toBeFalse();
 })->group('FR-12')->with([0, 11, -1]);
 
-it('FR-11 an invalid phone number is rejected and the whole creation rolls back', function () {
+it('FR-11 an invalid phone number is rejected and the whole creation rolls back', function (): void {
     $actor = userWithRole(RoleName::Superadmin);
 
     try {
-        app(CreateEmployee::class)->handle($actor, employeeData(['email' => 'phone@example.test']), new HrRecordData(phone: '12'));
+        resolve(CreateEmployee::class)->handle($actor, employeeData(['email' => 'phone@example.test']), new HrRecordData(phone: '12'));
     } catch (ValidationException) {
     }
 
-    expect(User::where('email', 'phone@example.test')->exists())->toBeFalse();
+    expect(User::query()->where('email', 'phone@example.test')->exists())->toBeFalse();
 })->group('FR-11');
 
-it('BR-32 creating an employee is audited with the actor', function () {
+it('BR-32 creating an employee is audited with the actor', function (): void {
     $actor = userWithRole(RoleName::Superadmin);
     Activity::query()->delete();
 
-    $employee = app(CreateEmployee::class)->handle($actor, employeeData(), new HrRecordData(phone: '0692123456'));
+    $employee = resolve(CreateEmployee::class)->handle($actor, employeeData(), new HrRecordData(phone: '0692123456'));
 
-    expect(Activity::where('event', 'created')->where('subject_type', $employee->getMorphClass())->where('subject_id', $employee->id)->sole()->causer_id)->toBe($actor->id)
-        ->and(Activity::where('event', 'role_changed')->where('subject_id', $employee->id)->exists())->toBeTrue()
-        ->and(Activity::where('subject_type', 'like', '%EmployeeProfile')->where('event', 'created')->exists())->toBeTrue();
+    expect(Activity::query()->where('event', 'created')->where('subject_type', $employee->getMorphClass())->where('subject_id', $employee->id)->sole()->causer_id)->toBe($actor->id)
+        ->and(Activity::query()->where('event', 'role_changed')->where('subject_id', $employee->id)->exists())->toBeTrue()
+        ->and(Activity::query()->where('subject_type', 'like', '%EmployeeProfile')->where('event', 'created')->exists())->toBeTrue();
 })->group('BR-32');
 
-it('FR-01 the Create screen creates an employee end to end for the superadmin', function () {
+it('FR-01 the Create screen creates an employee end to end for the superadmin', function (): void {
     $this->actingAs(userWithRole(RoleName::Superadmin));
     $country = Country::factory()->albania()->create();
     $department = Department::factory()->create();
@@ -147,13 +149,13 @@ it('FR-01 the Create screen creates an employee end to end for the superadmin', 
         ->call('create')
         ->assertHasNoFormErrors();
 
-    $employee = User::where('email', 'ola@example.test')->firstOrFail();
+    $employee = User::query()->where('email', 'ola@example.test')->firstOrFail();
     expect($employee->profile->phone)->toBe('+355692123456')
         ->and($employee->salaries()->sole()->amount_minor)->toBe(120050)
         ->and($employee->salaries()->sole()->currency_code)->toBe('ALL');
     Notification::assertSentTo($employee, WelcomeEmployee::class);
 })->group('FR-01');
 
-it('FR-01 admin, hr and assistant cannot open the Create screen', function (RoleName $role) {
+it('FR-01 admin, hr and assistant cannot open the Create screen', function (RoleName $role): void {
     $this->actingAs(userWithRole($role))->get('/app/employees/create')->assertForbidden();
 })->group('FR-01')->with([RoleName::Admin, RoleName::Hr, RoleName::Assistant, RoleName::Employee]);

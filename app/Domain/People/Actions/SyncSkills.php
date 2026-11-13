@@ -10,7 +10,7 @@ use App\Domain\People\Models\UserSkill;
 use Illuminate\Validation\ValidationException;
 
 /** Sets a user's technologies and levels (D-01). Levels run from the configured min to max (1-10). */
-class SyncSkills
+final class SyncSkills
 {
     /** @param  array<int, int>  $skills  technology_id => level */
     public function handle(User $employee, array $skills): void
@@ -18,7 +18,7 @@ class SyncSkills
         $min = (int) config('task-logger.technology_level_min');
         $max = (int) config('task-logger.technology_level_max');
 
-        foreach ($skills as $technologyId => $level) {
+        foreach ($skills as $level) {
             if ($level < $min || $level > $max) {
                 throw ValidationException::withMessages(['skills' => "Skill levels run from {$min} to {$max}."]);
             }
@@ -33,9 +33,7 @@ class SyncSkills
 
         foreach ($skills as $technologyId => $level) {
             $row = $existing->get($technologyId);
-            $row === null
-                ? $employee->skills()->create(['technology_id' => $technologyId, 'level' => $level])
-                : $row->update(['level' => $level]);
+            $row?->update(['level' => $level]) ?? $employee->skills()->create(['technology_id' => $technologyId, 'level' => $level]);
         }
 
         // reject() by technology id: Eloquent's except() would filter by the model primary key instead.

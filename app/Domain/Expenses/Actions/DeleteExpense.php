@@ -14,7 +14,7 @@ use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /** Deletes a draft and its receipt file. Submitted expenses are history and are never deleted (D-52). */
-class DeleteExpense
+final class DeleteExpense
 {
     public function handle(User $actor, Expense $expense): void
     {
@@ -22,7 +22,7 @@ class DeleteExpense
 
         $receipt = null;
 
-        app(CauserResolver::class)->withCauser($actor, function () use ($expense, &$receipt): void {
+        resolve(CauserResolver::class)->withCauser($actor, function () use ($expense, &$receipt): void {
             DB::transaction(function () use ($expense, &$receipt): void {
                 $expense = Expense::query()->whereKey($expense->getKey())->lockForUpdate()->firstOrFail();
 

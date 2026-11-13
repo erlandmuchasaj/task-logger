@@ -11,7 +11,7 @@ use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /** Perm tasks.delete. A soft delete; a task with sub-tasks is refused [DERIVED]. */
-class DeleteTask
+final class DeleteTask
 {
     public function handle(User $actor, Task $task): void
     {
@@ -21,6 +21,6 @@ class DeleteTask
             throw ValidationException::withMessages(['task' => 'This task has sub-tasks. Move or delete them first.']);
         }
 
-        app(CauserResolver::class)->withCauser($actor, fn () => $task->delete());
+        resolve(CauserResolver::class)->withCauser($actor, fn () => $task->delete());
     }
 }

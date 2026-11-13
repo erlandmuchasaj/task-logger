@@ -33,7 +33,7 @@ use Spatie\Activitylog\Models\Activity;
 final class RootAccess
 {
     /** @var array<class-string, list<string>> model => abilities that stay under their policy */
-    private const POLICY_ONLY = [
+    private const array POLICY_ONLY = [
         Activity::class => ['create', 'update', 'delete', 'restore', 'forceDelete'],
         Salary::class => ['update', 'delete', 'restore', 'forceDelete'],
         User::class => ['delete', 'restore', 'forceDelete'],
@@ -68,12 +68,6 @@ final class RootAccess
             return false;
         }
 
-        foreach (self::POLICY_ONLY as $model => $abilities) {
-            if (is_a($class, $model, true) && in_array($ability, $abilities, true)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any(self::POLICY_ONLY, fn (array $abilities, $model): bool => is_a($class, $model, true) && in_array($ability, $abilities, true));
     }
 }

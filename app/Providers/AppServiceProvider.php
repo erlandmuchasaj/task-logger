@@ -73,7 +73,7 @@ use Lab404\Impersonate\Events\LeaveImpersonation;
 use Lab404\Impersonate\Events\TakeImpersonation;
 use Spatie\Activitylog\Models\Activity;
 
-class AppServiceProvider extends ServiceProvider
+final class AppServiceProvider extends ServiceProvider
 {
     /**
      * Register any application services.
@@ -96,7 +96,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // Every date field uses the same JS picker: shown as dd/mm/yyyy, submitted and stored as Y-m-d.
         // The native <input type="date"> would display in the browser's locale format instead.
-        DatePicker::configureUsing(fn (DatePicker $picker) => $picker
+        DatePicker::configureUsing(fn (DatePicker $picker): DatePicker => $picker
             ->native(false)
             ->displayFormat('d/m/Y')
             ->format('Y-m-d')
@@ -104,10 +104,10 @@ class AppServiceProvider extends ServiceProvider
             ->closeOnDateSelection());
 
         // Tables and infolists (schemas) render ->date() / ->dateTime() the same way.
-        Table::configureUsing(fn (Table $table) => $table
+        Table::configureUsing(fn (Table $table): Table => $table
             ->defaultDateDisplayFormat('d/m/Y')
             ->defaultDateTimeDisplayFormat('d/m/Y H:i'));
-        Schema::configureUsing(fn (Schema $schema) => $schema
+        Schema::configureUsing(fn (Schema $schema): Schema => $schema
             ->defaultDateDisplayFormat('d/m/Y')
             ->defaultDateTimeDisplayFormat('d/m/Y H:i'));
 

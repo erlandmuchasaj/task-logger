@@ -11,7 +11,7 @@ use App\Domain\Shared\Priority;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<Customer> */
-class CustomerFactory extends Factory
+final class CustomerFactory extends Factory
 {
     protected $model = Customer::class;
 

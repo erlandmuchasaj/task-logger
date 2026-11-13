@@ -8,7 +8,7 @@ use App\Domain\MasterData\Models\Technology;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<Technology> */
-class TechnologyFactory extends Factory
+final class TechnologyFactory extends Factory
 {
     protected $model = Technology::class;
 

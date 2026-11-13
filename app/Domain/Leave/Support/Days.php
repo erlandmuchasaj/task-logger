@@ -15,8 +15,8 @@ final class Days
     {
         $decimal = (string) $decimal;
         $negative = str_starts_with($decimal, '-');
-        [$whole, $fraction] = array_pad(explode('.', ltrim($decimal, '-')), 2, '0');
-        $value = ((int) $whole) * 10 + (int) substr(str_pad($fraction, 1, '0'), 0, 1);
+        [$whole, $fraction] = array_pad(explode('.', mb_ltrim($decimal, '-')), 2, '0');
+        $value = ((int) $whole) * 10 + (int) mb_substr(mb_str_pad($fraction, 1, '0'), 0, 1);
 
         return $negative ? -$value : $value;
     }

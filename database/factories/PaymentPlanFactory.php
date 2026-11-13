@@ -9,7 +9,7 @@ use App\Domain\MasterData\Models\PaymentPlan;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<PaymentPlan> */
-class PaymentPlanFactory extends Factory
+final class PaymentPlanFactory extends Factory
 {
     protected $model = PaymentPlan::class;
 

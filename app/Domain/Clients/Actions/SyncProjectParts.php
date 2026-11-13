@@ -9,7 +9,7 @@ use App\Domain\Clients\Models\Project;
 use App\Domain\Clients\Models\ProjectMember;
 
 /** Writes a project's technology lines and members, one audited row at a time. */
-class SyncProjectParts
+final class SyncProjectParts
 {
     public function technologies(Project $project, ProjectData $data): void
     {
@@ -17,9 +17,7 @@ class SyncProjectParts
 
         foreach ($data->technologies as $technologyId => $hours) {
             $row = $existing->get($technologyId);
-            $row === null
-                ? $project->technologyLines()->create(['technology_id' => $technologyId, 'estimated_hours' => $hours])
-                : $row->update(['estimated_hours' => $hours]);
+            $row?->update(['estimated_hours' => $hours]) ?? $project->technologyLines()->create(['technology_id' => $technologyId, 'estimated_hours' => $hours]);
         }
 
         $existing->reject(fn ($row): bool => array_key_exists($row->technology_id, $data->technologies))->each->delete();

@@ -15,6 +15,7 @@ use App\Domain\People\Enums\Gender;
 use App\Domain\People\Enums\MaritalStatus;
 use App\Domain\People\Support\ManagerChain;
 use App\Domain\People\Support\Phones;
+use App\Domain\Shared\IsoCurrency;
 use Closure;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
@@ -40,7 +41,7 @@ final class EmployeeForm
     public static function configure(Schema $schema, ?User $record, bool $creating): Schema
     {
         $user = auth()->user();
-        $canAccount = $creating ? (bool) $user?->can('create', User::class) : (bool) ($record && $user?->can('updateAccount', $record));
+        $canAccount = $creating ? (bool) $user?->can('create', User::class) : $record instanceof User && $user?->can('updateAccount', $record);
         $canHr = (bool) $user?->can(Permissions::EMPLOYEES_UPDATE_HR_RECORD);
         $canSalary = $creating && (bool) $user?->can(Permissions::SALARIES_MANAGE);
 
@@ -187,8 +188,8 @@ final class EmployeeForm
             Section::make('First salary (optional)')->description('Recorded in the salary history. Later changes are new rows; history is never edited.')
                 ->columns(2)->schema([
                     TextInput::make('salary.amount')->label('Amount (per month, major units)')->numeric()->minValue(0),
-                    TextInput::make('salary.currency')->label('Currency (ISO 4217)')->length(3)->alpha()
-                        ->dehydrateStateUsing(fn (?string $state): ?string => $state ? strtoupper($state) : null)
+                    TextInput::make('salary.currency')->label('Currency (ISO 4217)')->length(3)->alpha()->rules([new IsoCurrency])
+                        ->dehydrateStateUsing(fn (?string $state): ?string => $state ? mb_strtoupper($state) : null)
                         ->helperText('Defaults to the country currency.'),
                     DatePicker::make('salary.effective_date')->label('Effective date')->default(now()),
                     Textarea::make('salary.description')->label('Note')->columnSpanFull(),

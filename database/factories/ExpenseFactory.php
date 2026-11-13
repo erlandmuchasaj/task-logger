@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
 /** @extends Factory<Expense> */
-class ExpenseFactory extends Factory
+final class ExpenseFactory extends Factory
 {
     protected $model = Expense::class;
 

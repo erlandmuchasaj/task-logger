@@ -35,7 +35,7 @@ use UnitEnum;
  * Logs. People with logs.view_any (superadmin, admin, assistant) see everyone's logs; everyone else sees
  * their own. Rate and amount columns need clients.view_rates (D-05).
  */
-class LogResource extends Resource
+final class LogResource extends Resource
 {
     protected static ?string $model = Log::class;
 
@@ -54,7 +54,7 @@ class LogResource extends Resource
 
         return parent::getEloquentQuery()
             ->with(['user', 'project', 'task', 'technology'])
-            ->when(! $user?->can(Permissions::LOGS_VIEW_ANY), fn (Builder $query) => $query->where('user_id', $user?->getKey()));
+            ->unless($user?->can(Permissions::LOGS_VIEW_ANY), fn (Builder $query) => $query->where('user_id', $user?->getKey()));
     }
 
     public static function form(Schema $schema): Schema
@@ -103,10 +103,10 @@ class LogResource extends Resource
                         ->requiresConfirmation()
                         ->action(function (Log $record): void {
                             try {
-                                app(DeleteLog::class)->handle(auth()->user(), $record);
+                                resolve(DeleteLog::class)->handle(auth()->user(), $record);
                                 Notification::make()->title('Log deleted')->success()->send();
-                            } catch (ValidationException $e) {
-                                ActionErrors::notify($e);
+                            } catch (ValidationException $validationException) {
+                                ActionErrors::notify($validationException);
                             }
                         }),
                 ]),

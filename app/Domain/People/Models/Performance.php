@@ -16,15 +16,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /** A performance review (W-09). Read access is restricted (BR-27, D-21); rows are kept after anonymisation (BR-28). */
 #[Fillable(['user_id', 'created_by', 'score', 'notes', 'review_date'])]
 #[UseFactory(PerformanceFactory::class)]
-class Performance extends Model
+final class Performance extends Model
 {
     /** @use HasFactory<PerformanceFactory> */
-    use HasFactory, LogsBusinessActivity;
+    use HasFactory;
 
-    protected function casts(): array
-    {
-        return ['score' => 'integer', 'review_date' => 'date'];
-    }
+    use LogsBusinessActivity;
 
     /** @return BelongsTo<User, $this> */
     public function employee(): BelongsTo
@@ -36,5 +33,10 @@ class Performance extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    protected function casts(): array
+    {
+        return ['score' => 'integer', 'review_date' => 'date'];
     }
 }

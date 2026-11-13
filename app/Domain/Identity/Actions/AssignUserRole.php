@@ -12,10 +12,10 @@ use Illuminate\Validation\ValidationException;
 /**
  * D-09: exactly one role per user. Replaces any existing role and audits the change (BR-32).
  */
-class AssignUserRole
+final readonly class AssignUserRole
 {
     /** @param  iterable<BlocksRoleChange>  $guards  other modules' vetoes (BR-30) */
-    public function __construct(private readonly iterable $guards = []) {}
+    public function __construct(private iterable $guards = []) {}
 
     public function handle(User $user, RoleName $role): User
     {

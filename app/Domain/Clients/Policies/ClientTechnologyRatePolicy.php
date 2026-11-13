@@ -8,7 +8,7 @@ use App\Domain\Clients\Models\ClientTechnologyRate;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Permissions;
 
-class ClientTechnologyRatePolicy
+final class ClientTechnologyRatePolicy
 {
     public function viewAny(User $user): bool
     {

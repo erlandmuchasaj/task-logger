@@ -15,7 +15,7 @@ use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /** Changes a draft: header, lines and receipt. Any other status is closed to edits, root included (D-52). */
-class UpdateExpense
+final class UpdateExpense
 {
     use ValidatesExpense;
 
@@ -26,7 +26,7 @@ class UpdateExpense
         $lines = $this->prepareLines($expense->employee, $data);
         $oldReceipt = null;
 
-        $updated = app(CauserResolver::class)->withCauser($actor, function () use ($expense, $data, $lines, &$oldReceipt): Expense {
+        $updated = resolve(CauserResolver::class)->withCauser($actor, function () use ($expense, $data, $lines, &$oldReceipt): Expense {
             return DB::transaction(function () use ($expense, $data, $lines, &$oldReceipt): Expense {
                 $expense = Expense::query()->whereKey($expense->getKey())->lockForUpdate()->firstOrFail();
 
@@ -41,7 +41,7 @@ class UpdateExpense
                 $expense->update([
                     'project_id' => $data->projectId,
                     'category' => $data->category,
-                    'description' => trim($data->description),
+                    'description' => mb_trim($data->description),
                     'receipt_path' => $data->receiptPath,
                     'notes' => filled($data->notes) ? $data->notes : null,
                 ]);
@@ -49,7 +49,7 @@ class UpdateExpense
                 $expense->lines()->get()->each(fn (ExpenseLine $line) => $line->delete());
 
                 foreach ($lines as $line) {
-                    ExpenseLine::create(['expense_id' => $expense->getKey(), ...$line]);
+                    ExpenseLine::query()->create(['expense_id' => $expense->getKey(), ...$line]);
                 }
 
                 return $expense->load('lines');

@@ -11,13 +11,13 @@ use Illuminate\Support\Facades\Gate;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /** BR-35: the assignee (own tasks), the creator (tasks made for others) and admins (any task). SPEC sets no transition rules. */
-class ChangeTaskStatus
+final class ChangeTaskStatus
 {
     public function handle(User $actor, Task $task, TaskStatus $status): Task
     {
         Gate::forUser($actor)->authorize('changeStatus', $task);
 
-        return app(CauserResolver::class)->withCauser($actor, function () use ($task, $status): Task {
+        return resolve(CauserResolver::class)->withCauser($actor, function () use ($task, $status): Task {
             $task->update(['status' => $status]);
 
             return $task->refresh();

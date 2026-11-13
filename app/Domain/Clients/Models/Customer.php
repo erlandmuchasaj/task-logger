@@ -29,15 +29,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'priority', 'payment_plan_id', 'currency_code', 'avatar_path', 'is_active',
 ])]
 #[UseFactory(CustomerFactory::class)]
-class Customer extends Model
+final class Customer extends Model
 {
     /** @use HasFactory<CustomerFactory> */
-    use HasFactory, LogsBusinessActivity, SoftDeletes;
+    use HasFactory;
 
-    protected function casts(): array
-    {
-        return ['priority' => Priority::class, 'is_active' => 'boolean'];
-    }
+    use LogsBusinessActivity;
+    use SoftDeletes;
 
     /** The currency is fixed once the client has rates or logged work (D-18). */
     public function currencyIsLocked(): bool
@@ -48,7 +46,7 @@ class Customer extends Model
 
     public function displayName(): string
     {
-        return $this->company_name ?: trim($this->name.' '.$this->surname);
+        return $this->company_name ?: mb_trim($this->name.' '.$this->surname);
     }
 
     /** @return BelongsTo<User, $this> */
@@ -79,5 +77,10 @@ class Customer extends Model
     public function projects(): HasMany
     {
         return $this->hasMany(Project::class);
+    }
+
+    protected function casts(): array
+    {
+        return ['priority' => Priority::class, 'is_active' => 'boolean'];
     }
 }

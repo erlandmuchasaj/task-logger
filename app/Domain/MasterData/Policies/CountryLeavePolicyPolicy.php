@@ -6,7 +6,7 @@ namespace App\Domain\MasterData\Policies;
 
 use App\Domain\Identity\Permissions;
 
-class CountryLeavePolicyPolicy extends MasterDataPolicy
+final class CountryLeavePolicyPolicy extends MasterDataPolicy
 {
     protected function managePermission(): string
     {

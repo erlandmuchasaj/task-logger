@@ -8,7 +8,7 @@ use App\Domain\MasterData\Models\Country;
 use Illuminate\Database\Seeder;
 
 /** The two countries SPEC 5.1 names. Idempotent on `code`; working days default to Monday to Friday. */
-class CountrySeeder extends Seeder
+final class CountrySeeder extends Seeder
 {
     public function run(): void
     {

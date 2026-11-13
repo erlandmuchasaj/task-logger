@@ -12,39 +12,39 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
+Artisan::command('inspire', function (): void {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::call(fn () => app(ActivateDueSalaries::class)->handle())
+Schedule::call(fn () => resolve(ActivateDueSalaries::class)->handle())
     ->name('salaries.activate-due')
     ->daily()
     ->withoutOverlapping();
 
-Schedule::call(fn () => app(PruneExports::class)->handle())
+Schedule::call(fn () => resolve(PruneExports::class)->handle())
     ->name('exports.prune')
     ->daily()
     ->withoutOverlapping();
 
 // BR-18: hourly so 1 January is caught in every country's own timezone; each run is idempotent (NFR-13).
-Schedule::call(fn () => app(GrantAnnualLeave::class)->handle())
+Schedule::call(fn () => resolve(GrantAnnualLeave::class)->handle())
     ->name('leave.grant')
     ->hourly()
     ->withoutOverlapping();
 
-Schedule::call(fn () => app(ExpireCarryOver::class)->handle())
+Schedule::call(fn () => resolve(ExpireCarryOver::class)->handle())
     ->name('leave.expire-carry-over')
     ->hourly()
     ->withoutOverlapping();
 
 // BR-19: approved leave becomes taken after its end date.
-Schedule::call(fn () => app(MarkLeaveTaken::class)->handle())
+Schedule::call(fn () => resolve(MarkLeaveTaken::class)->handle())
     ->name('leave.mark-taken')
     ->hourly()
     ->withoutOverlapping();
 
 // BR-28 / NFR-07: anonymise people whose completed offboarding is past its retention period. Idempotent.
-Schedule::call(fn () => app(AnonymizeDueEmployees::class)->handle())
+Schedule::call(fn () => resolve(AnonymizeDueEmployees::class)->handle())
     ->name('people.anonymize')
     ->daily()
     ->withoutOverlapping();

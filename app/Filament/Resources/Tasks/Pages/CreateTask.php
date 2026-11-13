@@ -14,7 +14,7 @@ use Filament\Support\Exceptions\Halt;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 
-class CreateTask extends CreateRecord
+final class CreateTask extends CreateRecord
 {
     protected static string $resource = TaskResource::class;
 
@@ -27,9 +27,9 @@ class CreateTask extends CreateRecord
     protected function handleRecordCreation(array $data): Model
     {
         try {
-            return app(CreateTaskAction::class)->handle(auth()->user(), TaskForm::data($data));
-        } catch (ValidationException $e) {
-            ActionErrors::report($this, $e);
+            return resolve(CreateTaskAction::class)->handle(auth()->user(), TaskForm::data($data));
+        } catch (ValidationException $validationException) {
+            ActionErrors::report($this, $validationException);
             throw new Halt;
         }
     }

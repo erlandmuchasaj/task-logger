@@ -14,7 +14,7 @@ use App\Domain\Leave\Models\LeaveRequest;
  * manager stage can work (D-28). Approval stages follow D-07; "not your own request" (BR-20) is enforced in
  * DecideLeave so root access cannot skip it.
  */
-class LeaveRequestPolicy
+final class LeaveRequestPolicy
 {
     public function viewAny(User $user): bool
     {

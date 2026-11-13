@@ -12,7 +12,7 @@ use App\Domain\Identity\Permissions;
  * guards the management screens and the private HR record. A user has no extra right over their own
  * HR record (D-14 default).
  */
-class UserPolicy
+final class UserPolicy
 {
     /** Open the employee management list: anyone who may see or change HR data or accounts. */
     public function viewAny(User $user): bool

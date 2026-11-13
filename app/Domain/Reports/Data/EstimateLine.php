@@ -21,6 +21,22 @@ final readonly class EstimateLine
         public ?Money $value,
     ) {}
 
+    /** "12.50" becomes 1250, without floats. */
+    public static function hundredthsOf(string $decimal): int
+    {
+        [$whole, $fraction] = array_pad(explode('.', $decimal), 2, '0');
+
+        return (int) $whole * 100 + (int) mb_substr(mb_str_pad($fraction, 2, '0'), 0, 2);
+    }
+
+    public static function hours(int $hundredths): string
+    {
+        $sign = $hundredths < 0 ? '-' : '';
+        $hundredths = abs($hundredths);
+
+        return $sign.intdiv($hundredths, 100).'.'.mb_str_pad((string) ($hundredths % 100), 2, '0', STR_PAD_LEFT);
+    }
+
     public function loggedHundredths(): int
     {
         return intdiv($this->loggedMinutes * 100 + 30, 60);   // half up
@@ -36,21 +52,5 @@ final readonly class EstimateLine
     public function percentUsed(): ?int
     {
         return $this->estimatedHundredths > 0 ? intdiv($this->loggedHundredths() * 100 + intdiv($this->estimatedHundredths, 2), $this->estimatedHundredths) : null;
-    }
-
-    /** "12.50" becomes 1250, without floats. */
-    public static function hundredthsOf(string $decimal): int
-    {
-        [$whole, $fraction] = array_pad(explode('.', $decimal), 2, '0');
-
-        return (int) $whole * 100 + (int) substr(str_pad($fraction, 2, '0'), 0, 2);
-    }
-
-    public static function hours(int $hundredths): string
-    {
-        $sign = $hundredths < 0 ? '-' : '';
-        $hundredths = abs($hundredths);
-
-        return $sign.intdiv($hundredths, 100).'.'.str_pad((string) ($hundredths % 100), 2, '0', STR_PAD_LEFT);
     }
 }

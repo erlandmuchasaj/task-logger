@@ -15,7 +15,7 @@ use Spatie\Activitylog\Support\CauserResolver;
  * W-09 step 1: superadmin and admin (performances.create) review an employee: score 1 to 10, notes and a review
  * date. Who may read it back is a separate rule (BR-27, PerformancePolicy).
  */
-class CreatePerformanceReview
+final class CreatePerformanceReview
 {
     public function handle(User $actor, User $employee, PerformanceData $data): Performance
     {
@@ -29,7 +29,7 @@ class CreatePerformanceReview
             throw ValidationException::withMessages(['user_id' => 'This employee has been anonymised.']);
         }
 
-        return app(CauserResolver::class)->withCauser($actor, fn (): Performance => Performance::create([
+        return resolve(CauserResolver::class)->withCauser($actor, fn (): Performance => Performance::query()->create([
             'user_id' => $employee->getKey(),
             'created_by' => $actor->getKey(),
             'score' => $data->score,

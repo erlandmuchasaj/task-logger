@@ -6,7 +6,7 @@ namespace App\Domain\MasterData\Policies;
 
 use App\Domain\Identity\Permissions;
 
-class LabelPolicy extends MasterDataPolicy
+final class LabelPolicy extends MasterDataPolicy
 {
     protected function managePermission(): string
     {

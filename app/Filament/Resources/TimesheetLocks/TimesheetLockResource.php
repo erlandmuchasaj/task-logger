@@ -22,7 +22,7 @@ use Illuminate\Database\Eloquent\Model;
 use UnitEnum;
 
 /** W-08: the superadmin closes a month for time logging (D-13, BR-07) and can open it again. Perm timesheets.lock. */
-class TimesheetLockResource extends Resource
+final class TimesheetLockResource extends Resource
 {
     protected static ?string $model = TimesheetLock::class;
 
@@ -75,14 +75,14 @@ class TimesheetLockResource extends Resource
                         ->visible(fn (TimesheetLock $record): bool => $record->isLocked() && (bool) auth()->user()?->can('lock', TimesheetLock::class))
                         ->requiresConfirmation()->modalDescription('Employees can log and edit time in this month again. The change is recorded.')
                         ->action(function (TimesheetLock $record): void {
-                            app(UnlockMonth::class)->handle(auth()->user(), $record);
+                            resolve(UnlockMonth::class)->handle(auth()->user(), $record);
                             Notification::make()->title('Month unlocked')->success()->send();
                         }),
                     Action::make('relock')->label('Lock again')->icon(Heroicon::OutlinedLockClosed)
                         ->visible(fn (TimesheetLock $record): bool => ! $record->isLocked() && (bool) auth()->user()?->can('lock', TimesheetLock::class))
                         ->requiresConfirmation()
                         ->action(function (TimesheetLock $record): void {
-                            app(LockMonth::class)->handle(auth()->user(), $record->month);
+                            resolve(LockMonth::class)->handle(auth()->user(), $record->month);
                             Notification::make()->title('Month locked')->success()->send();
                         }),
                 ]),

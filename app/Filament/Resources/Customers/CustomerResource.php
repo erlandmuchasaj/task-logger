@@ -34,7 +34,7 @@ use Illuminate\Database\Eloquent\Model;
 use UnitEnum;
 
 /** Clients (table `customers`, D-23). Read-only for everyone with clients.view; rates and payment plan need clients.view_rates (D-05). */
-class CustomerResource extends Resource
+final class CustomerResource extends Resource
 {
     protected static ?string $model = Customer::class;
 
@@ -70,7 +70,7 @@ class CustomerResource extends Resource
         return $schema->components([
             Section::make('Client')->columns(3)->schema([
                 TextEntry::make('company_name')->label('Company')->placeholder('-'),
-                TextEntry::make('name')->label('Contact')->formatStateUsing(fn (string $state, Customer $record): string => trim($state.' '.$record->surname)),
+                TextEntry::make('name')->label('Contact')->formatStateUsing(fn (string $state, Customer $record): string => mb_trim($state.' '.$record->surname)),
                 TextEntry::make('priority')->badge(),
                 TextEntry::make('email'),
                 TextEntry::make('phone')->placeholder('-'),
@@ -115,14 +115,14 @@ class CustomerResource extends Resource
                         ->visible(fn (Customer $record): bool => $record->is_active && (bool) auth()->user()?->can('deactivate', $record))
                         ->requiresConfirmation()->modalDescription('No new projects, tasks or logs can be added. History stays.')
                         ->action(function (Customer $record): void {
-                            app(SetCustomerActive::class)->handle(auth()->user(), $record, false);
+                            resolve(SetCustomerActive::class)->handle(auth()->user(), $record, false);
                             Notification::make()->title('Client deactivated')->success()->send();
                         }),
                     Action::make('activate')->icon(Heroicon::OutlinedCheckCircle)
                         ->visible(fn (Customer $record): bool => ! $record->is_active && (bool) auth()->user()?->can('activate', $record))
                         ->requiresConfirmation()
                         ->action(function (Customer $record): void {
-                            app(SetCustomerActive::class)->handle(auth()->user(), $record, true);
+                            resolve(SetCustomerActive::class)->handle(auth()->user(), $record, true);
                             Notification::make()->title('Client activated')->success()->send();
                         }),
                 ]),

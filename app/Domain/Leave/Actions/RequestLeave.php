@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Gate;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /** W-05 step 1: a person asks for leave for themselves. The server computes the days (BR-16). */
-class RequestLeave
+final class RequestLeave
 {
     use ValidatesLeave;
 
@@ -24,14 +24,14 @@ class RequestLeave
 
         $this->prepare($actor, $data);
 
-        return app(CauserResolver::class)->withCauser($actor, fn (): LeaveRequest => DB::transaction(function () use ($actor, $data): LeaveRequest {
+        return resolve(CauserResolver::class)->withCauser($actor, fn (): LeaveRequest => DB::transaction(function () use ($actor, $data): LeaveRequest {
             $this->lockEmployee($actor);
 
             ['span' => $span, 'tenths' => $tenths, 'type' => $type] = $this->prepare($actor, $data);
             $this->assertNoOverlap($actor, $span);
             $this->assertBalance($actor, $type, $tenths);
 
-            return LeaveRequest::create([
+            return LeaveRequest::query()->create([
                 'user_id' => $actor->getKey(),
                 'created_by' => $actor->getKey(),
                 'leave_type_id' => $type->getKey(),

@@ -14,18 +14,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /** One stage decision on a leave request (D-07): manager, then HR. */
 #[Fillable(['leave_request_id', 'stage', 'reviewer_id', 'decision', 'decided_at', 'note'])]
-class LeaveRequestApproval extends Model
+final class LeaveRequestApproval extends Model
 {
     use LogsBusinessActivity;
-
-    protected function casts(): array
-    {
-        return [
-            'stage' => ApprovalStage::class,
-            'decision' => ApprovalDecision::class,
-            'decided_at' => 'datetime',
-        ];
-    }
 
     /** @return BelongsTo<LeaveRequest, $this> */
     public function leaveRequest(): BelongsTo
@@ -37,5 +28,14 @@ class LeaveRequestApproval extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewer_id');
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'stage' => ApprovalStage::class,
+            'decision' => ApprovalDecision::class,
+            'decided_at' => 'datetime',
+        ];
     }
 }

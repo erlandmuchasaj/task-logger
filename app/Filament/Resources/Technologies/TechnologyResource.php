@@ -19,7 +19,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use UnitEnum;
 
-class TechnologyResource extends Resource
+final class TechnologyResource extends Resource
 {
     protected static ?string $model = Technology::class;
 

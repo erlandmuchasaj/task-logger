@@ -39,7 +39,7 @@ use UnitEnum;
  * Tasks. People with tasks.view_any (superadmin, admin, assistant) see all tasks; everyone else sees only
  * the tasks assigned to them (D-05, BR-09). The assignee changes the status of their own tasks (BR-35).
  */
-class TaskResource extends Resource
+final class TaskResource extends Resource
 {
     protected static ?string $model = Task::class;
 
@@ -60,7 +60,7 @@ class TaskResource extends Resource
 
         return parent::getEloquentQuery()
             ->with(['project', 'technology', 'assignee', 'labels'])
-            ->when(! $user?->can(Permissions::TASKS_VIEW_ANY), fn (Builder $query) => $query->where('assignee_id', $user?->getKey()));
+            ->unless($user?->can(Permissions::TASKS_VIEW_ANY), fn (Builder $query) => $query->where('assignee_id', $user?->getKey()));
     }
 
     public static function form(Schema $schema): Schema
@@ -120,7 +120,7 @@ class TaskResource extends Resource
                         ->schema([Select::make('status')->options(TaskStatus::class)->required()])
                         ->fillForm(fn (Task $record): array => ['status' => $record->status->value])
                         ->action(function (Task $record, array $data): void {
-                            app(ChangeTaskStatus::class)->handle(auth()->user(), $record, $data['status'] instanceof TaskStatus ? $data['status'] : TaskStatus::from((string) $data['status']));
+                            resolve(ChangeTaskStatus::class)->handle(auth()->user(), $record, $data['status'] instanceof TaskStatus ? $data['status'] : TaskStatus::from((string) $data['status']));
                             Notification::make()->title('Status changed')->success()->send();
                         }),
                     Action::make('delete')->icon(Heroicon::OutlinedTrash)->color('danger')
@@ -128,10 +128,10 @@ class TaskResource extends Resource
                         ->requiresConfirmation()
                         ->action(function (Task $record): void {
                             try {
-                                app(DeleteTask::class)->handle(auth()->user(), $record);
+                                resolve(DeleteTask::class)->handle(auth()->user(), $record);
                                 Notification::make()->title('Task deleted')->success()->send();
-                            } catch (ValidationException $e) {
-                                ActionErrors::notify($e);
+                            } catch (ValidationException $validationException) {
+                                ActionErrors::notify($validationException);
                             }
                         }),
                 ]),

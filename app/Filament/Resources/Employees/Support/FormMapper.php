@@ -14,9 +14,11 @@ use App\Domain\People\Data\SalaryData;
 use App\Domain\People\Enums\Gender;
 use App\Domain\People\Enums\MaritalStatus;
 use App\Domain\Shared\Money;
+use BackedEnum;
 use Carbon\CarbonImmutable;
 use Filament\Notifications\Notification;
 use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 use Livewire\Component;
 
 /** Converts Filament form state to People DTOs and back, so the actions stay UI-free. */
@@ -113,7 +115,7 @@ final class FormMapper
             sourceOfHire: $p['source_of_hire'] ?? null,
             hasHealthInsurance: (bool) ($p['has_health_insurance'] ?? false),
             description: $p['description'] ?? null,
-            metadata: array_map('strval', (array) ($p['metadata'] ?? [])),
+            metadata: array_map(strval(...), (array) ($p['metadata'] ?? [])),
             contacts: $contacts,
         );
     }
@@ -127,8 +129,8 @@ final class FormMapper
 
         try {
             $amount = Money::fromMajor((string) $data['amount'], (string) ($data['currency'] ?? ''));
-        } catch (\InvalidArgumentException $e) {
-            throw ValidationException::withMessages(['amount' => $e->getMessage()]);
+        } catch (InvalidArgumentException $invalidArgumentException) {
+            throw ValidationException::withMessages(['amount' => $invalidArgumentException->getMessage()]);
         }
 
         return new SalaryData($amount, CarbonImmutable::parse((string) $data['effective_date']), $data['description'] ?? null);
@@ -137,12 +139,6 @@ final class FormMapper
     public static function countryCode(mixed $countryId): ?string
     {
         return filled($countryId) ? Country::query()->whereKey($countryId)->value('code') : null;
-    }
-
-    /** Filament gives enum-backed selects back as enum cases or as their raw value; accept both. */
-    private static function value(mixed $state): string
-    {
-        return $state instanceof \BackedEnum ? (string) $state->value : (string) $state;
     }
 
     public static function currencyOf(mixed $countryId): ?string
@@ -171,5 +167,11 @@ final class FormMapper
         }
 
         Notification::make()->title('Could not save')->body(collect($e->errors())->flatten()->first())->danger()->send();
+    }
+
+    /** Filament gives enum-backed selects back as enum cases or as their raw value; accept both. */
+    private static function value(mixed $state): string
+    {
+        return $state instanceof BackedEnum ? (string) $state->value : (string) $state;
     }
 }

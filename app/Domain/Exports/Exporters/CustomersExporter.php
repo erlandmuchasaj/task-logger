@@ -45,7 +45,7 @@ final class CustomersExporter implements Exporter
 
         $row = [
             'company' => $customer->company_name,
-            'contact' => trim($customer->name.' '.$customer->surname),
+            'contact' => mb_trim($customer->name.' '.$customer->surname),
             'email' => $customer->email,
             'phone' => $customer->phone,
             'country' => $customer->country->name,

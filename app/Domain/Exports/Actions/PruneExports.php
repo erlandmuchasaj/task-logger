@@ -9,7 +9,7 @@ use App\Domain\Exports\Models\Export;
 use Illuminate\Support\Facades\Storage;
 
 /** Daily: deletes export files past their expiry and marks the rows expired (idempotent). */
-class PruneExports
+final class PruneExports
 {
     /** @return int number of exports expired */
     public function handle(): int

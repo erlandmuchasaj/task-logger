@@ -12,6 +12,7 @@ use App\Domain\Clients\Support\ProjectManagerEligibility;
 use App\Domain\Identity\Models\User;
 use App\Domain\MasterData\Models\Technology;
 use App\Domain\Work\Models\Log;
+use Carbon\CarbonInterface;
 use Illuminate\Validation\ValidationException;
 
 trait ValidatesProject
@@ -22,7 +23,7 @@ trait ValidatesProject
         $errors = [];
 
         // BR-31: a deactivated client gets no new projects. Existing projects keep working.
-        if (! $customer->is_active && $existing === null) {
+        if (! $customer->is_active && ! $existing instanceof Project) {
             $errors['customer_id'] = 'This client is deactivated and cannot receive new projects.';
         }
 
@@ -31,7 +32,7 @@ trait ValidatesProject
             $errors['manager_id'] = 'The project manager must be an active user with the admin role.';
         }
 
-        if ($data->endDate !== null && $data->endDate->lessThan($data->startDate)) {
+        if ($data->endDate instanceof CarbonInterface && $data->endDate->lessThan($data->startDate)) {
             $errors['end_date'] = 'The end date cannot be before the start date.';
         }
 

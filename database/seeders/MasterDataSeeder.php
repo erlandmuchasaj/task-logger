@@ -11,7 +11,7 @@ use App\Domain\MasterData\Models\PaymentPlan;
 use Illuminate\Database\Seeder;
 
 /** Seeds only values the spec names (SPEC 5.1). Countries, departments and technologies have their own seeders; leave policies are entered by the superadmin. */
-class MasterDataSeeder extends Seeder
+final class MasterDataSeeder extends Seeder
 {
     public function run(): void
     {

@@ -29,7 +29,9 @@ use App\Domain\Work\Models\Task;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
+use Illuminate\Session\SessionManager;
+use Illuminate\Support\Facades\Date;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 /*
@@ -61,9 +63,7 @@ pest()->extend(TestCase::class)->in('Architecture');
 |
 */
 
-expect()->extend('toBeOne', function () {
-    return $this->toBe(1);
-});
+expect()->extend('toBeOne', fn () => $this->toBe(1));
 
 /*
 |--------------------------------------------------------------------------
@@ -76,9 +76,32 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+function something(): void
 {
     // ..
+}
+
+/**
+ * A real Livewire update request, as the browser sends it from a page that was rendered earlier:
+ * takes the snapshot of the first component on `$html` whose name contains `$component`.
+ *
+ * @param  array<int, mixed>  $params
+ */
+function livewireUpdate(string $html, string $component, string $method, array $params = []): TestResponse
+{
+    preg_match_all('/wire:snapshot="([^"]*)"/', $html, $matches);
+
+    $snapshot = collect($matches[1])
+        ->map(fn (string $encoded): string => html_entity_decode($encoded))
+        ->first(fn (string $json): bool => str_contains((string) data_get(json_decode($json, true), 'memo.name'), $component));
+
+    expect($snapshot)->not->toBeNull("No [{$component}] component on the page.");
+
+    return test()->postJson(
+        route('default-livewire.update'),
+        ['components' => [['snapshot' => $snapshot, 'updates' => [], 'calls' => [['path' => '', 'method' => $method, 'params' => $params]]]]],
+        ['X-Livewire' => 'true'],
+    );
 }
 
 /** A user holding exactly one role (D-09). Feature tests seed roles and permissions first. */
@@ -102,7 +125,7 @@ function employeeData(array $overrides = []): EmployeeData
         'position' => 'Engineer',
         'managerId' => null,
         'employmentType' => EmploymentType::FullTime,
-        'startDate' => now()->startOfDay(),
+        'startDate' => today(),
         'avatarPath' => null,
         'skills' => [],
     ], $overrides);
@@ -140,8 +163,8 @@ function projectData(Customer $client, array $hours, array $overrides = []): Pro
         'name' => 'Website',
         'description' => null,
         'managerId' => User::factory()->withRole(RoleName::Admin)->create()->id,
-        'startDate' => Carbon::parse('2026-01-01'),
-        'endDate' => Carbon::parse('2026-12-31'),
+        'startDate' => Date::parse('2026-01-01'),
+        'endDate' => Date::parse('2026-12-31'),
         'canLogDirectly' => false,
         'status' => ProjectStatus::Active,
         'color' => null,
@@ -157,12 +180,13 @@ function asRequest(string $ip = '203.0.113.7', string $agent = 'Mozilla/5.0 (X11
 {
     $request = Request::create('/app/labels', 'POST', server: ['REMOTE_ADDR' => $ip, 'HTTP_USER_AGENT' => $agent]);
 
-    $session = app('session')->driver();
+    $session = resolve(SessionManager::class)->driver();
     $session->start();
     $session->flush(); // each request has its own session in real life
     if ($impersonatedBy !== null) {
         $session->put(config('task-logger.impersonation.session_key'), $impersonatedBy);
     }
+
     $request->setLaravelSession($session);
 
     app()->instance('request', $request);
@@ -184,9 +208,9 @@ function loggingSetup(int $rateMinor = 2000, string $rateFrom = '2025-01-01', ?U
     $employee ??= User::factory()->withRole(RoleName::Employee)->create();
     [$client, $tech] = clientWithRates(['Angular' => $rateMinor], $rateFrom);
 
-    $project = app(CreateProject::class)->handle(
+    $project = resolve(CreateProject::class)->handle(
         User::factory()->withRole(RoleName::Superadmin)->create(),
-        projectData($client, [$tech['Angular']->id => '100'], ['canLogDirectly' => true, 'memberIds' => [$employee->id], 'startDate' => Carbon::parse($rateFrom)]),
+        projectData($client, [$tech['Angular']->id => '100'], ['canLogDirectly' => true, 'memberIds' => [$employee->id], 'startDate' => Date::parse($rateFrom)]),
     )->load('customer');
 
     $task = Task::factory()->create(['project_id' => $project->id, 'technology_id' => $tech['Angular']->id, 'assignee_id' => $employee->id]);
@@ -198,7 +222,7 @@ function loggingSetup(int $rateMinor = 2000, string $rateFrom = '2025-01-01', ?U
 function logData(array $overrides = []): LogData
 {
     return new LogData(...array_merge([
-        'date' => Carbon::parse('2026-03-10'),
+        'date' => Date::parse('2026-03-10'),
         'minutes' => 120,
         'type' => LogType::NormalHours,
         'description' => 'Worked on it',
@@ -214,24 +238,21 @@ function logData(array $overrides = []): LogData
 function leaveSetup(RoleName $role = RoleName::Employee, ?User $manager = null, string $startDate = '2024-01-01'): array
 {
     $country = Country::query()->where('code', 'AL')->first() ?? Country::factory()->albania()->create();
-    $annual = LeaveType::firstOrCreate(['name' => 'annual_leave'], ['affects_balance' => true]);
-    $sick = LeaveType::firstOrCreate(['name' => 'sick_leave'], ['affects_balance' => true]);
-    $unpaid = LeaveType::firstOrCreate(['name' => 'unpaid_leave'], ['affects_balance' => false]);
+    $annual = LeaveType::query()->firstOrCreate(['name' => 'annual_leave'], ['affects_balance' => true]);
+    $sick = LeaveType::query()->firstOrCreate(['name' => 'sick_leave'], ['affects_balance' => true]);
+    $unpaid = LeaveType::query()->firstOrCreate(['name' => 'unpaid_leave'], ['affects_balance' => false]);
 
-    CountryLeavePolicy::firstOrCreate(
-        ['country_id' => $country->id, 'leave_type_id' => $annual->id, 'effective_from' => '2020-01-01'],
-        ['days_per_year' => '20.0'],
-    );
+    CountryLeavePolicy::query()->firstOrCreate(['country_id' => $country->id, 'leave_type_id' => $annual->id, 'effective_from' => '2020-01-01'], ['days_per_year' => '20.0']);
 
     $employee = User::factory()->withRole($role)->create(['country_id' => $country->id, 'manager_id' => $manager?->id, 'start_date' => $startDate]);
 
-    return compact('country', 'annual', 'sick', 'unpaid', 'employee');
+    return ['country' => $country, 'annual' => $annual, 'sick' => $sick, 'unpaid' => $unpaid, 'employee' => $employee];
 }
 
 /** Adds days to someone's balance the way a grant would. */
 function grantDays(User $user, LeaveType $type, string $days, string $on = '2026-01-01'): LeaveLedgerEntry
 {
-    return LeaveLedgerEntry::create([
+    return LeaveLedgerEntry::query()->create([
         'user_id' => $user->id, 'leave_type_id' => $type->id, 'entry_type' => LedgerEntryType::Grant,
         'days' => $days, 'effective_on' => $on,
     ]);
@@ -239,5 +260,5 @@ function grantDays(User $user, LeaveType $type, string $days, string $on = '2026
 
 function leaveData(LeaveType $type, string $from, ?string $to = null, DayPart $start = DayPart::Full, DayPart $end = DayPart::Full, ?string $reason = null): LeaveRequestData
 {
-    return new LeaveRequestData($type->id, Carbon::parse($from), Carbon::parse($to ?? $from), $start, $end, $reason);
+    return new LeaveRequestData($type->id, Date::parse($from), Date::parse($to ?? $from), $start, $end, $reason);
 }

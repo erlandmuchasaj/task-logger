@@ -15,10 +15,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['user_id', 'name', 'phone', 'relationship'])]
 #[UseFactory(EmergencyContactFactory::class)]
-class EmergencyContact extends Model
+final class EmergencyContact extends Model
 {
     /** @use HasFactory<EmergencyContactFactory> */
-    use HasFactory, LogsBusinessActivity;
+    use HasFactory;
+
+    use LogsBusinessActivity;
 
     /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo

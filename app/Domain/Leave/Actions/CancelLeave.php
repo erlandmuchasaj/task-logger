@@ -17,7 +17,7 @@ use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /** BR-19: pending or approved (not yet taken) becomes cancelled; an approved one gives its days back through a reversal entry. */
-class CancelLeave
+final class CancelLeave
 {
     use ValidatesLeave;
 
@@ -25,7 +25,7 @@ class CancelLeave
     {
         Gate::forUser($actor)->authorize('cancel', $request);
 
-        return app(CauserResolver::class)->withCauser($actor, fn (): LeaveRequest => DB::transaction(function () use ($actor, $request): LeaveRequest {
+        return resolve(CauserResolver::class)->withCauser($actor, fn (): LeaveRequest => DB::transaction(function () use ($actor, $request): LeaveRequest {
             $employee = User::query()->whereKey($request->user_id)->lockForUpdate()->firstOrFail();
             $request = LeaveRequest::query()->with('leaveType')->whereKey($request->getKey())->lockForUpdate()->firstOrFail();
 
@@ -37,7 +37,7 @@ class CancelLeave
             $request->update(['status' => LeaveStatus::Cancelled]);
 
             if ($wasApproved && $request->leaveType->affects_balance) {
-                LeaveLedgerEntry::create([
+                LeaveLedgerEntry::query()->create([
                     'user_id' => $request->user_id,
                     'leave_type_id' => $request->leave_type_id,
                     'entry_type' => LedgerEntryType::Reversal,

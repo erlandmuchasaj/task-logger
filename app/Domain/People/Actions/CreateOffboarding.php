@@ -19,7 +19,7 @@ use Spatie\Activitylog\Support\CauserResolver;
  * non-cancelled offboarding per user; the database enforces it too. Creating one already `completed` deactivates
  * the login like completing it later does (ADR-0008).
  */
-class CreateOffboarding
+final class CreateOffboarding
 {
     use ValidatesOffboarding;
 
@@ -31,12 +31,12 @@ class CreateOffboarding
             throw ValidationException::withMessages(['status' => 'An offboarding cannot start cancelled.']);
         }
 
-        return app(CauserResolver::class)->withCauser($actor, fn (): Offboarding => DB::transaction(function () use ($actor, $employee, $data): Offboarding {
+        return resolve(CauserResolver::class)->withCauser($actor, fn (): Offboarding => DB::transaction(function () use ($actor, $employee, $data): Offboarding {
             User::query()->whereKey($employee->getKey())->lockForUpdate()->first();
             $this->assertCanOffboard($employee);
 
             try {
-                $offboarding = Offboarding::create([
+                $offboarding = Offboarding::query()->create([
                     'user_id' => $employee->getKey(),
                     'created_by' => $actor->getKey(),
                     'end_date' => $data->endDate->toDateString(),
@@ -50,7 +50,7 @@ class CreateOffboarding
             }
 
             if ($data->status === OffboardingStatus::Completed) {
-                app(ChangeOffboardingStatus::class)->deactivate($actor, $offboarding);
+                resolve(ChangeOffboardingStatus::class)->deactivate($actor, $offboarding);
             }
 
             return $offboarding;

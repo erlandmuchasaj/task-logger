@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Employees\RelationManagers;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Permissions;
 use App\Domain\Leave\Enums\LeaveStatus;
+use App\Domain\MasterData\Models\LeaveType;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -55,7 +56,8 @@ final class LeaveRequestsRelationManager extends RelationManager
             ])
             ->filters([
                 SelectFilter::make('status')->options(LeaveStatus::class),
-                SelectFilter::make('leave_type')->label('Type')->relationship('leaveType', 'name'),
+                SelectFilter::make('leave_type')->label('Type')->relationship('leaveType', 'name')
+                    ->getOptionLabelFromRecordUsing(fn (LeaveType $record): string => $record->label()),
             ])
             ->defaultSort('start_date', 'desc')
             ->emptyStateHeading('No leave requests yet');

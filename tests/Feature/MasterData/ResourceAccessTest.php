@@ -12,6 +12,7 @@ use App\Filament\Resources\Technologies\Pages\ManageTechnologies;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Select;
 use Livewire\Livewire;
 
 it('NFR-03 an employee cannot open master data screens they have no permission for', function (string $url): void {
@@ -78,6 +79,19 @@ it('FR-05 / FR-06 superadmin creates a country with its PTO and sick leave polic
     expect($country->currency_code)->toBe('ALL')
         ->and($country->leavePolicies()->sole()->days_per_year)->toBe('20.0');
 })->group('FR-05', 'FR-06');
+
+it('FR-06 the leave type dropdown on a country policy shows readable labels, not the stored names', function (): void {
+    $this->actingAs(userWithRole(RoleName::Superadmin));
+    $annual = LeaveType::factory()->create(['name' => 'annual_leave', 'affects_balance' => true]);
+
+    Livewire::test(ManageCountries::class)
+        ->mountAction(CreateAction::class)
+        ->fillForm(['leavePolicies' => [['days_per_year' => 22]]])
+        ->assertFormFieldExists(
+            'leavePolicies.0.leave_type_id',
+            checkFieldUsing: fn (Select $field): bool => $field->getOptions() === [$annual->id => 'Annual Leave'],
+        );
+})->group('FR-06');
 
 it('FR-05 the assistant can add a country without leave policies and never sees them', function (): void {
     $this->actingAs(userWithRole(RoleName::Assistant));

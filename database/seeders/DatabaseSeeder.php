@@ -14,6 +14,7 @@ final class DatabaseSeeder extends Seeder
             RolesAndPermissionsSeeder::class,
             MasterDataSeeder::class,
             CountrySeeder::class,
+            AlbaniaLeaveSeeder::class,  // 22-day policy and 2026 bank holidays
             DepartmentSeeder::class,
             TechnologySeeder::class,
             SuperadminSeeder::class,

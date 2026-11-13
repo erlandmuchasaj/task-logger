@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Countries;
 use App\Domain\Identity\Permissions;
 use App\Domain\MasterData\Enums\Proration;
 use App\Domain\MasterData\Models\Country;
+use App\Domain\MasterData\Models\LeaveType;
 use App\Domain\Shared\IsoCurrency;
 use App\Filament\Resources\Countries\Pages\ManageCountries;
 use BackedEnum;
@@ -78,7 +79,8 @@ final class CountryResource extends Resource
                     },
                 ])
                 ->schema([
-                    Select::make('leave_type_id')->relationship('leaveType', 'name')->required(),
+                    Select::make('leave_type_id')->relationship('leaveType', 'name')
+                        ->getOptionLabelFromRecordUsing(fn (LeaveType $record): string => $record->label())->required(),
                     TextInput::make('days_per_year')->numeric()->minValue(0)->maxValue(365)->step(0.5)->required(),
                     DatePicker::make('effective_from')->required(),
                     Select::make('proration')->options(Proration::class)->default(Proration::ByStartDate)->required(),

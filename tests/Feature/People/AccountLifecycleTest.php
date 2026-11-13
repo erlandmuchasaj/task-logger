@@ -7,6 +7,7 @@ use App\Domain\Identity\Enums\RoleName;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Permissions;
 use App\Domain\Leave\Models\LeaveRequest;
+use App\Domain\MasterData\Models\LeaveType;
 use App\Domain\People\Actions\DeactivateEmployee;
 use App\Domain\People\Actions\ReactivateEmployee;
 use App\Domain\People\Actions\ResetEmployeePassword;
@@ -303,6 +304,19 @@ it('the employee edit page shows Timesheets and Leave requests tabs to people al
 
     $this->get(EmployeeResource::getUrl('edit', ['record' => $employee]).'?relation=1')
         ->assertOk()->assertSee('Timesheets')->assertSee('Leave requests');
+});
+
+it('the employee leave requests type filter shows readable labels, not the stored names', function (): void {
+    $employee = userWithRole(RoleName::Employee);
+    $annual = LeaveType::factory()->create(['name' => 'annual_leave', 'affects_balance' => true]);
+
+    $this->actingAs(userWithRole(RoleName::Superadmin));
+
+    $select = Livewire::test(LeaveRequestsRelationManager::class, ['ownerRecord' => $employee, 'pageClass' => EditEmployee::class])
+        ->instance()->getTableFiltersForm()->getFlatFields(withHidden: true)['leave_type.value'] ?? null;
+
+    expect($select)->not->toBeNull();
+    expect($select->getOptions())->toBe([$annual->id => 'Annual Leave']);
 });
 
 it('the Timesheets and Leave requests tabs are hidden from people without the matching permission', function (): void {

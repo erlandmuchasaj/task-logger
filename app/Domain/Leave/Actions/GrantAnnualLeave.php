@@ -107,7 +107,7 @@ final class GrantAnnualLeave
         $expire = resolve(ExpireCarryOver::class);
 
         if ($expire->hasExpiryOn((int) $user->getKey(), (int) $type->getKey(), $newYear)) {
-            return; // the ledger allows one expiry per day: this year-end is already closed
+            return; // only a close writes a 1 January expiry (ExpireCarryOver leaves that day to it): already closed
         }
 
         $expire->expireDueFor($user, (int) $type->getKey(), $newYear);

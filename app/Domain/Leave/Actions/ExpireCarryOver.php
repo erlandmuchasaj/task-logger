@@ -18,9 +18,9 @@ use Illuminate\Support\Facades\DB;
  * BR-18: carried-over days that are still unused on their `expires_on` date expire through a negative
  * ledger entry. Days used since the carry-over are taken from the oldest carried part first
  * ({@see CarryOverTranches}). The ledger is append-only and allows one expiry entry per person, type and
- * date, so every tranche due on a date shares one entry. A tranche due on 1 January is settled by the
- * year-end close of {@see GrantAnnualLeave}, which owns that day's entry: this job runs the close first.
- * Idempotent.
+ * date, so every tranche due on a date shares one entry. A tranche due on 1 January is settled only by the
+ * year-end close of {@see GrantAnnualLeave}, which owns that day's entry: this job runs the close and never
+ * writes a 1 January expiry itself, so such an entry always means the year-end is closed. Idempotent.
  */
 final class ExpireCarryOver
 {
@@ -43,9 +43,12 @@ final class ExpireCarryOver
                     return;
                 }
 
-                // 1 January: the year-end close writes that day's single expiry entry, so it goes first.
+                // 1 January: only the year-end close writes that day's single expiry entry. Without a policy
+                // it writes nothing and the tranche waits, so a policy added later that day still closes the year.
                 if ($due->expires_on->month === 1 && $due->expires_on->day === 1) {
                     resolve(GrantAnnualLeave::class)->grantFor($user);
+
+                    return;
                 }
 
                 $written += $this->expireOn($user, (int) $due->leave_type_id, $due->expires_on);

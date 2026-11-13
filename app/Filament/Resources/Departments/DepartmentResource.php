@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Departments;
 use App\Domain\MasterData\Models\Department;
 use App\Filament\Resources\Departments\Pages\ManageDepartments;
 use BackedEnum;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
@@ -54,7 +55,7 @@ class DepartmentResource extends Resource
                 TextColumn::make('slug')->toggleable(isToggledHiddenByDefault: true),
                 IconColumn::make('is_active')->boolean(),
             ])
-            ->recordActions([EditAction::make(), DeleteAction::make()])
+            ->recordActions([ActionGroup::make([EditAction::make(), DeleteAction::make()])])
             ->defaultSort('name');
     }
 

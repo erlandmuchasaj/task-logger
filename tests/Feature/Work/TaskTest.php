@@ -17,12 +17,18 @@ use App\Domain\Work\Actions\UpdateTask;
 use App\Domain\Work\Data\TaskData;
 use App\Domain\Work\Enums\TaskStatus;
 use App\Domain\Work\Models\Task;
+use App\Domain\Work\Notifications\TaskAssigned;
 use App\Domain\Work\Support\TaskHierarchy;
+use App\Filament\Resources\Logs\LogResource;
+use App\Filament\Resources\Logs\Pages\CreateLog as CreateLogPage;
 use App\Filament\Resources\Tasks\Pages\CreateTask as CreateTaskPage;
 use App\Filament\Resources\Tasks\Pages\EditTask;
 use App\Filament\Resources\Tasks\Pages\ListTasks;
+use App\Filament\Resources\Tasks\Pages\ViewTask;
+use App\Filament\Resources\Tasks\TaskResource;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
@@ -313,3 +319,70 @@ it('FR-22 the Create screen creates a task for an admin, then the Edit screen up
 
     expect($task->fresh()->name)->toBe('Edited on screen');
 })->group('FR-22');
+
+it('D-55 the assignee gets an email with the task details and links to the task and to log hours', function () {
+    Notification::fake();
+    $project = taskProject();
+    $actor = userWithRole(RoleName::Admin);
+    $assignee = userWithRole(RoleName::Employee);
+
+    $task = app(CreateTask::class)->handle($actor, taskData($project, ['assigneeId' => $assignee->id, 'description' => 'Use the SSO flow', 'dueDate' => now()->addWeek()]));
+
+    Notification::assertSentTo($assignee, TaskAssigned::class, function (TaskAssigned $n) use ($assignee, $task, $actor): bool {
+        $mail = $n->toMail($assignee);
+        $text = implode("\n", [...$mail->introLines, ...$mail->outroLines]);
+
+        return $mail->subject === 'New task assigned: Build login'
+            && $mail->actionUrl === TaskResource::getUrl('view', ['record' => $task], panel: 'app')
+            && str_contains($text, LogResource::getUrl('create', ['task' => $task->id], panel: 'app'))
+            && str_contains($text, $task->project->name)
+            && str_contains($text, 'Use the SSO flow')
+            && str_contains($text, 'High')
+            && str_contains($text, $actor->getFilamentName());
+    });
+    Notification::assertCount(1);
+});
+
+it('D-55 reassigning emails only the new assignee; unchanged, removed or self-assigned tasks send nothing', function () {
+    Notification::fake();
+    $project = taskProject();
+    $admin = userWithRole(RoleName::Admin);
+    $a = userWithRole(RoleName::Employee);
+    $b = userWithRole(RoleName::Employee);
+
+    $task = app(CreateTask::class)->handle($admin, taskData($project));          // unassigned
+    Notification::assertNothingSent();
+
+    app(AssignTask::class)->handle($admin, $task, $a->id);
+    app(AssignTask::class)->handle($admin, $task->fresh(), $a->id);              // unchanged
+    app(UpdateTask::class)->handle($admin, $task->fresh(), taskData($project, ['assigneeId' => $b->id]));
+    app(AssignTask::class)->handle($admin, $task->fresh(), null);                // removed
+    app(AssignTask::class)->handle($admin, $task->fresh(), $admin->id);          // self-assigned
+
+    Notification::assertSentToTimes($a, TaskAssigned::class, 1);
+    Notification::assertSentToTimes($b, TaskAssigned::class, 1);
+    Notification::assertNotSentTo($admin, TaskAssigned::class);
+});
+
+it('D-55 the task page offers "Log hours" to its assignee, and the log form opens with the task chosen', function () {
+    $project = taskProject();
+    $assignee = userWithRole(RoleName::Employee);
+    $task = Task::factory()->create(['project_id' => $project->id, 'technology_id' => $project->technologyLines()->value('technology_id'), 'assignee_id' => $assignee->id]);
+
+    $this->actingAs(userWithRole(RoleName::Admin));
+    Livewire::test(ViewTask::class, ['record' => $task->getKey()])->assertActionHidden('logHours');
+
+    $this->actingAs($assignee);
+    Livewire::test(ViewTask::class, ['record' => $task->getKey()])
+        ->assertActionVisible('logHours')
+        ->assertActionHasUrl('logHours', LogResource::getUrl('create', ['task' => $task->id]));
+
+    $this->get(LogResource::getUrl('create', ['task' => $task->id]))->assertOk();
+    Livewire::withQueryParams(['task' => $task->id])->test(CreateLogPage::class)
+        ->assertSchemaStateSet(['task_id' => $task->id, 'direct' => false]);
+
+    // Someone else's task is never preselected.
+    $other = Task::factory()->create(['project_id' => $project->id, 'technology_id' => $project->technologyLines()->value('technology_id')]);
+    Livewire::withQueryParams(['task' => $other->id])->test(CreateLogPage::class)
+        ->assertSchemaStateSet(['task_id' => null]);
+});

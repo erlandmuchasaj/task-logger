@@ -16,6 +16,7 @@ use App\Filament\Resources\Expenses\Pages\ListExpenses;
 use App\Filament\Support\ActionErrors;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
@@ -77,33 +78,35 @@ class ExpenseResource extends Resource
                 SelectFilter::make('category')->options(ExpenseCategory::class),
             ])
             ->recordActions([
-                EditAction::make()->visible(fn (Expense $record): bool => $record->status->isEditable() && (bool) auth()->user()?->can('update', $record)),
-                self::move('submit', 'Submit', ExpenseStatus::Submitted, Heroicon::OutlinedPaperAirplane, 'warning'),
-                self::move('approve', 'Approve', ExpenseStatus::Approved, Heroicon::OutlinedCheck, 'success'),
-                self::move('reject', 'Reject', ExpenseStatus::Rejected, Heroicon::OutlinedNoSymbol, 'danger', withReason: true),
-                self::move('reimburse', 'Mark reimbursed', ExpenseStatus::Reimbursed, Heroicon::OutlinedBanknotes, 'success'),
-                self::move('reopen', 'Back to draft', ExpenseStatus::Draft, Heroicon::OutlinedArrowUturnLeft, 'gray'),
-                Action::make('receipt')->label('Receipt')->icon(Heroicon::OutlinedPaperClip)->color('gray')
-                    ->visible(fn (Expense $record): bool => $record->receipt_path !== null && (bool) auth()->user()?->can('view', $record))
-                    ->action(function (Expense $record) {
-                        try {
-                            return app(DownloadReceipt::class)->handle(auth()->user(), $record);
-                        } catch (ValidationException $e) {
-                            ActionErrors::notify($e);
+                ActionGroup::make([
+                    EditAction::make()->visible(fn (Expense $record): bool => $record->status->isEditable() && (bool) auth()->user()?->can('update', $record)),
+                    self::move('submit', 'Submit', ExpenseStatus::Submitted, Heroicon::OutlinedPaperAirplane, 'warning'),
+                    self::move('approve', 'Approve', ExpenseStatus::Approved, Heroicon::OutlinedCheck, 'success'),
+                    self::move('reject', 'Reject', ExpenseStatus::Rejected, Heroicon::OutlinedNoSymbol, 'danger', withReason: true),
+                    self::move('reimburse', 'Mark reimbursed', ExpenseStatus::Reimbursed, Heroicon::OutlinedBanknotes, 'success'),
+                    self::move('reopen', 'Back to draft', ExpenseStatus::Draft, Heroicon::OutlinedArrowUturnLeft, 'gray'),
+                    Action::make('receipt')->label('Receipt')->icon(Heroicon::OutlinedPaperClip)->color('gray')
+                        ->visible(fn (Expense $record): bool => $record->receipt_path !== null && (bool) auth()->user()?->can('view', $record))
+                        ->action(function (Expense $record) {
+                            try {
+                                return app(DownloadReceipt::class)->handle(auth()->user(), $record);
+                            } catch (ValidationException $e) {
+                                ActionErrors::notify($e);
 
-                            return null;
-                        }
-                    }),
-                Action::make('delete')->icon(Heroicon::OutlinedTrash)->color('danger')->requiresConfirmation()
-                    ->visible(fn (Expense $record): bool => $record->status->isEditable() && (bool) auth()->user()?->can('delete', $record))
-                    ->action(function (Expense $record): void {
-                        try {
-                            app(DeleteExpense::class)->handle(auth()->user(), $record);
-                            Notification::make()->title('Expense deleted')->success()->send();
-                        } catch (ValidationException $e) {
-                            ActionErrors::notify($e);
-                        }
-                    }),
+                                return null;
+                            }
+                        }),
+                    Action::make('delete')->icon(Heroicon::OutlinedTrash)->color('danger')->requiresConfirmation()
+                        ->visible(fn (Expense $record): bool => $record->status->isEditable() && (bool) auth()->user()?->can('delete', $record))
+                        ->action(function (Expense $record): void {
+                            try {
+                                app(DeleteExpense::class)->handle(auth()->user(), $record);
+                                Notification::make()->title('Expense deleted')->success()->send();
+                            } catch (ValidationException $e) {
+                                ActionErrors::notify($e);
+                            }
+                        }),
+                ]),
             ])
             ->defaultSort('id', 'desc')
             ->paginated([25, 50, 100])

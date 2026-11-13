@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Labels;
 use App\Domain\MasterData\Models\Label;
 use App\Filament\Resources\Labels\Pages\ManageLabels;
 use BackedEnum;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
@@ -42,7 +43,7 @@ class LabelResource extends Resource
                 TextColumn::make('name')->searchable()->sortable(),
                 TextColumn::make('color'),
             ])
-            ->recordActions([EditAction::make(), DeleteAction::make()])
+            ->recordActions([ActionGroup::make([EditAction::make(), DeleteAction::make()])])
             ->defaultSort('name');
     }
 

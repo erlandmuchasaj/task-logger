@@ -7,6 +7,7 @@ namespace App\Filament\Resources\LeaveTypes;
 use App\Domain\MasterData\Models\LeaveType;
 use App\Filament\Resources\LeaveTypes\Pages\ManageLeaveTypes;
 use BackedEnum;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
@@ -47,7 +48,7 @@ class LeaveTypeResource extends Resource
                 IconColumn::make('affects_balance')->boolean(),
                 IconColumn::make('is_active')->boolean(),
             ])
-            ->recordActions([EditAction::make(), DeleteAction::make()])
+            ->recordActions([ActionGroup::make([EditAction::make(), DeleteAction::make()])])
             ->defaultSort('name');
     }
 

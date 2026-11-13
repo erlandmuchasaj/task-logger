@@ -74,6 +74,12 @@ class UserPolicy
         return $user->can(Permissions::EMPLOYEES_IMPERSONATE);
     }
 
+    /** D-53: set a new temporary password and email it. Same right as resending the set-password link. */
+    public function resetPassword(User $user, User $employee): bool
+    {
+        return $this->updateAccount($user, $employee);
+    }
+
     public function resetTwoFactor(User $user, User $employee): bool
     {
         return $user->can(Permissions::TWO_FACTOR_MANAGE);

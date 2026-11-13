@@ -9,6 +9,7 @@ use App\Domain\Exports\Models\Export;
 use App\Filament\Resources\Exports\Pages\ListExports;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -63,14 +64,16 @@ class ExportResource extends Resource
                 TextColumn::make('error')->limit(60)->placeholder('-')->visible(fn (): bool => Export::query()->where('user_id', auth()->id())->where('status', ExportStatus::Failed)->exists()),
             ])
             ->recordActions([
-                Action::make('download')->icon(Heroicon::OutlinedArrowDownTray)
-                    ->visible(fn (Export $record): bool => (bool) auth()->user()?->can('download', $record))
-                    ->action(function (Export $record) {
-                        abort_unless(auth()->user()?->can('download', $record), 403);
+                ActionGroup::make([
+                    Action::make('download')->icon(Heroicon::OutlinedArrowDownTray)
+                        ->visible(fn (Export $record): bool => (bool) auth()->user()?->can('download', $record))
+                        ->action(function (Export $record) {
+                            abort_unless(auth()->user()?->can('download', $record), 403);
 
-                        return Storage::disk((string) config('task-logger.exports.disk'))
-                            ->download((string) $record->file_path, "{$record->type->value}-".$record->created_at->format('Y-m-d-His').'.csv');
-                    }),
+                            return Storage::disk((string) config('task-logger.exports.disk'))
+                                ->download((string) $record->file_path, "{$record->type->value}-".$record->created_at->format('Y-m-d-His').'.csv');
+                        }),
+                ]),
             ])
             ->defaultSort('id', 'desc');
     }

@@ -14,6 +14,7 @@ use App\Filament\Resources\Logs\Pages\ListLogs;
 use App\Filament\Support\ActionErrors;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Notifications\Notification;
@@ -85,8 +86,8 @@ class LogResource extends Resource
             ])
             ->filters([
                 Filter::make('period')->schema([
-                    DatePicker::make('from')->native(false),
-                    DatePicker::make('to')->native(false),
+                    DatePicker::make('from'),
+                    DatePicker::make('to'),
                 ])->query(fn (Builder $query, array $data): Builder => $query
                     ->when($data['from'] ?? null, fn ($q, $from) => $q->whereDate('date', '>=', $from))
                     ->when($data['to'] ?? null, fn ($q, $to) => $q->whereDate('date', '<=', $to))),
@@ -95,18 +96,20 @@ class LogResource extends Resource
                 SelectFilter::make('log_type')->options(LogType::class)->label('Type'),
             ])
             ->recordActions([
-                EditAction::make(),
-                Action::make('delete')->icon(Heroicon::OutlinedTrash)->color('danger')
-                    ->visible(fn (Log $record): bool => (bool) auth()->user()?->can('delete', $record))
-                    ->requiresConfirmation()
-                    ->action(function (Log $record): void {
-                        try {
-                            app(DeleteLog::class)->handle(auth()->user(), $record);
-                            Notification::make()->title('Log deleted')->success()->send();
-                        } catch (ValidationException $e) {
-                            ActionErrors::notify($e);
-                        }
-                    }),
+                ActionGroup::make([
+                    EditAction::make(),
+                    Action::make('delete')->icon(Heroicon::OutlinedTrash)->color('danger')
+                        ->visible(fn (Log $record): bool => (bool) auth()->user()?->can('delete', $record))
+                        ->requiresConfirmation()
+                        ->action(function (Log $record): void {
+                            try {
+                                app(DeleteLog::class)->handle(auth()->user(), $record);
+                                Notification::make()->title('Log deleted')->success()->send();
+                            } catch (ValidationException $e) {
+                                ActionErrors::notify($e);
+                            }
+                        }),
+                ]),
             ])
             ->defaultSort('date', 'desc')
             ->paginationMode(PaginationMode::Simple)   // no COUNT(*) over millions of rows (NFR-08)

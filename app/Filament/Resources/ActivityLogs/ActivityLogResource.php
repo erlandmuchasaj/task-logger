@@ -9,6 +9,7 @@ use App\Domain\Identity\Models\User;
 use App\Filament\Resources\ActivityLogs\Pages\ListActivityLogs;
 use App\Filament\Resources\ActivityLogs\Pages\ViewActivityLog;
 use BackedEnum;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\ViewAction;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
@@ -83,7 +84,7 @@ class ActivityLogResource extends Resource
                     ->options(fn (): array => ActivityLog::query()->whereNotNull('subject_type')->distinct()->pluck('subject_type')
                         ->mapWithKeys(fn (string $t): array => [$t => Str::headline(class_basename($t))])->all()),
             ])
-            ->recordActions([ViewAction::make()])
+            ->recordActions([ActionGroup::make([ViewAction::make()])])
             ->paginated([25, 50, 100])
             ->defaultPaginationPageOption(25)
             ->defaultSort('id', 'desc');

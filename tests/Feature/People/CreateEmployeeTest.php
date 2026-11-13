@@ -11,10 +11,12 @@ use App\Domain\People\Actions\CreateEmployee;
 use App\Domain\People\Data\HrRecordData;
 use App\Domain\People\Data\SalaryData;
 use App\Domain\People\Enums\Gender;
+use App\Domain\People\Notifications\WelcomeEmployee;
 use App\Domain\Shared\Money;
 use App\Filament\Resources\Employees\Pages\CreateEmployee as CreateEmployeePage;
 use Filament\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
@@ -51,12 +53,33 @@ it('FR-01 W-01 the superadmin creates an employee with role, skills, HR record, 
         ->and($employee->salaries()->sole()->created_by)->toBe($actor->id);
 })->group('FR-01');
 
-it('FR-01 W-01 the new user is sent a set-password link and holds a random password they never saw', function () {
+it('FR-01 W-01 D-53 the new user gets a welcome email with their email and the temporary password they sign in with', function () {
     $employee = app(CreateEmployee::class)->handle(userWithRole(RoleName::Superadmin), employeeData());
 
-    Notification::assertSentTo($employee, ResetPassword::class, fn (ResetPassword $n) => str_contains($n->url, 'password-reset/reset'));
-    expect($employee->password)->not->toBeEmpty()->and(Hash::check('password', $employee->password))->toBeFalse();
+    Notification::assertSentTo($employee, WelcomeEmployee::class, function (WelcomeEmployee $n) use ($employee): bool {
+        $mail = $n->toMail($employee);
+        $text = implode("\n", $mail->introLines).implode("\n", $mail->outroLines);
+
+        return Hash::check($n->password, $employee->password)
+            && preg_match('/[a-z]/', $n->password) && preg_match('/[A-Z]/', $n->password) && preg_match('/\d/', $n->password)
+            && str_contains($text, $employee->email)
+            && str_contains($text, $n->password)
+            && str_contains($text, 'choose your own password')
+            && $mail->actionUrl === Filament\Facades\Filament::getLoginUrl();
+    });
+    Notification::assertNotSentTo($employee, ResetPassword::class);
 })->group('FR-01');
+
+it('D-53 the welcome email is sent at once, not queued, so the password never reaches the jobs table', function () {
+    expect(new WelcomeEmployee('x'))->not->toBeInstanceOf(ShouldQueue::class);
+});
+
+it('D-53 the password hash is never written to the activity log', function () {
+    $employee = app(CreateEmployee::class)->handle(userWithRole(RoleName::Superadmin), employeeData());
+
+    $created = Activity::where('subject_type', $employee->getMorphClass())->where('subject_id', $employee->id)->where('event', 'created')->sole();
+    expect($created->attribute_changes?->get('attributes'))->toHaveKey('email')->not->toHaveKey('password');
+});
 
 it('FR-01 only the superadmin may create employees; there is no self-registration', function (RoleName $role) {
     app(CreateEmployee::class)->handle(userWithRole($role), employeeData());
@@ -128,7 +151,7 @@ it('FR-01 the Create screen creates an employee end to end for the superadmin', 
     expect($employee->profile->phone)->toBe('+355692123456')
         ->and($employee->salaries()->sole()->amount_minor)->toBe(120050)
         ->and($employee->salaries()->sole()->currency_code)->toBe('ALL');
-    Notification::assertSentTo($employee, ResetPassword::class);
+    Notification::assertSentTo($employee, WelcomeEmployee::class);
 })->group('FR-01');
 
 it('FR-01 admin, hr and assistant cannot open the Create screen', function (RoleName $role) {

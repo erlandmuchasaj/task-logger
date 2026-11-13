@@ -8,6 +8,7 @@ use App\Domain\MasterData\Enums\PaymentPlanType;
 use App\Domain\MasterData\Models\PaymentPlan;
 use App\Filament\Resources\PaymentPlans\Pages\ManagePaymentPlans;
 use BackedEnum;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
@@ -51,7 +52,7 @@ class PaymentPlanResource extends Resource
                 TextColumn::make('type')->badge(),
                 TextColumn::make('days'),
             ])
-            ->recordActions([EditAction::make(), DeleteAction::make()])
+            ->recordActions([ActionGroup::make([EditAction::make(), DeleteAction::make()])])
             ->defaultSort('name');
     }
 

@@ -7,6 +7,7 @@ namespace App\Domain\Work\Actions;
 use App\Domain\Identity\Models\User;
 use App\Domain\Work\Data\TaskData;
 use App\Domain\Work\Models\Task;
+use App\Domain\Work\Support\NotifyAssignee;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -35,8 +36,9 @@ class UpdateTask
         }
 
         $this->validateTask($data, $task->project()->with('customer')->firstOrFail(), $task);
+        $previousAssigneeId = $task->assignee_id;
 
-        return app(CauserResolver::class)->withCauser($actor, fn (): Task => DB::transaction(function () use ($actor, $task, $data): Task {
+        $task = app(CauserResolver::class)->withCauser($actor, fn (): Task => DB::transaction(function () use ($actor, $task, $data): Task {
             $task->update([
                 'name' => $data->name,
                 'description' => $data->description,
@@ -57,5 +59,9 @@ class UpdateTask
 
             return $task->refresh();
         }));
+
+        NotifyAssignee::ifChanged($actor, $task, $previousAssigneeId);
+
+        return $task;
     }
 }

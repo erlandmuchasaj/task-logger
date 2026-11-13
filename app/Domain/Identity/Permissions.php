@@ -14,8 +14,6 @@ use ReflectionClassConstant;
 final class Permissions
 {
     /** Employees */
-    public const EMPLOYEES_VIEW_DIRECTORY = 'employees.view_directory';
-
     public const EMPLOYEES_CREATE = 'employees.create';
 
     public const EMPLOYEES_UPDATE = 'employees.update';

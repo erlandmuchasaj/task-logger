@@ -11,6 +11,7 @@ use App\Filament\Resources\Countries\Pages\ManageCountries;
 use BackedEnum;
 use Closure;
 use DateTimeZone;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\CheckboxList;
@@ -98,7 +99,7 @@ class CountryResource extends Resource
                 TextColumn::make('timezone'),
                 TextColumn::make('currency_code'),
             ])
-            ->recordActions([EditAction::make(), DeleteAction::make()])
+            ->recordActions([ActionGroup::make([EditAction::make(), DeleteAction::make()])])
             ->defaultSort('name');
     }
 

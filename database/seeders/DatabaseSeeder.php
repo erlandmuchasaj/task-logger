@@ -17,6 +17,8 @@ class DatabaseSeeder extends Seeder
             DepartmentSeeder::class,
             TechnologySeeder::class,
             SuperadminSeeder::class,
+            RoleUsersSeeder::class,     // {role}@test.com / 12345678, never in production
+            //            LocalDemoSeeder::class,     // dummy customers, projects, tasks, logs, users: local only
         ]);
     }
 }

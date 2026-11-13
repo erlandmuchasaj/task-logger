@@ -18,6 +18,7 @@ use App\Filament\Resources\LeaveRequests\Pages\ManageLeaveRequests;
 use App\Filament\Support\ActionErrors;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -101,9 +102,9 @@ class LeaveRequestResource extends Resource
             Select::make('leave_type_id')->label('Type')->required()
                 ->options(fn (): array => LeaveType::query()->where('is_active', true)->orderBy('name')->pluck('name', 'id')
                     ->map(fn (string $name): string => ucfirst(str_replace('_', ' ', $name)))->all()),
-            DatePicker::make('start_date')->required()->native(false),
+            DatePicker::make('start_date')->required(),
             Select::make('start_day_part')->label('First day')->options(DayPart::class)->default(DayPart::Full->value)->required()->native(false),
-            DatePicker::make('end_date')->required()->native(false)->afterOrEqual('start_date'),
+            DatePicker::make('end_date')->required()->afterOrEqual('start_date'),
             Select::make('end_day_part')->label('Last day')->options(DayPart::class)->default(DayPart::Full->value)->required()->native(false)
                 ->helperText('Ignored for a single-day request.'),
             Textarea::make('reason')->label($note ? 'Note' : 'Reason')->required($note)->rows(3)->columnSpanFull(),
@@ -125,12 +126,7 @@ class LeaveRequestResource extends Resource
                     ? $record->start_date->format('d M Y').self::part($record->start_day_part)
                     : $record->start_date->format('d M Y').self::part($record->start_day_part).' to '.$record->end_date->format('d M Y').self::part($record->end_day_part)),
                 TextColumn::make('days_requested')->label('Days'),
-                TextColumn::make('status')->badge()->color(fn (LeaveStatus $state): string => match ($state) {
-                    LeaveStatus::Pending => 'warning',
-                    LeaveStatus::Approved, LeaveStatus::Taken => 'success',
-                    LeaveStatus::Rejected => 'danger',
-                    LeaveStatus::Cancelled => 'gray',
-                }),
+                TextColumn::make('status')->badge(), // colour and icon come from LeaveStatus
                 TextColumn::make('stages')->label('Approvals')->state(fn (LeaveRequest $record): string => collect(ApprovalStage::cases())
                     ->map(fn (ApprovalStage $stage): string => $stage->getLabel().': '.($record->stageDecision($stage)?->decision->getLabel() ?? (($stage === ApprovalStage::Manager && $record->user->manager_id === null) ? 'n/a' : 'waiting')))
                     ->implode(' / ')),
@@ -142,21 +138,23 @@ class LeaveRequestResource extends Resource
                 SelectFilter::make('user_id')->label('Employee')->relationship('user', 'name')->visible($seesOthers),
             ])
             ->recordActions([
-                self::decision('managerApprove', 'Approve (manager)', ApprovalStage::Manager, ApprovalDecision::Approved),
-                self::decision('managerReject', 'Reject (manager)', ApprovalStage::Manager, ApprovalDecision::Rejected),
-                self::decision('hrApprove', 'Approve (HR)', ApprovalStage::Hr, ApprovalDecision::Approved),
-                self::decision('hrReject', 'Reject (HR)', ApprovalStage::Hr, ApprovalDecision::Rejected),
-                Action::make('cancel')->icon(Heroicon::OutlinedXMark)->color('gray')->requiresConfirmation()
-                    ->visible(fn (LeaveRequest $record): bool => in_array($record->status, [LeaveStatus::Pending, LeaveStatus::Approved], true)
-                        && (bool) auth()->user()?->can('cancel', $record))
-                    ->action(function (LeaveRequest $record): void {
-                        try {
-                            app(CancelLeave::class)->handle(auth()->user(), $record);
-                            Notification::make()->title('Leave cancelled')->success()->send();
-                        } catch (ValidationException $e) {
-                            ActionErrors::notify($e);
-                        }
-                    }),
+                ActionGroup::make([
+                    self::decision('managerApprove', 'Approve (manager)', ApprovalStage::Manager, ApprovalDecision::Approved),
+                    self::decision('managerReject', 'Reject (manager)', ApprovalStage::Manager, ApprovalDecision::Rejected),
+                    self::decision('hrApprove', 'Approve (HR)', ApprovalStage::Hr, ApprovalDecision::Approved),
+                    self::decision('hrReject', 'Reject (HR)', ApprovalStage::Hr, ApprovalDecision::Rejected),
+                    Action::make('cancel')->icon(Heroicon::OutlinedXMark)->color('gray')->requiresConfirmation()
+                        ->visible(fn (LeaveRequest $record): bool => in_array($record->status, [LeaveStatus::Pending, LeaveStatus::Approved], true)
+                            && (bool) auth()->user()?->can('cancel', $record))
+                        ->action(function (LeaveRequest $record): void {
+                            try {
+                                app(CancelLeave::class)->handle(auth()->user(), $record);
+                                Notification::make()->title('Leave cancelled')->success()->send();
+                            } catch (ValidationException $e) {
+                                ActionErrors::notify($e);
+                            }
+                        }),
+                ]),
             ])
             ->defaultSort('start_date', 'desc')
             ->paginated([25, 50, 100])

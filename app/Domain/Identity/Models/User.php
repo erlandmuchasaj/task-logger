@@ -6,14 +6,17 @@ namespace App\Domain\Identity\Models;
 
 use App\Domain\Identity\Enums\EmploymentType;
 use App\Domain\Identity\Permissions;
+use App\Domain\Leave\Models\LeaveRequest;
 use App\Domain\MasterData\Models\Country;
 use App\Domain\MasterData\Models\Department;
 use App\Domain\MasterData\Models\Technology;
+use App\Domain\People\Enums\SalaryStatus;
 use App\Domain\People\Models\EmergencyContact;
 use App\Domain\People\Models\EmployeeProfile;
 use App\Domain\People\Models\Salary;
 use App\Domain\People\Models\UserSkill;
 use App\Domain\Shared\LogsBusinessActivity;
+use App\Domain\Work\Models\Log;
 use Cog\Contracts\Ban\Bannable as BannableContract;
 use Cog\Laravel\Ban\Traits\Bannable;
 use Database\Factories\UserFactory;
@@ -35,6 +38,7 @@ use Illuminate\Notifications\Notifiable;
 use Lab404\Impersonate\Models\Impersonate;
 use SensitiveParameter;
 use Spatie\Activitylog\Models\Concerns\CausesActivity;
+use Spatie\Activitylog\Support\LogOptions;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
@@ -57,6 +61,7 @@ class User extends Authenticatable implements BannableContract, FilamentUser, Ha
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'must_change_password' => 'boolean',
             'employment_type' => EmploymentType::class,
             'start_date' => 'date',
             'anonymized_at' => 'datetime',
@@ -64,6 +69,17 @@ class User extends Authenticatable implements BannableContract, FilamentUser, Ha
             'app_authentication_secret' => 'encrypted',
             'app_authentication_recovery_codes' => 'encrypted:array',
         ];
+    }
+
+    /** The password hash is fillable but never written to the activity log. */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logFillable()
+            ->logExcept(['password'])
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges()
+            ->useLogName(static::class);
     }
 
     public function getAppAuthenticationSecret(): ?string
@@ -181,5 +197,38 @@ class User extends Authenticatable implements BannableContract, FilamentUser, Ha
     public function salaries(): HasMany
     {
         return $this->hasMany(Salary::class);
+    }
+
+    /** @return HasMany<Log, $this> */
+    public function logs(): HasMany
+    {
+        return $this->hasMany(Log::class);
+    }
+
+    /** @return HasMany<LeaveRequest, $this> */
+    public function leaveRequests(): HasMany
+    {
+        return $this->hasMany(LeaveRequest::class);
+    }
+
+    /**
+     * The salary in force today: the ledger keeps exactly one active row per user (D-19).
+     *
+     * @return HasOne<Salary, $this>
+     */
+    public function currentSalary(): HasOne
+    {
+        return $this->hasOne(Salary::class)->where('status', SalaryStatus::Active);
+    }
+
+    /**
+     * Get all activity logs for the given user
+     *
+     * @return HasMany<ActivityLog, $this>
+     */
+    public function activityLogs(): HasMany
+    {
+        return $this->hasMany(ActivityLog::class, 'causer_id', 'id')
+            ->where('causer_type', (new User)->getMorphClass());
     }
 }

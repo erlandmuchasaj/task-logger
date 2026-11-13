@@ -7,6 +7,7 @@ namespace App\Providers\Filament;
 use App\Domain\Identity\Support\TwoFactorPolicy;
 use App\Filament\Pages\Auth\EditProfile;
 use App\Http\Middleware\EnforceTwoFactorGracePeriod;
+use App\Http\Middleware\ForcePasswordChange;
 use App\Http\Middleware\SecurityHeaders;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Http\Middleware\Authenticate;
@@ -35,6 +36,7 @@ class AppPanelProvider extends PanelProvider
             ->default()
             ->id('app')
             ->path('app')
+            ->viteTheme('resources/css/filament/app/theme.css')
             ->login()
             ->passwordReset()
             ->profile(EditProfile::class)
@@ -75,6 +77,7 @@ class AppPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                ForcePasswordChange::class,
                 EnforceTwoFactorGracePeriod::class,
             ]);
     }

@@ -24,6 +24,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\ToggleButtons;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
@@ -105,7 +106,7 @@ final class EmployeeForm
                             $fail('A person cannot manage themselves or their own manager.');
                         }
                     }),
-                Select::make('employment_type')->options(EmploymentType::class)->required($creating),
+                ToggleButtons::make('employment_type')->label('Employment type')->options(EmploymentType::class)->inline()->required($creating),
                 DatePicker::make('start_date')->required($creating),
                 FileUpload::make('avatar_path')->label('Avatar')->image()->avatar()->disk('public')->directory('avatars')->maxSize(2048),
             ]),
@@ -134,7 +135,7 @@ final class EmployeeForm
     private static function hrRecord(): array
     {
         return [
-            Section::make('Private HR record')->description('Visible only to people who may view the HR record. Never shown in the Directory.')
+            Section::make('Private HR record')->description('Visible only to people who may view the HR record.')
                 ->columns(2)->schema([
                     DatePicker::make('profile.date_of_birth')->label('Date of birth')->maxDate(now()),
                     TextInput::make('profile.phone')->label('Phone')->tel()->placeholder('+355 69 123 4567')
@@ -152,7 +153,9 @@ final class EmployeeForm
                         ->options(fn (?string $state): array => self::choices((array) config('task-logger.source_of_hire_options'), $state)),
                     Toggle::make('profile.has_health_insurance')->label('Has health insurance'),
                     Textarea::make('profile.description')->label('Description')->columnSpanFull(),
-                    KeyValue::make('profile.metadata')->label('Metadata')->columnSpanFull(),
+                    KeyValue::make('profile.metadata')->label('Metadata')
+                        ->keyLabel('Property')->valueLabel('Value')->addActionLabel('Add row')
+                        ->reorderable()->columnSpanFull(),
                 ]),
         ];
     }

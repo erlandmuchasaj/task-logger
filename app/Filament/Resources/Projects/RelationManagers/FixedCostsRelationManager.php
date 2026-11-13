@@ -13,6 +13,7 @@ use App\Domain\Clients\Models\Project;
 use App\Domain\Shared\Money;
 use App\Filament\Support\ActionErrors;
 use Carbon\CarbonImmutable;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -83,26 +84,28 @@ class FixedCostsRelationManager extends RelationManager
                 }),
             ])
             ->recordActions([
-                EditAction::make()
-                    ->mutateRecordDataUsing(function (array $data, FixedCost $record): array {
-                        $digits = Money::fractionDigits($record->currency_code);
-                        $data['amount'] = number_format($record->amount_minor / (10 ** $digits), $digits, '.', '');
+                ActionGroup::make([
+                    EditAction::make()
+                        ->mutateRecordDataUsing(function (array $data, FixedCost $record): array {
+                            $digits = Money::fractionDigits($record->currency_code);
+                            $data['amount'] = number_format($record->amount_minor / (10 ** $digits), $digits, '.', '');
 
-                        return $data;
-                    })
-                    ->using(function (FixedCost $record, array $data): Model {
-                        try {
-                            return app(UpdateFixedCost::class)->handle(auth()->user(), $record, self::data($data, $record->project));
-                        } catch (ValidationException $e) {
-                            ActionErrors::notify($e);
-                            throw new Halt;
-                        }
+                            return $data;
+                        })
+                        ->using(function (FixedCost $record, array $data): Model {
+                            try {
+                                return app(UpdateFixedCost::class)->handle(auth()->user(), $record, self::data($data, $record->project));
+                            } catch (ValidationException $e) {
+                                ActionErrors::notify($e);
+                                throw new Halt;
+                            }
+                        }),
+                    DeleteAction::make()->using(function (FixedCost $record): bool {
+                        app(DeleteFixedCost::class)->handle(auth()->user(), $record);
+
+                        return true;
                     }),
-                DeleteAction::make()->using(function (FixedCost $record): bool {
-                    app(DeleteFixedCost::class)->handle(auth()->user(), $record);
-
-                    return true;
-                }),
+                ]),
             ]);
     }
 

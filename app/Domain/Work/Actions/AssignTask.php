@@ -6,6 +6,7 @@ namespace App\Domain\Work\Actions;
 
 use App\Domain\Identity\Models\User;
 use App\Domain\Work\Models\Task;
+use App\Domain\Work\Support\NotifyAssignee;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\Support\CauserResolver;
@@ -25,10 +26,16 @@ class AssignTask
             }
         }
 
-        return app(CauserResolver::class)->withCauser($actor, function () use ($task, $assigneeId): Task {
+        $previousAssigneeId = $task->assignee_id;
+
+        $task = app(CauserResolver::class)->withCauser($actor, function () use ($task, $assigneeId): Task {
             $task->update(['assignee_id' => $assigneeId]);
 
             return $task->refresh();
         });
+
+        NotifyAssignee::ifChanged($actor, $task, $previousAssigneeId);
+
+        return $task;
     }
 }

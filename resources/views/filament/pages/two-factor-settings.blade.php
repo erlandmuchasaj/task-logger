@@ -2,8 +2,8 @@
     <form wire:submit="save">
         {{ $this->form }}
 
-        <div class="mt-6">
+        <x-form-actions>
             <x-filament::button type="submit">Save</x-filament::button>
-        </div>
+        </x-form-actions>
     </form>
 </x-filament-panels::page>

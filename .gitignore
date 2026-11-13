@@ -1,7 +1,12 @@
 /vendor/
+/test-reports
 node_modules/
+dist/
 npm-debug.log
 yarn-error.log
+
+# JetBrains IDE
+.idea/
 
 # Laravel 4 specific
 bootstrap/compiled.php
@@ -28,14 +33,20 @@ Homestead.json
 /public/css/filament
 /public/fonts/filament
 /storage/pail
+/storage/phpstan
+/storage/coverage
 .env.backup
+.env.testing
 .env.production
 .phpactor.json
 auth.json
 
 # task-logger
+# IDE helper generated files
+_ide_helper*.php
 _ide_helper.php
 .phpstorm.meta.php
 /.fleet
 /storage/framework/phpstan
 /public/fonts-manifest.dev.json
+/.playwright-mcp

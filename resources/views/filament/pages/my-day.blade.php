@@ -20,12 +20,12 @@
         <form wire:submit="save">
             {{ $this->form }}
 
-            <div class="mt-6 flex items-center gap-4">
+            <x-form-actions>
                 <x-filament::button type="submit">Log time</x-filament::button>
                 <span class="text-sm text-gray-500 dark:text-gray-400">
                     Logged on this day: {{ intdiv($total, 60) }}h {{ $total % 60 }}m of 24h
                 </span>
-            </div>
+            </x-form-actions>
         </form>
     </x-filament::section>
 

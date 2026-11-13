@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Filament\Pages\Auth;
 
+use App\Domain\Identity\Models\User;
 use Filament\Auth\Pages\EditProfile as BaseEditProfile;
 use Filament\Schemas\Components\Component;
+use Illuminate\Database\Eloquent\Model;
 use Lab404\Impersonate\Services\ImpersonateManager;
+use SensitiveParameter;
 
 /**
  * A user manages their password and two-factor authentication here. Name and email are HR data
@@ -18,6 +21,22 @@ class EditProfile extends BaseEditProfile
     public static function canAccess(): bool
     {
         return ! app(ImpersonateManager::class)->isImpersonating();
+    }
+
+    /**
+     * D-53: setting a password here also clears the forced-change flag.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    protected function handleRecordUpdate(Model $record, #[SensitiveParameter] array $data): Model
+    {
+        $record = parent::handleRecordUpdate($record, $data);
+
+        if (array_key_exists('password', $data) && $record instanceof User && $record->must_change_password) {
+            $record->forceFill(['must_change_password' => false])->saveQuietly();
+        }
+
+        return $record;
     }
 
     protected function getNameFormComponent(): Component

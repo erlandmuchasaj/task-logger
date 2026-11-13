@@ -16,6 +16,7 @@ use App\Filament\Resources\Projects\RelationManagers\FixedCostsRelationManager;
 use App\Filament\Support\ActionErrors;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\Select;
@@ -119,27 +120,29 @@ class ProjectResource extends Resource
                 SelectFilter::make('manager')->relationship('manager', 'name'),
             ])
             ->recordActions([
-                ViewAction::make(),
-                EditAction::make(),
-                Action::make('changeStatus')->label('Change status')->icon(Heroicon::OutlinedArrowPath)
-                    ->visible(fn (Project $record): bool => (bool) auth()->user()?->can('changeStatus', $record))
-                    ->schema([Select::make('status')->options(ProjectStatus::class)->required()])
-                    ->fillForm(fn (Project $record): array => ['status' => $record->status->value])
-                    ->action(function (Project $record, array $data): void {
-                        app(ChangeProjectStatus::class)->handle(auth()->user(), $record, $data['status'] instanceof ProjectStatus ? $data['status'] : ProjectStatus::from((string) $data['status']));
-                        Notification::make()->title('Status changed')->success()->send();
-                    }),
-                Action::make('delete')->icon(Heroicon::OutlinedTrash)->color('danger')
-                    ->visible(fn (Project $record): bool => (bool) auth()->user()?->can('delete', $record))
-                    ->requiresConfirmation()
-                    ->action(function (Project $record): void {
-                        try {
-                            app(DeleteProject::class)->handle(auth()->user(), $record);
-                            Notification::make()->title('Project deleted')->success()->send();
-                        } catch (ValidationException $e) {
-                            ActionErrors::notify($e);
-                        }
-                    }),
+                ActionGroup::make([
+                    ViewAction::make(),
+                    EditAction::make(),
+                    Action::make('changeStatus')->label('Change status')->icon(Heroicon::OutlinedArrowPath)
+                        ->visible(fn (Project $record): bool => (bool) auth()->user()?->can('changeStatus', $record))
+                        ->schema([Select::make('status')->options(ProjectStatus::class)->required()])
+                        ->fillForm(fn (Project $record): array => ['status' => $record->status->value])
+                        ->action(function (Project $record, array $data): void {
+                            app(ChangeProjectStatus::class)->handle(auth()->user(), $record, $data['status'] instanceof ProjectStatus ? $data['status'] : ProjectStatus::from((string) $data['status']));
+                            Notification::make()->title('Status changed')->success()->send();
+                        }),
+                    Action::make('delete')->icon(Heroicon::OutlinedTrash)->color('danger')
+                        ->visible(fn (Project $record): bool => (bool) auth()->user()?->can('delete', $record))
+                        ->requiresConfirmation()
+                        ->action(function (Project $record): void {
+                            try {
+                                app(DeleteProject::class)->handle(auth()->user(), $record);
+                                Notification::make()->title('Project deleted')->success()->send();
+                            } catch (ValidationException $e) {
+                                ActionErrors::notify($e);
+                            }
+                        }),
+                ]),
             ])
             ->defaultSort('name');
     }

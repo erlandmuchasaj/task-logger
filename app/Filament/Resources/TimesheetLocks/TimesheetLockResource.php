@@ -10,6 +10,7 @@ use App\Domain\Work\Models\TimesheetLock;
 use App\Filament\Resources\TimesheetLocks\Pages\ManageTimesheetLocks;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -69,20 +70,22 @@ class TimesheetLockResource extends Resource
                 TextColumn::make('unlocked_at')->dateTime()->placeholder('-'),
             ])
             ->recordActions([
-                Action::make('unlock')->icon(Heroicon::OutlinedLockOpen)->color('warning')
-                    ->visible(fn (TimesheetLock $record): bool => $record->isLocked() && (bool) auth()->user()?->can('lock', TimesheetLock::class))
-                    ->requiresConfirmation()->modalDescription('Employees can log and edit time in this month again. The change is recorded.')
-                    ->action(function (TimesheetLock $record): void {
-                        app(UnlockMonth::class)->handle(auth()->user(), $record);
-                        Notification::make()->title('Month unlocked')->success()->send();
-                    }),
-                Action::make('relock')->label('Lock again')->icon(Heroicon::OutlinedLockClosed)
-                    ->visible(fn (TimesheetLock $record): bool => ! $record->isLocked() && (bool) auth()->user()?->can('lock', TimesheetLock::class))
-                    ->requiresConfirmation()
-                    ->action(function (TimesheetLock $record): void {
-                        app(LockMonth::class)->handle(auth()->user(), $record->month);
-                        Notification::make()->title('Month locked')->success()->send();
-                    }),
+                ActionGroup::make([
+                    Action::make('unlock')->icon(Heroicon::OutlinedLockOpen)->color('warning')
+                        ->visible(fn (TimesheetLock $record): bool => $record->isLocked() && (bool) auth()->user()?->can('lock', TimesheetLock::class))
+                        ->requiresConfirmation()->modalDescription('Employees can log and edit time in this month again. The change is recorded.')
+                        ->action(function (TimesheetLock $record): void {
+                            app(UnlockMonth::class)->handle(auth()->user(), $record);
+                            Notification::make()->title('Month unlocked')->success()->send();
+                        }),
+                    Action::make('relock')->label('Lock again')->icon(Heroicon::OutlinedLockClosed)
+                        ->visible(fn (TimesheetLock $record): bool => ! $record->isLocked() && (bool) auth()->user()?->can('lock', TimesheetLock::class))
+                        ->requiresConfirmation()
+                        ->action(function (TimesheetLock $record): void {
+                            app(LockMonth::class)->handle(auth()->user(), $record->month);
+                            Notification::make()->title('Month locked')->success()->send();
+                        }),
+                ]),
             ])
             ->defaultSort('month', 'desc');
     }

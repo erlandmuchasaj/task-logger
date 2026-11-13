@@ -10,14 +10,16 @@ use App\Domain\Leave\Actions\GrantAnnualLeave;
 use App\Domain\People\Data\EmployeeData;
 use App\Domain\People\Data\HrRecordData;
 use App\Domain\People\Data\SalaryData;
+use App\Domain\People\Notifications\WelcomeEmployee;
+use App\Domain\People\Support\TemporaryPassword;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /**
  * W-01 steps 2 to 5. Only the superadmin creates users (employees.create); there is no
- * self-registration. The new user gets a random password they never see and a set-password link.
+ * self-registration. The new user gets a temporary password in a welcome email and is asked to change
+ * it after the first sign-in (D-53, replacing the set-password link the account used to receive).
  */
 class CreateEmployee
 {
@@ -28,7 +30,6 @@ class CreateEmployee
         private readonly SyncSkills $syncSkills,
         private readonly UpdateHrRecord $updateHrRecord,
         private readonly RecordSalary $recordSalary,
-        private readonly SendSetPasswordLink $sendLink,
     ) {}
 
     public function handle(User $actor, EmployeeData $data, ?HrRecordData $hrRecord = null, ?SalaryData $salary = null): User
@@ -36,12 +37,14 @@ class CreateEmployee
         Gate::forUser($actor)->authorize('create', User::class);
         $this->validateEmployee($data, null, creating: true);
 
-        $employee = app(CauserResolver::class)->withCauser($actor, fn (): User => DB::transaction(function () use ($actor, $data, $hrRecord, $salary): User {
+        $password = TemporaryPassword::generate();
+
+        $employee = app(CauserResolver::class)->withCauser($actor, fn (): User => DB::transaction(function () use ($actor, $data, $hrRecord, $salary, $password): User {
             $employee = User::create([
                 'name' => $data->name,
                 'surname' => $data->surname,
                 'email' => $data->email,
-                'password' => Str::random(40),
+                'password' => $password,
                 'country_id' => $data->countryId,
                 'department_id' => $data->departmentId,
                 'position' => $data->position,
@@ -50,6 +53,9 @@ class CreateEmployee
                 'start_date' => $data->startDate?->toDateString(),
                 'avatar_path' => $data->avatarPath,
             ]);
+
+            // D-53: the emailed password is temporary; the first sign-in asks for a new one.
+            $employee->forceFill(['must_change_password' => true])->saveQuietly();
 
             $this->assignRole->handle($employee, $data->role);
             $this->syncSkills->handle($employee, $data->skills);
@@ -69,7 +75,7 @@ class CreateEmployee
         // W-01 step 4: the grant for the year of joining (due now when the start date has passed, else the job writes it).
         app(GrantAnnualLeave::class)->grantFor($employee->load('country'));
 
-        $this->sendLink->handle($employee);
+        $employee->notify(new WelcomeEmployee($password));
 
         return $employee;
     }

@@ -24,7 +24,7 @@ Core entities:
 - **Client**: payment plan, active/inactive status. Many-to-many with Areas, with an **hourly rate per area** (e.g. .NET 24/h, Angular 20/h, Ionic 18/h).
 - **Project**: belongs to a client and has a status. Its selectable areas are restricted to the areas already assigned to its client. Each selected area has **estimated hours** (e.g. Angular 230h, .NET 330h).
 - **Task**: project + one area of that project + title + description + estimated hours + assignee + status.
-- **Time Log**: hours an employee logs against a task assigned to them.
+- **Time Log OR Log**: hours an employee logs against a task assigned to them.
 - **Leave Request**: PTO or sick leave, with an approval workflow. Approved leave is deducted from the matching balance. A superadmin can also record a day off directly for an employee (e.g. one with no platform access), which deducts from PTO or sick leave.
 </domain_model>
 
@@ -65,20 +65,20 @@ These are known gaps in the brief. Resolve them before or during design:
 1. Billing: payment plans and hourly rates exist, but no invoicing is described. Is invoicing in scope? If not, what are rates and payment plans used for (reporting only)?
 Answer: The invoice can be added to this scope. currently the rates and plans are used per each client by the finance. she export the list of logs anc calculate the rate and how many hour should wach client be charged.
 2. Rate and estimate history: when a client's hourly rate changes, must past logs keep the old rate (snapshot on the log) or be recalculated?
-Answer: Conside also keeping the history so that when a log is logged it keeps the rate at the time it was logged. 
+Answer: Consider also keeping the history so that when a log is logged it keeps the rate at the time it was logged. 
 3. Employee visibility: "see only his tasks/logs" vs. "view tasks/logs". Which applies?
 Answer: user with tole employee: can only view/edit his tasks. and log ours there. By see i mean see the tasks that were assigned to him.
 4. "Employees create holidays and days off": does this mean requesting days off? Who manages national holidays?
-Answer: Yes, emplyee make a request for day-off. Than the request is cascaded to The team lead of his and to the HR for approval. Both should approve to be accepted, or if rejected with a message and the user is notified.
+Answer: Yes, employees make a request for day-off. Then the request is cascaded to The team lead of his and to the HR for approval. Both should approve to be accepted, or if rejected with a message and the user is notified.
 5. Who approves an Admin's leave request? Can Assistants request leave?
-Answer: in general the TeamLeader of that user and the HR. the Team Leader is basically the manager of the employee. So each employee when created has like a maager. So one manager can manages multiple employee. And the Manager of Manager coul be CTO, and the manager of CTO is CEO. 
+Answer: in general the TeamLeader of that user and the HR. the Team Leader is basically the manager of the employee. So each employee when created has like a manager. So one manager can manage multiple employees. And the Manager of Manager could be CTO, and the manager of CTO is CEO. 
 6. Leave rules: half days, carry-over of unused PTO, accrual (yearly lump sum vs. monthly), weekends per country, leave spanning a holiday.
 7. Time logs: can employees log on unassigned tasks, on past dates, or on closed tasks? Are logs locked or approved after a period? Should there be overtime or budget-overrun alerts (logged vs. estimated hours per task / project area)?
-Answer: No, they can log only on assigned tasks. Yes for the past dates. Yes on closed tasks. Logs are finals. So no approval process is required. Yes, add a color coded labels for tasks/project wich are overdey and overbudget.
+Answer: No, they can log only on assigned tasks. Yes, for the past dates. Yes on closed tasks. Logs are finals. So no approval process is required. Yes, add a color coded labels for tasks/ projects which are overdo and overbudget.
 8. Can an assigned task have more than one assignee? Can a task's area change after hours are logged?
 Answer: Yes. and yes.
 9. Timezones for international employees: in which timezone are log dates and holidays stored and displayed?
-Answer: everything is stored in UTC. And displayed in local timezone of the user.
+Answer: everything is stored in UTC. And displayed in the local timezone of the user.
 10. Is an external API needed (mobile app, integrations)? If not, the API design section should be minimal.
 Answer: No external API needed. BUT it is IMPORTANT that we plan to add an MCP for coding agents. 
 </open_questions>

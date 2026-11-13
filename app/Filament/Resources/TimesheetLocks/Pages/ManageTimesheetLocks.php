@@ -22,7 +22,7 @@ class ManageTimesheetLocks extends ManageRecords
         return [
             Action::make('lock')->label('Lock a month')->icon(Heroicon::OutlinedLockClosed)
                 ->schema([
-                    DatePicker::make('month')->label('Any day in the month to lock')->native(false)->required()->default(now()->subMonth()),
+                    DatePicker::make('month')->label('Any day in the month to lock')->required()->default(now()->subMonth()),
                 ])
                 ->modalDescription('Employees can no longer create, edit or delete logs in that month. Export the logs first (W-08).')
                 ->action(function (array $data): void {

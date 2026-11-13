@@ -8,6 +8,7 @@ use App\Domain\Clients\Models\Project;
 use App\Domain\Identity\Models\User;
 use App\Domain\Work\Data\TaskData;
 use App\Domain\Work\Models\Task;
+use App\Domain\Work\Support\NotifyAssignee;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Spatie\Activitylog\Support\CauserResolver;
@@ -28,7 +29,7 @@ class CreateTask
         $project = Project::query()->with('customer')->findOrFail($data->projectId);
         $this->validateTask($data, $project, null);
 
-        return app(CauserResolver::class)->withCauser($actor, fn (): Task => DB::transaction(function () use ($actor, $data): Task {
+        $task = app(CauserResolver::class)->withCauser($actor, fn (): Task => DB::transaction(function () use ($actor, $data): Task {
             $task = Task::create([
                 'created_by' => $actor->getKey(),
                 'name' => $data->name,
@@ -48,5 +49,9 @@ class CreateTask
 
             return $task->refresh();
         }));
+
+        NotifyAssignee::ifChanged($actor, $task, previousAssigneeId: null);
+
+        return $task;
     }
 }

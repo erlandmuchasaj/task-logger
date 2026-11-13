@@ -11,6 +11,7 @@ use App\Domain\People\Actions\UpdateEmployee;
 use App\Domain\People\Actions\UpdateHrRecord;
 use App\Domain\People\Data\EmployeeData;
 use App\Domain\People\Data\HrRecordData;
+use App\Domain\People\Enums\MaritalStatus;
 use App\Domain\People\Models\EmergencyContact;
 use App\Domain\People\Models\EmployeeProfile;
 use App\Domain\People\Models\UserSkill;
@@ -182,3 +183,14 @@ it('FR-11 employee and assistant cannot open the Edit screen', function (RoleNam
 
     $this->actingAs(userWithRole($role))->get("/app/employees/{$target->id}/edit")->assertForbidden();
 })->group('FR-11')->with([RoleName::Employee, RoleName::Assistant]);
+
+it('the HR record accepts "Married with kids" as a marital status', function () {
+    $employee = userWithRole(RoleName::Employee);
+    $profile = EmployeeProfile::factory()->create([
+        'user_id' => $employee->id,
+        'marital_status' => MaritalStatus::MarriedWithKids,
+    ]);
+
+    expect($profile->fresh()->marital_status)->toBe(MaritalStatus::MarriedWithKids)
+        ->and(MaritalStatus::MarriedWithKids->getLabel())->toBe('Married with kids');
+});

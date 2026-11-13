@@ -7,6 +7,7 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Settings\SecuritySettings;
 use App\Domain\Identity\Support\TwoFactorPolicy;
 use App\Filament\Pages\TwoFactorSettings;
+use App\Filament\Resources\Employees\Pages\ListEmployees;
 use Filament\Auth\MultiFactor\MultiFactorChallenge;
 use Filament\Auth\Pages\Login;
 use Filament\Facades\Filament;
@@ -217,4 +218,49 @@ it('D-26 a user with 2FA is not signed in by password alone, and is when 2FA is 
         ->call('authenticate');
 
     expect(auth()->check())->toBeTrue(); // globally off: no challenge
+});
+
+it('D-26 during the grace period every page shows a prominent banner with an "Enable 2FA now" link', function () {
+    $user = userWithRole(RoleName::Employee);
+    security(['two_factor_required' => true, 'two_factor_required_since' => now()->toIso8601String()]);
+
+    $this->actingAs($user)->get('/app')->assertOk()
+        ->assertSee('Two-factor authentication is required')
+        ->assertSee('Enable 2FA now')
+        ->assertSee(route('filament.app.auth.profile'), false);
+});
+
+it('D-26 signing in during the grace period greets the user with a persistent reminder', function () {
+    Filament::setCurrentPanel('app');
+    $user = userWithRole(RoleName::Employee);
+    security(['two_factor_required' => true, 'two_factor_required_since' => now()->toIso8601String()]);
+
+    Livewire::test(Login::class)
+        ->fillForm(['email' => $user->email, 'password' => 'password'])
+        ->call('authenticate')
+        ->assertNotified('Two-factor authentication is required');
+
+    $this->assertAuthenticatedAs($user);
+});
+
+it('D-26 when 2FA is optional, there is no banner and the profile offers the authenticator app', function () {
+    $user = userWithRole(RoleName::Employee);
+    security(['two_factor_enabled' => true, 'two_factor_required' => false]);
+
+    $this->actingAs($user)->get('/app')->assertOk()->assertDontSee('Enable 2FA now');
+    $this->get(route('filament.app.auth.profile'))->assertOk()->assertSee('Authenticator app');
+});
+
+it('D-26 the employee list shows the 2FA column and filter only while 2FA is switched on', function () {
+    $this->actingAs(userWithRole(RoleName::Superadmin));
+
+    security(['two_factor_enabled' => true]);
+    Livewire::test(ListEmployees::class)
+        ->assertTableColumnVisible('two_factor')
+        ->assertTableFilterVisible('two_factor');
+
+    security(['two_factor_enabled' => false, 'two_factor_required' => false]);
+    Livewire::test(ListEmployees::class)
+        ->assertTableColumnHidden('two_factor')
+        ->assertTableFilterHidden('two_factor');
 });

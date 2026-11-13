@@ -10,7 +10,7 @@ use Filament\Facades\Filament;
 use Illuminate\Support\Facades\Password;
 
 /**
- * W-01 step 5 [ASSUMED]: a new user gets a set-password link by email. It is a password-reset token,
+ * Emails a reset-password link (a row action; new users get a welcome email instead, D-53). It is a password-reset token,
  * valid for config('auth.passwords.users.expire') minutes (72 hours).
  */
 class SendSetPasswordLink

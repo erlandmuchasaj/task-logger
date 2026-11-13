@@ -408,6 +408,30 @@ Each entry: what the source says, the default this spec implements, and whether 
 - Default: permissions `expenses.view`, `.create`, `.update`, `.delete`, `.approve`, `.reimburse`. Flow: `draft` to `submitted`; `submitted` to `approved` or `rejected`; `approved` to `reimbursed`; `rejected` back to `draft` to be edited and resubmitted; `reimbursed` is final. Submit and reopen need `expenses.update`, approve and reject need `expenses.approve`, reimburse needs `expenses.reimburse`. Header, lines and receipt can change and the expense can be deleted only while it is a `draft`, for everyone including the superadmin (the actions check it). Nobody approves or rejects an expense made for themselves, root included (like BR-20). A rejection needs a reason, appended to `notes` as "Rejected: ..." because SPEC 5.6 has no review column. Quantity is a whole number so `amount = quantity x unit price` is exact; the database checks it. All lines share the expense's one currency; totals are the sum of the lines, and any report groups by currency (BR-12). `number` is `EXP-` plus the row id padded to six digits, set in the creating transaction. The receipt is one image or PDF up to 5 MB on the private disk, read only through a permission-checked download; it is kept on anonymisation (the expense stays, BR-28). No expense export and no notifications in v1.
 - Confirm: no.
 
+**D-53 — Welcome email with a temporary password; admin password reset. Asked by the owner (2026-11-12).**
+
+- Source: the owner asked that a new employee receive a welcome email with their sign-in email and an assigned password, told to change it after the first sign-in, and that the administrator can also reset a password and email the new one.
+- Default: on create the person gets a welcome email (sign-in email, a 16-character letters-and-digits temporary password, sign-in link, a request to change it from their profile). This replaces the set-password link on create (W-01 step 5). Row actions: "Send reset-password link" (unchanged, `employees.update`) and "Reset password and email it" (`employees.update`; not for deactivated or anonymised accounts): the old password stops working at once and the new one is emailed. Both emails are sent at once, never queued, so the password is never stored in the jobs table. The audit records `password_reset_by_admin` without the value; the password hash is excluded from the user's activity log. Forced change (owner answer, 2026-11-12): a new account and an admin reset set `users.must_change_password`; while it is set every panel page redirects to "Choose your password" (sign-out stays reachable, not applied while impersonating). It comes before the 2FA enrolment redirect. The flag clears when the person chooses a password there, on their profile or through a reset link; reusing the temporary password is refused. 2FA prompts: while the grace period runs, every page shows a warning callout with an "Enable 2FA now" button and sign-in shows a persistent reminder; after it, the redirect to the profile carries a danger notification with the same button. When 2FA is optional the profile offers it with no prompt.
+- Confirm: no.
+
+**D-54 — The Directory is removed. Decided by the owner (2026-11-12).**
+
+- Source: the owner asked to remove the Directory menu.
+- Default: the Directory resource, its query and the `employees.view_directory` permission are deleted. Employees without HR rights no longer browse colleagues. BR-26 still holds: private fields appear only behind `employees.view_hr_record` (columns, the View profile slide-over) and salaries behind `salaries.view`. The Employees row menu gains a read-only View profile slide-over.
+- Confirm: no.
+
+**D-55 — Task assignment email. Asked by the owner (2026-11-13).**
+
+- Source: the owner asked that an employee be emailed when a task is assigned to them, with the task details and a link to the task page where they can log hours.
+- Default: sent when a task gets a new assignee (on create, edit or the assign action), after the change commits. Not sent when the assignee is unchanged or removed, when people assign themselves, or to a deactivated or anonymised account. The email lists name, project and client, technology, priority, status, estimate, due date, labels, the pinned flag and the description (first 1,000 characters), with "Open the task" and a direct "log hours" link. The task page gains a "Log hours" button for its assignee while the task is open; it opens the log form with the task chosen (`?task={id}`, only one of the person's own open tasks is ever preselected). Sent at once (not queued), like the other emails.
+- Confirm: whether the previous assignee should be told when a task is taken from them.
+
+**D-56 — Admin sees every leave request. Decided by the owner (2026-11-13).**
+
+- Source: the owner asked that admins see all leave requests, on the Leave Requests screen and on the employee page's Leave requests tab.
+- Default: the admin role gains `leave_requests.view_any` (read only). Deciding still follows the approval rules: admins approve only their direct reports (`leave_requests.approve_direct_reports`).
+- Confirm: no.
+
 ### 3.2 Confirm before coding
 
 1. D-14 and D-05: what employees and assistants may see, and whether an employee sees their own HR record. HR and admin access is now set by the owner.
@@ -549,7 +573,7 @@ Legend: ✔ stated in the source or by the owner after review. ✔\* derived or 
 | timesheets.lock | ✔ | — | — | — | — |
 | leave\_requests.create\_own | ✔\* | ✔ | ✔\* | ✔\* | ✔ |
 | leave\_requests.view\_own | ✔\* | ✔\* | ✔\* | ✔\* | ✔\* |
-| leave\_requests.view\_any | ✔\* | — | ✔\* | — | — |
+| leave\_requests.view\_any | ✔\* | ✔ (D-56) | ✔\* | — | — |
 | leave\_requests.approve (any request, HR stage) | ✔ | — | ✔ | — | — |
 | leave\_requests.approve\_direct\_reports (manager stage) | ✔\* | ✔\* | ✔\* | — | — |
 | leave\_requests.create\_for\_others (direct day off) | ✔ | — | — | — | — |
@@ -815,7 +839,7 @@ Each workflow names the actor, the steps and the rules that apply.
 2. Create the user: role, department, country, manager, position, employment type, start date, avatar, skills with levels, private profile, emergency contacts, metadata.
 3. Create the initial salary row (amount, currency, effective date). Superadmin, admin or hr can manage salaries.
 4. The system writes the leave grant for the year of joining (BR-18).
-5. No self-registration. Only the superadmin creates users. `[DERIVED]` The new user receives a set-password link by email. `[ASSUMED]`
+5. No self-registration. Only the superadmin creates users. `[DERIVED]` The new user receives a welcome email with a temporary password and is asked to change it (D-53).
 
 **W-02 Client and project setup** (superadmin; admin for customers and projects)
 

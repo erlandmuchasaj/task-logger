@@ -18,6 +18,7 @@ use App\Filament\Support\ActionErrors;
 use BackedEnum;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\DatePicker;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -68,7 +69,7 @@ class MyDay extends Page implements HasTable
     public function form(Schema $schema): Schema
     {
         $components = LogForm::components($this->user());
-        $components[0] = DatePicker::make('date')->required()->native(false)->live()
+        $components[0] = DatePicker::make('date')->required()->live()
             ->maxDate(fn (): CarbonImmutable => $this->today())
             ->helperText('Back-dating is allowed until the month is locked.');
 
@@ -131,16 +132,18 @@ class MyDay extends Page implements HasTable
                 TextColumn::make('description')->limit(40),
             ])
             ->recordActions([
-                Action::make('edit')->icon(Heroicon::OutlinedPencilSquare)
-                    ->visible(fn (Log $record): bool => (bool) auth()->user()?->can('update', $record))
-                    ->url(fn (Log $record): string => LogResource::getUrl('edit', ['record' => $record])),
-                Action::make('delete')->icon(Heroicon::OutlinedTrash)->color('danger')
-                    ->visible(fn (Log $record): bool => (bool) auth()->user()?->can('delete', $record))
-                    ->requiresConfirmation()
-                    ->action(function (Log $record): void {
-                        app(DeleteLog::class)->handle($this->user(), $record);
-                        Notification::make()->title('Log deleted')->success()->send();
-                    }),
+                ActionGroup::make([
+                    Action::make('edit')->icon(Heroicon::OutlinedPencilSquare)
+                        ->visible(fn (Log $record): bool => (bool) auth()->user()?->can('update', $record))
+                        ->url(fn (Log $record): string => LogResource::getUrl('edit', ['record' => $record])),
+                    Action::make('delete')->icon(Heroicon::OutlinedTrash)->color('danger')
+                        ->visible(fn (Log $record): bool => (bool) auth()->user()?->can('delete', $record))
+                        ->requiresConfirmation()
+                        ->action(function (Log $record): void {
+                            app(DeleteLog::class)->handle($this->user(), $record);
+                            Notification::make()->title('Log deleted')->success()->send();
+                        }),
+                ]),
             ])
             ->paginated(false)
             ->emptyStateHeading('Nothing logged for this day yet');

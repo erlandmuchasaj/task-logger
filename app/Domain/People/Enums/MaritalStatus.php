@@ -11,12 +11,16 @@ enum MaritalStatus: string implements HasLabel
 {
     case Single = 'single';
     case Married = 'married';
+    case MarriedWithKids = 'married_with_kids';
     case Divorced = 'divorced';
     case Widowed = 'widowed';
     case Other = 'other';
 
     public function getLabel(): string
     {
-        return Str::headline($this->value);
+        return match ($this) {
+            self::MarriedWithKids => 'Married with kids',
+            default => Str::headline($this->value),
+        };
     }
 }

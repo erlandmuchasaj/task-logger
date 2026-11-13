@@ -37,12 +37,14 @@ it('M2 every people screen renders for the roles that may see it, without N+1 qu
         $this->get(str_replace('{id}', (string) $target->id, $url))->assertOk();
     }
 })->with([
-    'superadmin' => [RoleName::Superadmin, ['/app/directory', '/app/employees', '/app/employees/create', '/app/employees/{id}/edit', '/app/activity-log']],
-    'admin' => [RoleName::Admin, ['/app/directory', '/app/employees', '/app/employees/{id}/edit']],
-    'hr' => [RoleName::Hr, ['/app/directory', '/app/employees', '/app/employees/{id}/edit']],
-    'assistant' => [RoleName::Assistant, ['/app/directory']],
-    'employee' => [RoleName::Employee, ['/app/directory']],
+    'superadmin' => [RoleName::Superadmin, ['/app/employees', '/app/employees/create', '/app/employees/{id}/edit', '/app/activity-log']],
+    'admin' => [RoleName::Admin, ['/app/employees', '/app/employees/{id}/edit']],
+    'hr' => [RoleName::Hr, ['/app/employees', '/app/employees/{id}/edit']],
 ]);
+
+it('D-54 the Directory is removed', function () {
+    $this->actingAs(userWithRole(RoleName::Employee))->get('/app/directory')->assertNotFound();
+});
 
 it('BR-29 the daily job that activates due salaries is scheduled', function () {
     $events = collect(app(Schedule::class)->events())->map(fn ($event) => $event->description);

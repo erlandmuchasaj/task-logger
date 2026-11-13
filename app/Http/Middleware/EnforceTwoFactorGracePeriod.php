@@ -6,6 +6,7 @@ namespace App\Http\Middleware;
 
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Support\TwoFactorPolicy;
+use App\Domain\Identity\Support\TwoFactorPrompt;
 use Closure;
 use Filament\Notifications\Notification;
 use Illuminate\Http\Request;
@@ -16,9 +17,9 @@ use Symfony\Component\HttpFoundation\Response;
  * page, where they enrol. The profile, MFA and logout routes stay reachable, as do Livewire updates
  * (the profile page needs them; no other page can be loaded to produce one).
  */
-class EnforceTwoFactorGracePeriod
+readonly class EnforceTwoFactorGracePeriod
 {
-    public function __construct(private readonly TwoFactorPolicy $twoFactor) {}
+    public function __construct(private TwoFactorPolicy $twoFactor) {}
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -27,9 +28,11 @@ class EnforceTwoFactorGracePeriod
         if ($user instanceof User && $this->twoFactor->mustSetUpNow($user) && ! $this->isExempt($request)) {
             Notification::make()
                 ->title('Set up two-factor authentication to continue')
-                ->body('Your grace period has ended. Enable an authenticator app below.')
-                ->warning()
+                ->body('Your grace period has ended. Enable an authenticator app in the "Multi-factor authentication" section below; every other page stays locked until you do.')
+                ->icon('heroicon-o-shield-exclamation')
+                ->danger()
                 ->persistent()
+                ->actions([TwoFactorPrompt::enableAction()])
                 ->send();
 
             return redirect()->route('filament.app.auth.profile');

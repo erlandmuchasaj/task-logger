@@ -29,7 +29,7 @@ final class LogForm
     public static function components(User $owner, ?Log $record = null): array
     {
         return [
-            DatePicker::make('date')->required()->native(false)
+            DatePicker::make('date')->required()
                 ->maxDate(fn (): CarbonImmutable => WorkCalendar::today($owner))
                 ->default(fn (): CarbonImmutable => WorkCalendar::today($owner))
                 ->helperText('Back-dating is allowed until the month is locked.'),

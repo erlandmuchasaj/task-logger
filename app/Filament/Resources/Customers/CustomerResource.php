@@ -14,6 +14,7 @@ use App\Filament\Resources\Customers\Pages\ViewCustomer;
 use App\Filament\Resources\Customers\RelationManagers\RatesRelationManager;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Infolists\Components\TextEntry;
@@ -107,22 +108,24 @@ class CustomerResource extends Resource
                 SelectFilter::make('country')->relationship('country', 'name'),
             ])
             ->recordActions([
-                ViewAction::make(),
-                EditAction::make(),
-                Action::make('deactivate')->icon(Heroicon::OutlinedNoSymbol)->color('warning')
-                    ->visible(fn (Customer $record): bool => $record->is_active && (bool) auth()->user()?->can('deactivate', $record))
-                    ->requiresConfirmation()->modalDescription('No new projects, tasks or logs can be added. History stays.')
-                    ->action(function (Customer $record): void {
-                        app(SetCustomerActive::class)->handle(auth()->user(), $record, false);
-                        Notification::make()->title('Client deactivated')->success()->send();
-                    }),
-                Action::make('activate')->icon(Heroicon::OutlinedCheckCircle)
-                    ->visible(fn (Customer $record): bool => ! $record->is_active && (bool) auth()->user()?->can('activate', $record))
-                    ->requiresConfirmation()
-                    ->action(function (Customer $record): void {
-                        app(SetCustomerActive::class)->handle(auth()->user(), $record, true);
-                        Notification::make()->title('Client activated')->success()->send();
-                    }),
+                ActionGroup::make([
+                    ViewAction::make(),
+                    EditAction::make(),
+                    Action::make('deactivate')->icon(Heroicon::OutlinedNoSymbol)->color('warning')
+                        ->visible(fn (Customer $record): bool => $record->is_active && (bool) auth()->user()?->can('deactivate', $record))
+                        ->requiresConfirmation()->modalDescription('No new projects, tasks or logs can be added. History stays.')
+                        ->action(function (Customer $record): void {
+                            app(SetCustomerActive::class)->handle(auth()->user(), $record, false);
+                            Notification::make()->title('Client deactivated')->success()->send();
+                        }),
+                    Action::make('activate')->icon(Heroicon::OutlinedCheckCircle)
+                        ->visible(fn (Customer $record): bool => ! $record->is_active && (bool) auth()->user()?->can('activate', $record))
+                        ->requiresConfirmation()
+                        ->action(function (Customer $record): void {
+                            app(SetCustomerActive::class)->handle(auth()->user(), $record, true);
+                            Notification::make()->title('Client activated')->success()->send();
+                        }),
+                ]),
             ])
             ->defaultSort('company_name');
     }

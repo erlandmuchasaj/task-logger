@@ -17,6 +17,7 @@ use App\Filament\Resources\Tasks\Pages\ViewTask;
 use App\Filament\Support\ActionErrors;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\Select;
@@ -111,27 +112,29 @@ class TaskResource extends Resource
                 SelectFilter::make('assignee')->relationship('assignee', 'name'),
             ])
             ->recordActions([
-                ViewAction::make(),
-                EditAction::make(),
-                Action::make('changeStatus')->label('Change status')->icon(Heroicon::OutlinedArrowPath)
-                    ->visible(fn (Task $record): bool => (bool) auth()->user()?->can('changeStatus', $record))
-                    ->schema([Select::make('status')->options(TaskStatus::class)->required()])
-                    ->fillForm(fn (Task $record): array => ['status' => $record->status->value])
-                    ->action(function (Task $record, array $data): void {
-                        app(ChangeTaskStatus::class)->handle(auth()->user(), $record, $data['status'] instanceof TaskStatus ? $data['status'] : TaskStatus::from((string) $data['status']));
-                        Notification::make()->title('Status changed')->success()->send();
-                    }),
-                Action::make('delete')->icon(Heroicon::OutlinedTrash)->color('danger')
-                    ->visible(fn (Task $record): bool => (bool) auth()->user()?->can('delete', $record))
-                    ->requiresConfirmation()
-                    ->action(function (Task $record): void {
-                        try {
-                            app(DeleteTask::class)->handle(auth()->user(), $record);
-                            Notification::make()->title('Task deleted')->success()->send();
-                        } catch (ValidationException $e) {
-                            ActionErrors::notify($e);
-                        }
-                    }),
+                ActionGroup::make([
+                    ViewAction::make(),
+                    EditAction::make(),
+                    Action::make('changeStatus')->label('Change status')->icon(Heroicon::OutlinedArrowPath)
+                        ->visible(fn (Task $record): bool => (bool) auth()->user()?->can('changeStatus', $record))
+                        ->schema([Select::make('status')->options(TaskStatus::class)->required()])
+                        ->fillForm(fn (Task $record): array => ['status' => $record->status->value])
+                        ->action(function (Task $record, array $data): void {
+                            app(ChangeTaskStatus::class)->handle(auth()->user(), $record, $data['status'] instanceof TaskStatus ? $data['status'] : TaskStatus::from((string) $data['status']));
+                            Notification::make()->title('Status changed')->success()->send();
+                        }),
+                    Action::make('delete')->icon(Heroicon::OutlinedTrash)->color('danger')
+                        ->visible(fn (Task $record): bool => (bool) auth()->user()?->can('delete', $record))
+                        ->requiresConfirmation()
+                        ->action(function (Task $record): void {
+                            try {
+                                app(DeleteTask::class)->handle(auth()->user(), $record);
+                                Notification::make()->title('Task deleted')->success()->send();
+                            } catch (ValidationException $e) {
+                                ActionErrors::notify($e);
+                            }
+                        }),
+                ]),
             ])
             ->defaultSort('id', 'desc');
     }

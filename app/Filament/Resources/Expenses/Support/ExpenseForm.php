@@ -37,7 +37,7 @@ final class ExpenseForm
             Section::make('Lines')->schema([
                 Repeater::make('lines')->required()->minItems(1)->addActionLabel('Add line')->columns(4)->schema([
                     TextInput::make('description')->required()->maxLength(255)->columnSpan(2),
-                    DatePicker::make('date')->required()->native(false)->default(now()),
+                    DatePicker::make('date')->required()->default(now()),
                     TextInput::make('quantity')->numeric()->integer()->minValue(1)->default(1)->required(),
                     TextInput::make('unit_price')->label('Unit price')->required()->placeholder('12.50')->columnSpan(2),
                 ])->defaultItems(1),

@@ -10,8 +10,6 @@ use Spatie\Permission\Models\Role;
 
 // Employee baseline: every role inherits it (D-09).
 $employee = [
-    Permissions::EMPLOYEES_VIEW_DIRECTORY,
-
     Permissions::CLIENTS_VIEW,
 
     Permissions::PROJECTS_VIEW,
@@ -43,7 +41,6 @@ return [
             // except the few that stay governed by their policy (see RootAccess::POLICY_ONLY).
             Permissions::SYSTEM_ROOT,
 
-            Permissions::EMPLOYEES_VIEW_DIRECTORY,
             Permissions::EMPLOYEES_CREATE,
             Permissions::EMPLOYEES_UPDATE,
             Permissions::EMPLOYEES_DEACTIVATE,
@@ -174,6 +171,7 @@ return [
             Permissions::LOGS_VIEW_ANY,
             Permissions::LOGS_EDIT_LOCKED,
 
+            Permissions::LEAVE_REQUESTS_VIEW_ANY, // D-56: admin reads every leave request (owner, 2026-11-13)
             Permissions::LEAVE_REQUESTS_APPROVE_DIRECT_REPORTS,
 
             Permissions::SETTINGS_MANAGE,

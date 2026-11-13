@@ -21,6 +21,7 @@ use App\Domain\Identity\Actions\AssignUserRole;
 use App\Domain\Identity\Models\ActivityLog;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Policies\ActivityPolicy;
+use App\Domain\Identity\Support\AccountSignInNotices;
 use App\Domain\Identity\Support\ActivityContext;
 use App\Domain\Identity\Support\ImpersonationAudit;
 use App\Domain\Identity\Support\RootAccess;
@@ -56,6 +57,11 @@ use App\Domain\Work\Policies\LogPolicy;
 use App\Domain\Work\Policies\TaskPolicy;
 use App\Domain\Work\Policies\TimesheetLockPolicy;
 use App\Domain\Work\Support\LockedMonths;
+use Filament\Forms\Components\DatePicker;
+use Filament\Schemas\Schema;
+use Filament\Tables\Table;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Event;
@@ -88,6 +94,23 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Every date field uses the same JS picker: shown as dd/mm/yyyy, submitted and stored as Y-m-d.
+        // The native <input type="date"> would display in the browser's locale format instead.
+        DatePicker::configureUsing(fn (DatePicker $picker) => $picker
+            ->native(false)
+            ->displayFormat('d/m/Y')
+            ->format('Y-m-d')
+            ->placeholder('dd/mm/yyyy')
+            ->closeOnDateSelection());
+
+        // Tables and infolists (schemas) render ->date() / ->dateTime() the same way.
+        Table::configureUsing(fn (Table $table) => $table
+            ->defaultDateDisplayFormat('d/m/Y')
+            ->defaultDateTimeDisplayFormat('d/m/Y H:i'));
+        Schema::configureUsing(fn (Schema $schema) => $schema
+            ->defaultDateDisplayFormat('d/m/Y')
+            ->defaultDateTimeDisplayFormat('d/m/Y H:i'));
+
         // D-41: root access for whoever holds system.root (the superadmin), except abilities that stay under their policy.
         Gate::before(fn (Authenticatable $user, string $ability, array $arguments = []): ?bool => RootAccess::check($user, $ability, $arguments));
 
@@ -120,6 +143,8 @@ class AppServiceProvider extends ServiceProvider
             ? Password::min(12)->mixedCase()->numbers()->uncompromised()
             : Password::min(12)->mixedCase()->numbers());
 
+        Event::listen(PasswordReset::class, [AccountSignInNotices::class, 'passwordReset']);
+        Event::listen(Login::class, [AccountSignInNotices::class, 'login']);
         Event::listen(TakeImpersonation::class, [ImpersonationAudit::class, 'taken']);
         Event::listen(LeaveImpersonation::class, [ImpersonationAudit::class, 'left']);
 

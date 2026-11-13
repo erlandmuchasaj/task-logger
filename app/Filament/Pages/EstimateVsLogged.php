@@ -70,8 +70,8 @@ class EstimateVsLogged extends Page
                 ->afterStateUpdated(fn () => $this->page = 1),
             Select::make('status')->native(false)->options(ProjectStatus::class)->placeholder('Any status')->live()
                 ->afterStateUpdated(fn () => $this->page = 1),
-            DatePicker::make('from')->label('Logs from')->native(false)->live()->afterStateUpdated(fn () => $this->page = 1),
-            DatePicker::make('to')->label('Logs to')->native(false)->live()->afterStateUpdated(fn () => $this->page = 1),
+            DatePicker::make('from')->label('Logs from')->live()->afterStateUpdated(fn () => $this->page = 1),
+            DatePicker::make('to')->label('Logs to')->live()->afterStateUpdated(fn () => $this->page = 1),
         ])->columns(5)->statePath('data');
     }
 

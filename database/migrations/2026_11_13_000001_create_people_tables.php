@@ -20,7 +20,7 @@ return new class extends Migration
             $table->text('address')->nullable();
             $table->string('university')->nullable();
             $table->string('field_of_study')->nullable();
-            $table->string('marital_status', 16)->nullable();    // MaritalStatus enum
+            $table->string('marital_status', 32)->nullable();    // MaritalStatus enum
             $table->string('source_of_hire')->nullable();        // free string (D-19)
             $table->boolean('has_health_insurance')->default(false);
             $table->text('description')->nullable();

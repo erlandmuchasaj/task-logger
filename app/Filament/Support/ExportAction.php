@@ -22,8 +22,8 @@ final class ExportAction
 
         if ($type === ExportType::Logs) {
             $action->schema([
-                DatePicker::make('date_from')->label('From')->native(false),
-                DatePicker::make('date_to')->label('To')->native(false)->afterOrEqual('date_from'),
+                DatePicker::make('date_from')->label('From'),
+                DatePicker::make('date_to')->label('To')->afterOrEqual('date_from'),
             ])->modalDescription('Leave the dates empty to export every log. Month close: export first, then lock the month.');
         } else {
             $action->requiresConfirmation();

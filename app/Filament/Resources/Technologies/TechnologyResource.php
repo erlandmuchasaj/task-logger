@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Technologies;
 use App\Domain\MasterData\Models\Technology;
 use App\Filament\Resources\Technologies\Pages\ManageTechnologies;
 use BackedEnum;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Textarea;
@@ -43,7 +44,7 @@ class TechnologyResource extends Resource
                 TextColumn::make('name')->searchable()->sortable(),
                 TextColumn::make('description')->limit(60),
             ])
-            ->recordActions([EditAction::make(), DeleteAction::make()])
+            ->recordActions([ActionGroup::make([EditAction::make(), DeleteAction::make()])])
             ->defaultSort('name');
     }
 

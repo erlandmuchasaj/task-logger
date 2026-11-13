@@ -35,7 +35,7 @@ class ManagePerformances extends ManageRecords
                         ->options(fn (): array => User::query()->whereNull('anonymized_at')->whereNull('banned_at')->orderBy('name')->get()
                             ->mapWithKeys(fn (User $user): array => [$user->getKey() => $user->getFilamentName()])->all()),
                     TextInput::make('score')->numeric()->integer()->minValue(1)->maxValue(10)->required()->helperText('1 to 10'),
-                    DatePicker::make('review_date')->required()->native(false)->default(now()),
+                    DatePicker::make('review_date')->required()->default(now()),
                     Textarea::make('notes')->rows(4),
                 ])
                 ->action(function (array $data, Action $action): void {

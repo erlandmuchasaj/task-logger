@@ -7,6 +7,7 @@ namespace App\Filament\Resources\BankHolidays;
 use App\Domain\MasterData\Models\BankHoliday;
 use App\Filament\Resources\BankHolidays\Pages\ManageBankHolidays;
 use BackedEnum;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
@@ -58,7 +59,7 @@ class BankHolidayResource extends Resource
                 TextColumn::make('end_date')->date()->sortable(),
             ])
             ->filters([SelectFilter::make('country_id')->relationship('country', 'name')->label('Country')])
-            ->recordActions([EditAction::make(), DeleteAction::make()])
+            ->recordActions([ActionGroup::make([EditAction::make(), DeleteAction::make()])])
             ->defaultSort('start_date', 'desc');
     }
 

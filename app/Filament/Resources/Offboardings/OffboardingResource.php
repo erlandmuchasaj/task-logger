@@ -14,6 +14,7 @@ use App\Filament\Support\ActionErrors;
 use BackedEnum;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
@@ -64,7 +65,7 @@ class OffboardingResource extends Resource
     public static function factFields(): array
     {
         return [
-            DatePicker::make('end_date')->label('Last day')->required()->native(false),
+            DatePicker::make('end_date')->label('Last day')->required(),
             Toggle::make('equipment_returned')->label('Equipment returned'),
             Toggle::make('resignation_letter_signed')->label('Resignation letter signed'),
             Textarea::make('description')->rows(3)->columnSpanFull(),
@@ -88,26 +89,28 @@ class OffboardingResource extends Resource
             ])
             ->filters([SelectFilter::make('status')->options(OffboardingStatus::class)])
             ->recordActions([
-                Action::make('edit')->icon(Heroicon::OutlinedPencilSquare)
-                    ->visible(fn (Offboarding $record): bool => ! $record->status->isFinal() && (bool) auth()->user()?->can('update', $record))
-                    ->fillForm(fn (Offboarding $record): array => $record->only(['end_date', 'equipment_returned', 'resignation_letter_signed', 'description']))
-                    ->schema(fn (Schema $schema): Schema => $schema->components(self::factFields())->columns(2))
-                    ->action(function (Offboarding $record, array $data, Action $action): void {
-                        try {
-                            app(UpdateOffboarding::class)->handle(auth()->user(), $record, new OffboardingData(
-                                CarbonImmutable::parse((string) $data['end_date']), (bool) $data['equipment_returned'],
-                                (bool) $data['resignation_letter_signed'], $data['description'] ?? null,
-                            ));
-                            Notification::make()->title('Offboarding updated')->success()->send();
-                        } catch (ValidationException $e) {
-                            ActionErrors::notify($e);
-                            $action->halt();
-                        }
-                    }),
-                self::move('start', 'Start', OffboardingStatus::InProgress, Heroicon::OutlinedPlay, 'warning'),
-                self::move('complete', 'Complete', OffboardingStatus::Completed, Heroicon::OutlinedCheckCircle, 'success',
-                    'The person can no longer sign in. Their personal data is anonymised after the retention period.'),
-                self::move('cancel', 'Cancel', OffboardingStatus::Cancelled, Heroicon::OutlinedXCircle, 'gray'),
+                ActionGroup::make([
+                    Action::make('edit')->icon(Heroicon::OutlinedPencilSquare)
+                        ->visible(fn (Offboarding $record): bool => ! $record->status->isFinal() && (bool) auth()->user()?->can('update', $record))
+                        ->fillForm(fn (Offboarding $record): array => $record->only(['end_date', 'equipment_returned', 'resignation_letter_signed', 'description']))
+                        ->schema(fn (Schema $schema): Schema => $schema->components(self::factFields())->columns(2))
+                        ->action(function (Offboarding $record, array $data, Action $action): void {
+                            try {
+                                app(UpdateOffboarding::class)->handle(auth()->user(), $record, new OffboardingData(
+                                    CarbonImmutable::parse((string) $data['end_date']), (bool) $data['equipment_returned'],
+                                    (bool) $data['resignation_letter_signed'], $data['description'] ?? null,
+                                ));
+                                Notification::make()->title('Offboarding updated')->success()->send();
+                            } catch (ValidationException $e) {
+                                ActionErrors::notify($e);
+                                $action->halt();
+                            }
+                        }),
+                    self::move('start', 'Start', OffboardingStatus::InProgress, Heroicon::OutlinedPlay, 'warning'),
+                    self::move('complete', 'Complete', OffboardingStatus::Completed, Heroicon::OutlinedCheckCircle, 'success',
+                        'The person can no longer sign in. Their personal data is anonymised after the retention period.'),
+                    self::move('cancel', 'Cancel', OffboardingStatus::Cancelled, Heroicon::OutlinedXCircle, 'gray'),
+                ]),
             ])
             ->defaultSort('end_date', 'desc')
             ->paginated([25, 50, 100])

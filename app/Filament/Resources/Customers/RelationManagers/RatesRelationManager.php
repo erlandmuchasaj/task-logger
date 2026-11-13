@@ -13,6 +13,7 @@ use App\Domain\MasterData\Models\Technology;
 use App\Domain\Shared\Money;
 use App\Filament\Support\ActionErrors;
 use Carbon\CarbonImmutable;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -90,34 +91,36 @@ class RatesRelationManager extends RelationManager
                     }),
             ])
             ->recordActions([
-                EditAction::make()->visible(fn (): bool => ! $this->isReadOnly())
-                    ->mutateRecordDataUsing(function (array $data, ClientTechnologyRate $record): array {
-                        $digits = Money::fractionDigits($record->customer->currency_code);
-                        $data['rate'] = number_format($record->rate_minor / (10 ** $digits), $digits, '.', '');
+                ActionGroup::make([
+                    EditAction::make()->visible(fn (): bool => ! $this->isReadOnly())
+                        ->mutateRecordDataUsing(function (array $data, ClientTechnologyRate $record): array {
+                            $digits = Money::fractionDigits($record->customer->currency_code);
+                            $data['rate'] = number_format($record->rate_minor / (10 ** $digits), $digits, '.', '');
 
-                        return $data;
-                    })
-                    ->using(function (ClientTechnologyRate $record, array $data): Model {
-                        try {
-                            return app(UpdateClientRate::class)->handle(
-                                auth()->user(), $record, self::minor($data['rate'], $record->customer), CarbonImmutable::parse((string) $data['effective_from']),
-                            );
-                        } catch (ValidationException $e) {
-                            ActionErrors::notify($e);
-                            throw new Halt;
-                        }
-                    }),
-                DeleteAction::make()->visible(fn (): bool => ! $this->isReadOnly())
-                    ->using(function (ClientTechnologyRate $record): bool {
-                        try {
-                            app(DeleteClientRate::class)->handle(auth()->user(), $record);
+                            return $data;
+                        })
+                        ->using(function (ClientTechnologyRate $record, array $data): Model {
+                            try {
+                                return app(UpdateClientRate::class)->handle(
+                                    auth()->user(), $record, self::minor($data['rate'], $record->customer), CarbonImmutable::parse((string) $data['effective_from']),
+                                );
+                            } catch (ValidationException $e) {
+                                ActionErrors::notify($e);
+                                throw new Halt;
+                            }
+                        }),
+                    DeleteAction::make()->visible(fn (): bool => ! $this->isReadOnly())
+                        ->using(function (ClientTechnologyRate $record): bool {
+                            try {
+                                app(DeleteClientRate::class)->handle(auth()->user(), $record);
 
-                            return true;
-                        } catch (ValidationException $e) {
-                            ActionErrors::notify($e);
-                            throw new Halt;
-                        }
-                    }),
+                                return true;
+                            } catch (ValidationException $e) {
+                                ActionErrors::notify($e);
+                                throw new Halt;
+                            }
+                        }),
+                ]),
             ]);
     }
 

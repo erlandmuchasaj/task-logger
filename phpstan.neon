@@ -1,0 +1,14 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    # Read the literal arrays in our casts() methods so date, enum and array casts are typed.
+    parseModelCastsMethod: true
+    level: 7
+    paths:
+        - app
+        - database
+        - routes
+    excludePaths:
+        - database/migrations/*
+    tmpDir: storage/framework/phpstan

@@ -157,7 +157,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 **D-10 — Permission defaults.**
 
 - Source: the role lists are partial. Nothing is said for hr, salaries, offboarding, labels, expenses, settings. The assistant can add master data but nothing about editing it.
-- Default: unspecified means denied. Owner answers: hr, admin and superadmin manage the private HR record, salaries, offboardings, expenses and settings; HR can also create bank holidays; an assignee can change the status of their own tasks. Superadmin holds every permission, assigned explicitly by the seeder (not via Gate::before) so the grid stays the single source of truth. Assistant gets create only on master data.
+- Default: unspecified means denied. Owner answers: hr, admin and superadmin manage the private HR record, salaries, offboardings, expenses and settings; HR can also create bank holidays; an assignee can change the status of their own tasks. Superadmin holds every permission, assigned explicitly by the seeder so the grid stays the single source of truth. (Amended by D-41: the superadmin additionally has root access through a before-gate.) Assistant gets create only on master data.
 - Confirm: partly answered. Still unspecified and therefore denied: labels (superadmin only), the assistant editing master data, and employee access to expenses.
 
 **D-11 — Log data model.**
@@ -200,7 +200,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 
 - Source: we can also add employee expenses. No role capabilities are defined.
 - Default: `[OPTIONAL]`, last milestone. Managed by hr, admin and superadmin (owner answer). Employees have no expense access until defined. One currency per expense (lines carry a currency column, validated equal).
-- Confirm: yes. Should employees submit or view their own expenses? Does this ship in v1?
+- Confirm: answered by the owner on 2026-11-12: finance and superadmin only (D-51); expenses ship.
 
 **D-18 — Customer country and currency.**
 
@@ -240,17 +240,217 @@ Each entry: what the source says, the default this spec implements, and whether 
 - Employee actions request PTO and create a request for days off are the same leave request flow.
 - Employee `role` and the Spatie role are the same thing.
 
+**D-24 — SPEC.md is authoritative (ADR-0003).**
+
+- Source: IDEA.md, PRD.md, TRD.md and the earlier Phase 1 draft disagree with this spec (multiple assignees, invoicing, Finance role, MCP, extra packages).
+- Default: this spec wins. The earlier draft is archived in `docs/archive/phase1-draft/`. Conflicts are listed in `docs/00-business-requirements.md` §7.
+- Confirm: yes. Is invoicing really out, and are multiple assignees really out?
+
+**D-25 — MCP and public API deferred (ADR-0004).**
+
+- Source: IDEA.md calls an MCP for coding agents important; D-22 says no public API in v1.
+- Default: no API or MCP in v1. Actions and DTOs stay transport-agnostic.
+- Confirm: yes.
+
+**D-26 — Authentication and two-factor (ADR-0005). Decided by the owner.**
+
+- Default: email and password, no self-registration, password reset. TOTP two-factor authentication through an authenticator app. The superadmin switches it on or off globally, can require it for all users, and sets a grace period (default 14 days, in config, changeable on the settings page). After the grace period users without 2FA must enrol before using the app. New permission `two_factor.manage`, superadmin only. SSO out of v1.
+- Confirm: no. Only the grace-period start rule is assumed (from when the requirement is switched on, or from the user's creation if later).
+
+**D-27 — Navigation (ADR-0006).**
+
+- Default: Filament navigation. `spatie/laravel-navigation` is not installed (last release 2024-09-20, no Laravel 13 declaration).
+- Confirm: no.
+
+**D-28 — Manager authority by relationship (ADR-0007).**
+
+- Default: manager-stage approval needs `leave_requests.approve_direct_reports` and `manager_id` equal to the actor. Direct manager reads performance reviews by relationship (D-21).
+- Confirm: yes. May an employee-role user who manages others approve the manager stage?
+
+**D-29 — Offboarding deactivates login as a system effect (ADR-0008).**
+
+- Default: `CompleteOffboarding` bans the user under `offboardings.manage`; `employees.deactivate` stays superadmin-only.
+- Confirm: no.
+
+**D-30 — HR record visibility follows the grid (ADR-0009).**
+
+- Default: superadmin, admin and hr (matches D-14). Section 8 wording "for superadmin" is superseded.
+- Confirm: no.
+
+**D-31 — Salary statuses (refines D-19).**
+
+- Source: salary `status` is pending, active or superseded; the current salary is the latest active row on or before today. The values and transitions are not defined.
+- Default: after every insert the history is settled: rows dated in the future are `pending`; of the rest the latest is `active` and every earlier one `superseded`. A daily job activates pending rows when their date arrives. A back-dated row goes to history and never replaces the current salary. Only `status` ever changes on a row (BR-29).
+- Confirm: yes.
+
+**D-32 — The last superadmin is protected `[DERIVED]`.**
+
+- Default: the last active superadmin cannot be demoted or deactivated, and nobody can deactivate themselves.
+- Confirm: no.
+
+**D-33 — Self-service profile is read-only for name and email (refines D-14).**
+
+- Default: on their own Profile page a user changes their password and two-factor setup; name and email are shown but only the superadmin changes them (they are HR data). Users have no right over their own HR record.
+- Confirm: yes. Should employees edit their own name, phone or emergency contacts?
+
+**D-34 — Minor units follow ISO 4217, not ICU.**
+
+- Source: money is integer minor units plus an ISO 4217 currency (BR-12).
+- Default: the number of decimals comes from an ISO 4217 table in code (ALL 2, EUR 2, JPY 0, KWD 3, CLF 4). ICU reports the Albanian lek with 0 decimals, which contradicts ISO and would misread every ALL amount.
+- Confirm: no.
+
+**D-35 — What cannot change after creation `[ASSUMED]`.**
+
+- Source: silent. Rates, budgets and (from M4) logs are tied to a project's client and to a task's project.
+- Default: the client of an existing project and the project of an existing task cannot change. A task's technology can change within its project. Clients are never hard-deleted (deactivate them, BR-31).
+- Confirm: yes.
+
+**D-36 — Budget needs a rate on the start date; rounding `[ASSUMED]`.**
+
+- Source: D-04 prices hours at the client rate effective on the project start date; it does not say what happens when there is none.
+- Default: a technology can only be added to a project if the client has a rate for it on the start date, and any change (rate, technology, estimate, start date, fixed cost) that would leave a technology without one is refused and rolled back. Each technology line rounds half up to the minor unit. Estimated hours are decimals with at most 2 digits.
+- Confirm: yes.
+
+**D-37 — Delete guards `[DERIVED]`.**
+
+- Default: a project that still has tasks cannot be deleted (cancel it instead); a task with sub-tasks cannot be deleted; a technology used by a task cannot be removed from its project. Deletes are soft. End date is optional (recurring and pay-as-you-go projects); start date is required because it prices the budget.
+- Confirm: no.
+
+**D-38 — Audit context: IP, user agent and impersonator.**
+
+- Source: BR-32 requires actor, subject and before/after values. Impersonation is `[OPTIONAL]` (D-20): a superadmin acting as a user for support. The owner asked that the real person be recorded.
+- Default: every activity entry also stores `client_ip`, `user_agent` and `impersonator_id` (the person who is really acting; the causer stays the user being acted as). They are read from the HTTP request and the session key `impersonated_by` (the default of `lab404/laravel-impersonate`, configurable in `config/task-logger.php`). Outside a request (console, queued jobs) they are null. A stale or forged impersonator id is ignored so it can never break an audited write. IP address and user agent are personal data and are cleared on anonymisation (BR-28).
+- Confirm: no. Open: should queued jobs (exports) carry the originating IP and impersonator?
+
+**D-39 — Logging rules the spec leaves open `[ASSUMED]`.**
+
+- Source: D-11 allows back-dating until the month is locked; BR-07 lets admin and superadmin change logs in a locked month; the grid has no permission to edit someone else's log.
+- Default: no log can be dated in the future (judged on the person's own calendar day, BR-34). Any task assigned to you is a valid target (BR-02), and the screens offer your open tasks plus the one on the log being edited. A description is optional. `logs.edit_locked` holders can create their own logs in a locked month and correct anyone's logs there (month-close corrections); nobody can edit another person's log in an open month, because no permission grants it. Every change in a locked month is also recorded as a `locked_month_create`, `locked_month_edit` or `locked_month_delete` activity with the month and before/after values.
+- Confirm: yes. Should admin be able to edit other people's logs in open months (needs a new permission)? Should closed or cancelled tasks accept logs from the screen?
+
+**D-40 — Export format and retention.**
+
+- Source: BR-33 says exports run on the queue and respect permissions and field visibility. Format and retention are not stated.
+- Default: CSV (UTF-8 with byte order mark so Excel reads names), written to the private disk, downloadable only by the requester through the Exports screen for 7 days, then deleted by a daily job. Rate, amount, budget, currency and payment-plan columns need `clients.view_rates`. Cells starting with `=`, `+`, `-` or `@` get a leading apostrophe against spreadsheet formula injection. The permission is checked again when the job runs. The originating IP and impersonator travel with the job into the audit entry (D-38). Admin cannot export (the grid gives export to superadmin and assistant only).
+- Confirm: no. Is XLSX needed as well?
+
+**D-41 — Superadmin root access through a before-gate. Decided by the owner (2026-11-12).**
+
+- Source: D-10 said the superadmin holds every permission explicitly and not through `Gate::before`. The owner asked for a before-gate so the superadmin can always edit everything (for example any user's logs).
+- Default: a new permission `system.root`, held only by the superadmin role, makes a `Gate::before` grant every ability. It is keyed on the permission, not on a role name, so authorisation stays permission-first. The explicit grid is kept (the superadmin still holds every permission) and is still the source of truth for every other role. Data rules still apply to root: a root edit of a log must still satisfy BR-02, BR-04 and BR-06.
+- Not overridden by root, because the spec makes them impossible on purpose: the audit trail is read-only (BR-32); salary history is append-only (BR-29); users and clients are never hard-deleted (SPEC 5.0, BR-31); an export file belongs to the person who requested it (BR-33). Root falls through to the policy for those and is denied.
+- Consequence for D-39: the superadmin can now edit and delete any user's log in any month. Admin still cannot edit others' logs in an open month.
+- Confirm: yes. Should root also be able to change the immutable items above (for example delete audit entries)? Not recommended.
+
+**D-42 — Leave day-counting details the spec leaves open `[ASSUMED]`.**
+
+- Source: BR-16, BR-17 and the half-day enum `full`, `am`, `pm`.
+- Default: the part describes which part of that date is on leave. A request that starts `pm` leaves at noon on the first day, one that ends `am` returns at noon on the last day, every date in between is a full day. A single-day request carries one part (the end part is ignored). A request with no working day in it (for example a weekend) is refused. A request may cover at most 366 calendar days (`task-logger.leave_max_request_days`), a guard against a wrong year. Overlap (BR-23) is checked per half day, so a morning and an afternoon request on one date do not clash; `taken` requests count as active like `approved` ones.
+- Confirm: no.
+
+**D-43 — Approval order and the ledger `[ASSUMED]`.**
+
+- Source: D-07, BR-18, BR-19, SPEC 5.5 ("balance = sum of non-expired days").
+- Default: the manager decides first, then HR, for everybody including the superadmin ("any stage" means either stage, not out of order). The manager stage is required only when the employee has a manager when the decision is made. The deduction is written on final approval, dated the first day of the leave, and a cancellation writes a reversal. The balance is the plain sum of the ledger: expiry is itself a negative entry. On the new year (country timezone) last year's unused balance expires through one `expiry` entry and, when the country policy enables carry-over, a `carry_over` entry puts back up to the policy maximum; carried days that are still unused after `carry_over_expires_after_months` expire through a further `expiry` entry, counting days used since the carry-over against the carried part first. The ledger has no manual `adjustment` writer in v1 (no permission for it in the grid).
+- Confirm: no.
+
+**D-44 — Who cancels and who sees leave. Decided by the owner (2026-11-12).**
+
+- Source: the grid has no cancel permission and no permission for a manager to see their reports' requests.
+- Default: a person cancels the requests they made for themselves while pending or approved (not taken). HR (`leave_requests.approve`) and the superadmin (`leave_requests.create_for_others`) cancel any request, including an approved one or a direct day off; a cancelled approved request writes a reversal. A direct manager sees their reports' requests through the `manager_id` relationship plus `leave_requests.approve_direct_reports` (D-28); `view_any` is superadmin and HR as in the grid. The Leave Calendar shows everybody's approved and taken leave to everybody (colleagues see each other's leave) and pending requests only to those who may see the request; holidays are the viewer's own country's (every country for people who see all leave).
+- Confirm: no.
+
+**D-45 — Offboarding transitions and review immutability `[ASSUMED]`.**
+
+- Source: D-19 lists the offboarding statuses `pending`, `in_progress`, `completed`, `cancelled`; W-10 says completion deactivates the login; BR-27 restricts reading reviews. No transition rules or edit rules are given.
+- Default: `pending` moves to `in_progress`, `completed` or `cancelled`; `in_progress` to `completed` or `cancelled`; `completed` and `cancelled` are final and the facts of a final offboarding cannot be edited. An offboarding may be created `pending`, `in_progress` or `completed` (completing at creation deactivates the login straight away) but not `cancelled`. Completing is refused for yourself and for the last superadmin, like deactivating (D-32); it is atomic with the ban. Offboardings are cancelled, never deleted. Performance reviews are never edited or deleted. Root access does not change either rule (RootAccess `POLICY_ONLY`). A review's date has no limit and the reviewer may be anyone holding `performances.create`.
+- Confirm: no.
+
+**D-46 — What anonymisation does exactly `[ASSUMED]`.**
+
+- Source: D-15 and BR-28 (replace name and email, clear profile, contacts, avatar and metadata, scrub the activity log, keep logs, leave, salary and performance rows).
+- Default: the clock starts on a `completed` offboarding only: `end_date` plus `anonymize_after_months` (months added without overflow, compared with today in the person's country timezone). Someone whose login was reactivated is never anonymised. The user becomes `Former employee #id` with no surname, email `anonymized-{id}@invalid.example`, a random password, no avatar (the file is deleted), no 2FA secrets, no sessions and no password-reset tokens. The `employee_profiles` row is kept with every field emptied; emergency contacts are deleted. The position, department, manager, skills and country stay (they are not personal data and keep reports meaningful). In the activity log the entries about the user, their profile and their contacts keep their place but lose their before/after values and properties, and the IP address and user agent are cleared on entries the person caused. Writing this happens without model events so the old values are not logged again; one `anonymized` entry is added. The job is idempotent and runs daily.
+- Confirm: yes. Should free-text fields written by others about the person (leave reasons, task and log descriptions, review notes) be scrubbed too? The default keeps them: they are business records, and the rows are kept by BR-28.
+
+**D-47 — Impersonation `[OPTIONAL]` (M6). Requested by the owner (2026-11-12).**
+
+- Source: IDEA.md and the grid row `employees.impersonate`; D-38 already records `impersonator_id` on every audit entry.
+- Default: the superadmin (`employees.impersonate`) can act as another user from the Employees list, using `lab404/laravel-impersonate` 1.7.8 (Laravel 13 compatible). Not allowed: yourself, a deactivated or anonymised account, another root user (`system.root`), or nesting. Starting and stopping are audited with the real person as causer; every audited write while impersonating carries `impersonator_id` (D-38). A banner with a POST-only stop button shows while impersonating; the package's own GET routes are not registered, so an impersonation can only start from the Filament action. While impersonating, the Profile page (password and two-factor setup of the person being acted as) is closed. The impersonated user's own permissions apply; root access does not carry over.
+- Confirm: no.
+
+**D-48 — Dropdowns for source of hire and emergency-contact relationship. Requested by the owner (2026-11-12).**
+
+- Source: D-19 keeps both as free strings; the owner wants dropdown lists in the Employees form.
+- Default: the form shows a dropdown for each, filled from `task-logger.source_of_hire_options` and `task-logger.emergency_contact_relationships` (editable in config). The columns and the domain validation stay free text, so no migration, import or old value breaks: a stored value that is not in the list is still shown and kept when the record is edited. Seeded lists: Referral, LinkedIn, Company website, Job board, Recruitment agency, University or campus, Social media, Walk-in, Internal transfer, Other; Spouse, Partner, Mother, Father, Brother, Sister, Son, Daughter, Grandparent, Friend, Other.
+- Confirm: yes. Should the lists be managed on screen like labels, and should the choice be limited to the list in the database too?
+
+**D-49 — The estimated-versus-logged report `[ASSUMED]`.**
+
+- Source: SPEC 1.2 ("compare estimated vs logged hours per project and technology, and value logged work at the client hourly rate that applied when it was logged") and the optional widget in section 8; no access rule is given.
+- Default: a page under Reports, for people holding both `projects.view` and `logs.view_any` (superadmin, admin, assistant), because it shows everyone's logged time. Hours are shown to all of them; the value columns need `clients.view_rates` (D-05), so the assistant sees hours only. Value is the sum of each log's own rate snapshot (BR-06), rounded half up per log like `Log::amount()`, shown per project in the client's currency and grouped by currency in the totals (BR-12). The date filter limits the logs counted, never the estimate. It lists projects 25 to a page; the totals cover every project the filters match. Status defaults to Active. No export in v1.
+- Confirm: no.
+
+**D-50 — Security hardening baseline (M7) `[PROPOSED]`.**
+
+- Source: NFR-05 and the SPEC security notes (HTTPS only, secure cookies, HSTS, evaluate encrypted casts).
+- Default: outside local and testing the app forces HTTPS URLs and marks session cookies secure (`APP_ENV=production`); every response carries `X-Content-Type-Options`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy` and `Permissions-Policy`, and HTTPS responses carry HSTS for one year. Passwords need 12 or more characters with mixed case and a number, and in production must not appear in known breaches. No Content-Security-Policy (Filament and Livewire need inline scripts). PII columns (date of birth, phone, address) are not encrypted at rest; the superadmin-only database access and backups are the control. Behind a load balancer set `TRUSTED_PROXIES` so HTTPS and the client IP are detected.
+- Confirm: yes. Is encryption at rest of the private profile columns required? It would break searching them and needs a key-rotation plan.
+
+**D-51 — A Finance role manages expenses. Decided by the owner (2026-11-12); ADR-0010.**
+
+- Source: D-17 asked who may use expenses. The owner answered: "finance and superadmin only manage expenses". The spec had no Finance role (D-24 and ADR-0003 listed it as a conflict with D-09's five roles); the earlier owner answer gave expenses to hr, admin and superadmin.
+- Default: a sixth role `finance` (`RoleName::Finance`). It holds the employee baseline plus every `expenses.*` permission and nothing else; one role per user still holds (D-09). hr and admin do not manage expenses. Assistant and employee have no expense access, including to their own. Superadmin keeps every permission explicitly and root access (D-41). The grid in 4.4 shows the superadmin column; the `finance` column is exactly the employee column plus the expenses row.
+- Confirm: no. Open for the owner: should finance see anything else (clients, rates, logs)? It sees none of it today.
+
+**D-52 — Expense rules `[ASSUMED]`.**
+
+- Source: SPEC 5.6 and FR-38 give the fields and the statuses but no permissions, transitions or editing rules.
+- Default: permissions `expenses.view`, `.create`, `.update`, `.delete`, `.approve`, `.reimburse`. Flow: `draft` to `submitted`; `submitted` to `approved` or `rejected`; `approved` to `reimbursed`; `rejected` back to `draft` to be edited and resubmitted; `reimbursed` is final. Submit and reopen need `expenses.update`, approve and reject need `expenses.approve`, reimburse needs `expenses.reimburse`. Header, lines and receipt can change and the expense can be deleted only while it is a `draft`, for everyone including the superadmin (the actions check it). Nobody approves or rejects an expense made for themselves, root included (like BR-20). A rejection needs a reason, appended to `notes` as "Rejected: ..." because SPEC 5.6 has no review column. Quantity is a whole number so `amount = quantity x unit price` is exact; the database checks it. All lines share the expense's one currency; totals are the sum of the lines, and any report groups by currency (BR-12). `number` is `EXP-` plus the row id padded to six digits, set in the creating transaction. The receipt is one image or PDF up to 5 MB on the private disk, read only through a permission-checked download; it is kept on anonymisation (the expense stays, BR-28). No expense export and no notifications in v1.
+- Confirm: no.
+
+**D-53 — Welcome email with a temporary password; admin password reset. Asked by the owner (2026-11-12).**
+
+- Source: the owner asked that a new employee receive a welcome email with their sign-in email and an assigned password, told to change it after the first sign-in, and that the administrator can also reset a password and email the new one.
+- Default: on create the person gets a welcome email (sign-in email, a 16-character letters-and-digits temporary password, sign-in link, a request to change it from their profile). This replaces the set-password link on create (W-01 step 5). Row actions: "Send reset-password link" (unchanged, `employees.update`) and "Reset password and email it" (`employees.update`; not for deactivated or anonymised accounts): the old password stops working at once and the new one is emailed. Both emails are sent at once, never queued, so the password is never stored in the jobs table. The audit records `password_reset_by_admin` without the value; the password hash is excluded from the user's activity log. Forced change (owner answer, 2026-11-12): a new account and an admin reset set `users.must_change_password`; while it is set every panel page redirects to "Choose your password" (sign-out stays reachable, not applied while impersonating). It comes before the 2FA enrolment redirect. The flag clears when the person chooses a password there, on their profile or through a reset link; reusing the temporary password is refused. 2FA prompts: while the grace period runs, every page shows a warning callout with an "Enable 2FA now" button and sign-in shows a persistent reminder; after it, the redirect to the profile carries a danger notification with the same button. When 2FA is optional the profile offers it with no prompt.
+- Confirm: no.
+
+**D-54 — The Directory is removed. Decided by the owner (2026-11-12).**
+
+- Source: the owner asked to remove the Directory menu.
+- Default: the Directory resource, its query and the `employees.view_directory` permission are deleted. Employees without HR rights no longer browse colleagues. BR-26 still holds: private fields appear only behind `employees.view_hr_record` (columns, the View profile slide-over) and salaries behind `salaries.view`. The Employees row menu gains a read-only View profile slide-over.
+- Confirm: no.
+
+**D-55 — Task assignment email. Asked by the owner (2026-11-13).**
+
+- Source: the owner asked that an employee be emailed when a task is assigned to them, with the task details and a link to the task page where they can log hours.
+- Default: sent when a task gets a new assignee (on create, edit or the assign action), after the change commits. Not sent when the assignee is unchanged or removed, when people assign themselves, or to a deactivated or anonymised account. The email lists name, project and client, technology, priority, status, estimate, due date, labels, the pinned flag and the description (first 1,000 characters), with "Open the task" and a direct "log hours" link. The task page gains a "Log hours" button for its assignee while the task is open; it opens the log form with the task chosen (`?task={id}`, only one of the person's own open tasks is ever preselected). Sent at once (not queued), like the other emails.
+- Confirm: whether the previous assignee should be told when a task is taken from them.
+
+**D-56 — Admin sees every leave request. Decided by the owner (2026-11-13).**
+
+- Source: the owner asked that admins see all leave requests, on the Leave Requests screen and on the employee page's Leave requests tab.
+- Default: the admin role gains `leave_requests.view_any` (read only). Deciding still follows the approval rules: admins approve only their direct reports (`leave_requests.approve_direct_reports`).
+- Confirm: no.
+
 ### 3.2 Confirm before coding
 
 1. D-14 and D-05: what employees and assistants may see, and whether an employee sees their own HR record. HR and admin access is now set by the owner.
 2. D-21: performance review visibility (implemented literally: superadmin, hr, direct manager).
 3. D-11 and D-04: whether backdating logs is allowed, and which rate date prices the budget.
 4. D-15: whether the 2 months run from the offboarding end date, and whether salary and performance rows are retained.
-5. D-17: whether employees can submit or see expenses, and whether expenses ship in v1.
+5. (answered) D-17: expenses ship, managed by finance and superadmin only (D-51).
 6. D-10: labels and whether the assistant can edit master data.
 7. D-22: headcount and expected volume.
+8. D-24, D-25: invoicing, multiple assignees and MCP (conflicts with IDEA.md).
+9. D-28: whether employee-role managers can approve leave.
+10. D-31 and D-33: the salary status rules, and whether employees may edit any of their own data.
+11. D-39: future dates, closed tasks, and whether admin may edit others' logs in open months.
+12. D-35 and D-36: what is immutable after creation, and the budget rule when no rate exists on the start date.
+14. D-48: whether the two dropdown lists need an admin screen, and whether values outside the list must be refused.
+15. D-50: whether the private profile columns must be encrypted at rest.
+13. D-46: whether free text written about a former employee (leave reasons, descriptions, review notes) must also be scrubbed.
 
-Answered by the owner and already applied: D-04 (budget includes fixed costs), D-07 (both manager and HR approve), D-08 (weekend holidays are handled manually by HR), D-10 (hr, admin and superadmin manage the HR record, salaries, offboardings, expenses and settings; assignees change their own task status), D-15 (2-month retention).
+Answered by the owner and already applied: D-04 (budget includes fixed costs), D-07 (both manager and HR approve), D-08 (weekend holidays are handled manually by HR), D-10 (hr, admin and superadmin manage the HR record, salaries, offboardings, expenses and settings; assignees change their own task status), D-15 (2-month retention), D-44 (HR cancels approved leave; colleagues see each other's leave on the calendar), D-17 and D-51 (expenses are managed by a Finance role and the superadmin only).
 
 ## 4. Roles and permissions
 
@@ -326,7 +526,7 @@ Answered by the owner and already applied: D-04 (budget includes fixed costs), D
 
 **Owner clarifications (after the first review)**
 
-- hr, admin and superadmin manage the private HR record, salaries, offboardings, expenses and settings.
+- hr, admin and superadmin manage the private HR record, salaries, offboardings and settings. Expenses are managed by a Finance role and the superadmin only (D-51, owner answer 2026-11-12, replacing the earlier answer that gave expenses to hr and admin).
 - HR can create bank holidays, for example the Monday observed for a holiday that falls on a Sunday.
 - An assignee can change the status of their own tasks. The creator of a task (the manager) can change statuses of tasks they created for other users. Admin and superadmin can change any task.
 - A leave request is approved only when both the direct manager and HR approve it.
@@ -373,7 +573,7 @@ Legend: ✔ stated in the source or by the owner after review. ✔\* derived or 
 | timesheets.lock | ✔ | — | — | — | — |
 | leave\_requests.create\_own | ✔\* | ✔ | ✔\* | ✔\* | ✔ |
 | leave\_requests.view\_own | ✔\* | ✔\* | ✔\* | ✔\* | ✔\* |
-| leave\_requests.view\_any | ✔\* | — | ✔\* | — | — |
+| leave\_requests.view\_any | ✔\* | ✔ (D-56) | ✔\* | — | — |
 | leave\_requests.approve (any request, HR stage) | ✔ | — | ✔ | — | — |
 | leave\_requests.approve\_direct\_reports (manager stage) | ✔\* | ✔\* | ✔\* | — | — |
 | leave\_requests.create\_for\_others (direct day off) | ✔ | — | — | — | — |
@@ -383,9 +583,11 @@ Legend: ✔ stated in the source or by the owner after review. ✔\* derived or 
 | countries.manage | ✔ | — | — | add | — |
 | departments.manage | ✔ | — | — | add | — |
 | technologies.manage | ✔ | — | — | add | — |
-| expenses.\* `[OPTIONAL]` | ✔ | ✔ | ✔ | — | — |
+| expenses.\* `[OPTIONAL]` (D-51: also held by the `finance` role) | ✔ | — | — | — | — |
 | activity\_logs.view | ✔\* | — | — | — | — |
 | settings.manage | ✔ | ✔ | ✔ | — | — |
+| two\_factor.manage (D-26) | ✔ | — | — | — | — |
+| system.root (D-41) | ✔ | — | — | — | — |
 
 ## 5. Data model
 
@@ -637,7 +839,7 @@ Each workflow names the actor, the steps and the rules that apply.
 2. Create the user: role, department, country, manager, position, employment type, start date, avatar, skills with levels, private profile, emergency contacts, metadata.
 3. Create the initial salary row (amount, currency, effective date). Superadmin, admin or hr can manage salaries.
 4. The system writes the leave grant for the year of joining (BR-18).
-5. No self-registration. Only the superadmin creates users. `[DERIVED]` The new user receives a set-password link by email. `[ASSUMED]`
+5. No self-registration. Only the superadmin creates users. `[DERIVED]` The new user receives a welcome email with a temporary password and is asked to change it (D-53).
 
 **W-02 Client and project setup** (superadmin; admin for customers and projects)
 

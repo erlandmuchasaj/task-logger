@@ -1,0 +1,158 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Providers;
+
+use App\Domain\Clients\Models\ClientTechnologyRate;
+use App\Domain\Clients\Models\Customer;
+use App\Domain\Clients\Models\FixedCost;
+use App\Domain\Clients\Models\Project;
+use App\Domain\Clients\Policies\ClientTechnologyRatePolicy;
+use App\Domain\Clients\Policies\CustomerPolicy;
+use App\Domain\Clients\Policies\FixedCostPolicy;
+use App\Domain\Clients\Policies\ProjectPolicy;
+use App\Domain\Clients\Support\ProjectManagerRoleGuard;
+use App\Domain\Expenses\Models\Expense;
+use App\Domain\Expenses\Policies\ExpensePolicy;
+use App\Domain\Exports\Models\Export;
+use App\Domain\Exports\Policies\ExportPolicy;
+use App\Domain\Identity\Actions\AssignUserRole;
+use App\Domain\Identity\Models\ActivityLog;
+use App\Domain\Identity\Models\User;
+use App\Domain\Identity\Policies\ActivityPolicy;
+use App\Domain\Identity\Support\AccountSignInNotices;
+use App\Domain\Identity\Support\ActivityContext;
+use App\Domain\Identity\Support\ImpersonationAudit;
+use App\Domain\Identity\Support\RootAccess;
+use App\Domain\Leave\Models\LeaveRequest;
+use App\Domain\Leave\Policies\LeaveRequestPolicy;
+use App\Domain\MasterData\Models\BankHoliday;
+use App\Domain\MasterData\Models\Country;
+use App\Domain\MasterData\Models\CountryLeavePolicy;
+use App\Domain\MasterData\Models\Department;
+use App\Domain\MasterData\Models\Label;
+use App\Domain\MasterData\Models\LeaveType;
+use App\Domain\MasterData\Models\PaymentPlan;
+use App\Domain\MasterData\Models\Technology;
+use App\Domain\MasterData\Policies\BankHolidayPolicy;
+use App\Domain\MasterData\Policies\CountryLeavePolicyPolicy;
+use App\Domain\MasterData\Policies\CountryPolicy;
+use App\Domain\MasterData\Policies\DepartmentPolicy;
+use App\Domain\MasterData\Policies\LabelPolicy;
+use App\Domain\MasterData\Policies\LeaveTypePolicy;
+use App\Domain\MasterData\Policies\PaymentPlanPolicy;
+use App\Domain\MasterData\Policies\TechnologyPolicy;
+use App\Domain\People\Models\Offboarding;
+use App\Domain\People\Models\Performance;
+use App\Domain\People\Models\Salary;
+use App\Domain\People\Policies\OffboardingPolicy;
+use App\Domain\People\Policies\PerformancePolicy;
+use App\Domain\People\Policies\SalaryPolicy;
+use App\Domain\People\Policies\UserPolicy;
+use App\Domain\Work\Models\Log;
+use App\Domain\Work\Models\Task;
+use App\Domain\Work\Models\TimesheetLock;
+use App\Domain\Work\Policies\LogPolicy;
+use App\Domain\Work\Policies\TaskPolicy;
+use App\Domain\Work\Policies\TimesheetLockPolicy;
+use App\Domain\Work\Support\LockedMonths;
+use Filament\Forms\Components\DatePicker;
+use Filament\Schemas\Schema;
+use Filament\Tables\Table;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
+use Lab404\Impersonate\Events\LeaveImpersonation;
+use Lab404\Impersonate\Events\TakeImpersonation;
+use Spatie\Activitylog\Models\Activity;
+
+class AppServiceProvider extends ServiceProvider
+{
+    /**
+     * Register any application services.
+     */
+    public function register(): void
+    {
+        // BR-30: other modules may veto a role change (e.g. a project manager must stay an admin).
+        $this->app->tag([ProjectManagerRoleGuard::class], 'role-change-guards');
+        // One context per request: it caches the impersonator lookup for the audit trail (D-38).
+        $this->app->scoped(ActivityContext::class);
+        $this->app->scoped(LockedMonths::class);
+
+        $this->app->when(AssignUserRole::class)->needs('$guards')->giveTagged('role-change-guards');
+    }
+
+    /**
+     * Bootstrap any application services.
+     */
+    public function boot(): void
+    {
+        // Every date field uses the same JS picker: shown as dd/mm/yyyy, submitted and stored as Y-m-d.
+        // The native <input type="date"> would display in the browser's locale format instead.
+        DatePicker::configureUsing(fn (DatePicker $picker) => $picker
+            ->native(false)
+            ->displayFormat('d/m/Y')
+            ->format('Y-m-d')
+            ->placeholder('dd/mm/yyyy')
+            ->closeOnDateSelection());
+
+        // Tables and infolists (schemas) render ->date() / ->dateTime() the same way.
+        Table::configureUsing(fn (Table $table) => $table
+            ->defaultDateDisplayFormat('d/m/Y')
+            ->defaultDateTimeDisplayFormat('d/m/Y H:i'));
+        Schema::configureUsing(fn (Schema $schema) => $schema
+            ->defaultDateDisplayFormat('d/m/Y')
+            ->defaultDateTimeDisplayFormat('d/m/Y H:i'));
+
+        // D-41: root access for whoever holds system.root (the superadmin), except abilities that stay under their policy.
+        Gate::before(fn (Authenticatable $user, string $ability, array $arguments = []): ?bool => RootAccess::check($user, $ability, $arguments));
+
+        // Domain models live outside app/Models, so policies are registered explicitly.
+        Gate::policy(Country::class, CountryPolicy::class);
+        Gate::policy(CountryLeavePolicy::class, CountryLeavePolicyPolicy::class);
+        Gate::policy(LeaveType::class, LeaveTypePolicy::class);
+        Gate::policy(BankHoliday::class, BankHolidayPolicy::class);
+        Gate::policy(Department::class, DepartmentPolicy::class);
+        Gate::policy(Technology::class, TechnologyPolicy::class);
+        Gate::policy(PaymentPlan::class, PaymentPlanPolicy::class);
+        Gate::policy(Label::class, LabelPolicy::class);
+        Gate::policy(User::class, UserPolicy::class);
+        Gate::policy(Salary::class, SalaryPolicy::class);
+        Gate::policy(Activity::class, ActivityPolicy::class);
+        Gate::policy(ActivityLog::class, ActivityPolicy::class);
+        Gate::policy(Customer::class, CustomerPolicy::class);
+        Gate::policy(ClientTechnologyRate::class, ClientTechnologyRatePolicy::class);
+        Gate::policy(Project::class, ProjectPolicy::class);
+        Gate::policy(FixedCost::class, FixedCostPolicy::class);
+        Gate::policy(Task::class, TaskPolicy::class);
+        Gate::policy(Log::class, LogPolicy::class);
+        Gate::policy(Export::class, ExportPolicy::class);
+        Gate::policy(TimesheetLock::class, TimesheetLockPolicy::class);
+        Gate::policy(LeaveRequest::class, LeaveRequestPolicy::class);
+        // NFR-05 / D-50: HTTPS only outside local and testing; passwords of 12 or more characters, mixed case and a number
+        // (and not found in known breaches in production).
+        URL::forceHttps($this->app->isProduction());
+        Password::defaults(fn (): Password => $this->app->isProduction()
+            ? Password::min(12)->mixedCase()->numbers()->uncompromised()
+            : Password::min(12)->mixedCase()->numbers());
+
+        Event::listen(PasswordReset::class, [AccountSignInNotices::class, 'passwordReset']);
+        Event::listen(Login::class, [AccountSignInNotices::class, 'login']);
+        Event::listen(TakeImpersonation::class, [ImpersonationAudit::class, 'taken']);
+        Event::listen(LeaveImpersonation::class, [ImpersonationAudit::class, 'left']);
+
+        Gate::policy(Expense::class, ExpensePolicy::class);
+        Gate::policy(Performance::class, PerformancePolicy::class);
+        Gate::policy(Offboarding::class, OffboardingPolicy::class);
+
+        // Catch N+1 queries early outside production (NFR-09).
+        Model::preventLazyLoading(! $this->app->isProduction());
+    }
+}

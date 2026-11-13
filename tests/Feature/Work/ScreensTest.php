@@ -32,9 +32,9 @@ it('M4 every logging screen renders for the roles that may see it, without N+1 q
         $this->get(strtr($url, ['{log}' => $ownLog->id]))->assertOk();
     }
 })->with([
-    'superadmin' => [RoleName::Superadmin, ['/app/my-day', '/app/logs', '/app/logs/create', '/app/exports', '/app/timesheet-locks', '/app/tasks', '/app/projects', '/app/clients']],
-    'admin' => [RoleName::Admin, ['/app/my-day', '/app/logs', '/app/logs/create']],
-    'assistant' => [RoleName::Assistant, ['/app/my-day', '/app/logs', '/app/exports']],
-    'hr' => [RoleName::Hr, ['/app/my-day', '/app/logs', '/app/logs/create']],
-    'employee' => [RoleName::Employee, ['/app/my-day', '/app/logs', '/app/logs/create', '/app/logs/{log}/edit']],
+    'superadmin' => [RoleName::Superadmin, ['/app/my-day', '/app/logs', '/app/logs?tab=calendar', '/app/logs/create', '/app/exports', '/app/timesheet-locks', '/app/tasks', '/app/projects', '/app/clients']],
+    'admin' => [RoleName::Admin, ['/app/my-day', '/app/logs', '/app/logs?tab=calendar', '/app/logs/create']],
+    'assistant' => [RoleName::Assistant, ['/app/my-day', '/app/logs', '/app/logs?tab=calendar', '/app/exports']],
+    'hr' => [RoleName::Hr, ['/app/my-day', '/app/logs', '/app/logs?tab=calendar', '/app/logs/create']],
+    'employee' => [RoleName::Employee, ['/app/my-day', '/app/logs', '/app/logs?tab=calendar', '/app/logs/create', '/app/logs/{log}/edit']],
 ]);

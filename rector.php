@@ -44,6 +44,7 @@ return RectorConfig::configure()
         __DIR__.'/tests',
     ])
     ->withSkip([
+        __DIR__.'/bootstrap/cache',
         MakeInheritedMethodVisibilitySameAsParentRector::class,
         AddOverrideAttributeToOverriddenPropertiesRector::class,
         // Policy methods keep the model argument Laravel's Gate passes, even when unused.

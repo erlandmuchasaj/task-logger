@@ -7,7 +7,8 @@ yarn-error.log
 
 # JetBrains IDE
 .idea/
-
+*.log
+Thumbs.db
 # Laravel 4 specific
 bootstrap/compiled.php
 app/storage/
@@ -51,3 +52,6 @@ _ide_helper.php
 /public/fonts-manifest.dev.json
 /.playwright-mcp
 /tmp
+
+tests/Browser/Screenshots
+tests/Browser/Traces

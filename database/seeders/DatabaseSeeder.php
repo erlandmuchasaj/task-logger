@@ -19,7 +19,7 @@ final class DatabaseSeeder extends Seeder
             TechnologySeeder::class,
             SuperadminSeeder::class,
             RoleUsersSeeder::class,     // {role}@test.com / 12345678, never in production
-            //            LocalDemoSeeder::class,     // dummy customers, projects, tasks, logs, users: local only
+            LocalDemoSeeder::class,     // dummy customers, projects, tasks, logs, users: local only
         ]);
     }
 }

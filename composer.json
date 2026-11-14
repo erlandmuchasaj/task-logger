@@ -33,6 +33,7 @@
         "nunomaduro/collision": "^8.6",
         "pestphp/pest": "^5.3",
         "pestphp/pest-plugin-arch": "^5.0",
+        "pestphp/pest-plugin-browser": "^5.2",
         "pestphp/pest-plugin-laravel": "^5.0",
         "pestphp/pest-plugin-type-coverage": "^5.1",
         "rector/rector": "^2.8"

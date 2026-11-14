@@ -312,3 +312,23 @@ it('D-57 the decision lands in the in-app notification drawer and a banned emplo
     resolve(DecideLeave::class)->handle($setup['manager'], pendingRequest($setup), ApprovalStage::Manager, ApprovalDecision::Rejected, 'No');
     Notification::assertNothingSent();
 })->group('D-57');
+
+it('D-44 approved leave that has already started can only be cancelled by HR or the superadmin, not by its owner', function (): void {
+    $this->travelTo(Date::parse('2026-06-15 10:00:00'));
+    $setup = approvalSetup();
+    $past = pendingRequest($setup, '2026-06-10', '2026-06-11');
+    $past->update(['status' => LeaveStatus::Approved]);
+
+    $future = pendingRequest($setup, '2026-06-22', '2026-06-23');
+    $future->update(['status' => LeaveStatus::Approved]);
+
+    expect(fn () => resolve(CancelLeave::class)->handle($setup['employee'], $past))->toThrow(AuthorizationException::class)
+        ->and($setup['employee']->can('cancel', $past))->toBeFalse()
+        ->and($setup['hr']->can('cancel', $past))->toBeTrue()
+        ->and(userWithRole(RoleName::Superadmin)->can('cancel', $past))->toBeTrue()
+        ->and($setup['employee']->can('cancel', $future))->toBeTrue(); // not started yet: still theirs to take back
+
+    resolve(CancelLeave::class)->handle($setup['hr'], $past);
+
+    expect($past->refresh()->status)->toBe(LeaveStatus::Cancelled);
+})->group('D-44');

@@ -97,17 +97,20 @@ final class LeaveRequestResource extends Resource
         return $schema;
     }
 
-    /** @return list<Component> */
-    public static function requestFields(bool $note = false): array
+    /**
+     * @param  bool  $live  Re-render on change, so a notice or summary above the fields follows the chosen type and dates.
+     * @return list<Component>
+     */
+    public static function requestFields(bool $note = false, bool $live = false): array
     {
         return [
-            Select::make('leave_type_id')->label('Type')->required()
+            Select::make('leave_type_id')->label('Type')->required()->live(condition: $live)
                 ->options(fn (): array => LeaveType::query()->where('is_active', true)->orderBy('name')->get()
                     ->mapWithKeys(fn (LeaveType $type): array => [$type->getKey() => $type->label()])->all()),
-            DatePicker::make('start_date')->required(),
-            Select::make('start_day_part')->label('First day')->options(DayPart::class)->default(DayPart::Full->value)->required()->native(false),
-            DatePicker::make('end_date')->required()->afterOrEqual('start_date'),
-            Select::make('end_day_part')->label('Last day')->options(DayPart::class)->default(DayPart::Full->value)->required()->native(false)
+            DatePicker::make('start_date')->required()->live(condition: $live),
+            Select::make('start_day_part')->label('First day')->options(DayPart::class)->default(DayPart::Full->value)->required()->native(false)->live(condition: $live),
+            DatePicker::make('end_date')->required()->afterOrEqual('start_date')->live(condition: $live),
+            Select::make('end_day_part')->label('Last day')->options(DayPart::class)->default(DayPart::Full->value)->required()->native(false)->live(condition: $live)
                 ->helperText('Ignored for a single-day request.'),
             Textarea::make('reason')->label($note ? 'Note' : 'Reason')->required($note)->rows(3)->columnSpanFull(),
         ];
@@ -124,14 +127,10 @@ final class LeaveRequestResource extends Resource
                     ->searchable(['name' => 'users.name']),
                 TextColumn::make('leaveType.name')->label('Type')
                     ->formatStateUsing(fn (string $state): string => Str::headline($state)),
-                TextColumn::make('period')->label('Dates')->state(fn (LeaveRequest $record): string => $record->start_date->isSameDay($record->end_date)
-                    ? $record->start_date->format('d M Y').self::part($record->start_day_part)
-                    : $record->start_date->format('d M Y').self::part($record->start_day_part).' to '.$record->end_date->format('d M Y').self::part($record->end_day_part)),
+                TextColumn::make('period')->label('Dates')->state(fn (LeaveRequest $record): string => self::period($record)),
                 TextColumn::make('days_requested')->label('Days'),
                 TextColumn::make('status')->badge(), // colour and icon come from LeaveStatus
-                TextColumn::make('stages')->label('Approvals')->state(fn (LeaveRequest $record): string => collect(ApprovalStage::cases())
-                    ->map(fn (ApprovalStage $stage): string => $stage->getLabel().': '.($record->stageDecision($stage)?->decision->getLabel() ?? (($stage === ApprovalStage::Manager && $record->user->manager_id === null) ? 'n/a' : 'waiting')))
-                    ->implode(' / ')),
+                TextColumn::make('stages')->label('Approvals')->state(fn (LeaveRequest $record): string => self::stages($record)),
                 TextColumn::make('reason')->limit(40)->toggleable(),
                 TextColumn::make('review_note')->label('Decision note')->limit(40)->toggleable(isToggledHiddenByDefault: true),
             ])
@@ -139,33 +138,61 @@ final class LeaveRequestResource extends Resource
                 SelectFilter::make('status')->options(LeaveStatus::class),
                 SelectFilter::make('user_id')->label('Employee')->relationship('user', 'name')->visible($seesOthers),
             ])
-            ->recordActions([
-                ActionGroup::make([
-                    self::decision('managerApprove', 'Approve (manager)', ApprovalStage::Manager, ApprovalDecision::Approved),
-                    self::decision('managerReject', 'Reject (manager)', ApprovalStage::Manager, ApprovalDecision::Rejected),
-                    self::decision('hrApprove', 'Approve (HR)', ApprovalStage::Hr, ApprovalDecision::Approved),
-                    self::decision('hrReject', 'Reject (HR)', ApprovalStage::Hr, ApprovalDecision::Rejected),
-                    Action::make('cancel')->icon(Heroicon::OutlinedXMark)->color('gray')->requiresConfirmation()
-                        ->visible(fn (LeaveRequest $record): bool => in_array($record->status, [LeaveStatus::Pending, LeaveStatus::Approved], true)
-                            && (bool) auth()->user()?->can('cancel', $record))
-                        ->action(function (LeaveRequest $record): void {
-                            try {
-                                resolve(CancelLeave::class)->handle(auth()->user(), $record);
-                                Notification::make()->title('Leave cancelled')->success()->send();
-                            } catch (ValidationException $validationException) {
-                                ActionErrors::notify($validationException);
-                            }
-                        }),
-                ]),
-            ])
+            ->recordActions([ActionGroup::make(self::recordActions())])
             ->defaultSort('start_date', 'desc')
             ->paginated([25, 50, 100])
             ->defaultPaginationPageOption(25);
     }
 
+    /**
+     * The row actions: the two approval stages and cancellation. The table shows them in a group; the calendar's
+     * details modal shows them in its footer (`$inModal`), where a decision also closes the modal.
+     *
+     * @return list<Action>
+     */
+    public static function recordActions(bool $inModal = false): array
+    {
+        $actions = [
+            self::decision('managerApprove', 'Approve (manager)', ApprovalStage::Manager, ApprovalDecision::Approved),
+            self::decision('managerReject', 'Reject (manager)', ApprovalStage::Manager, ApprovalDecision::Rejected),
+            self::decision('hrApprove', 'Approve (HR)', ApprovalStage::Hr, ApprovalDecision::Approved),
+            self::decision('hrReject', 'Reject (HR)', ApprovalStage::Hr, ApprovalDecision::Rejected),
+            // In a modal footer the name `cancel` is Filament's own Close button and would shadow this one.
+            Action::make($inModal ? 'cancelLeave' : 'cancel')->icon(Heroicon::OutlinedXMark)->color('gray')->requiresConfirmation()
+                ->visible(fn (LeaveRequest $record): bool => in_array($record->status, [LeaveStatus::Pending, LeaveStatus::Approved], true)
+                    && (bool) auth()->user()?->can('cancel', $record))
+                ->action(function (LeaveRequest $record): void {
+                    try {
+                        resolve(CancelLeave::class)->handle(auth()->user(), $record);
+                        Notification::make()->title('Leave cancelled')->success()->send();
+                    } catch (ValidationException $validationException) {
+                        ActionErrors::notify($validationException);
+                    }
+                }),
+        ];
+
+        return $inModal ? array_map(fn (Action $action): Action => $action->cancelParentActions(), $actions) : $actions;
+    }
+
     public static function getPages(): array
     {
         return ['index' => ManageLeaveRequests::route('/')];
+    }
+
+    /** "01 Jun 2026", "01 Jun 2026 (pm) to 03 Jun 2026 (am)": the dates of a request with the half days that are not full. */
+    public static function period(LeaveRequest $record): string
+    {
+        return $record->start_date->isSameDay($record->end_date)
+            ? $record->start_date->format('d M Y').self::part($record->start_day_part)
+            : $record->start_date->format('d M Y').self::part($record->start_day_part).' to '.$record->end_date->format('d M Y').self::part($record->end_day_part);
+    }
+
+    /** "Manager: Approved / HR: waiting": where the request stands in the two approval stages (D-07). */
+    public static function stages(LeaveRequest $record): string
+    {
+        return collect(ApprovalStage::cases())
+            ->map(fn (ApprovalStage $stage): string => $stage->getLabel().': '.($record->stageDecision($stage)?->decision->getLabel() ?? (($stage === ApprovalStage::Manager && $record->user->manager_id === null) ? 'n/a' : 'waiting')))
+            ->implode(' / ');
     }
 
     private static function part(DayPart $part): string

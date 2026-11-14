@@ -14,6 +14,7 @@ use App\Domain\MasterData\Models\Country;
 use App\Domain\Work\Models\Log;
 use App\Domain\Work\Support\TimesheetLocks;
 use App\Domain\Work\Support\WorkCalendar;
+use App\Filament\Support\CalendarInput;
 use Carbon\CarbonImmutable;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -43,25 +44,13 @@ final class LogCalendar
     /** Months outside 2000 to 2099 are refused; the month comes from the browser (URL and Livewire state). */
     public static function parseMonth(?string $value): ?CarbonImmutable
     {
-        if ($value === null || preg_match('/^20\d{2}-(?:0[1-9]|1[0-2])$/D', $value) !== 1) {
-            return null;
-        }
-
-        $month = CarbonImmutable::createFromFormat('!Y-m', $value, 'UTC');
-
-        return $month instanceof CarbonImmutable ? $month : null;
+        return CalendarInput::parseMonth($value);
     }
 
     /** A real calendar date as `Y-m-d`; `2026-02-30` is refused instead of rolling over to March. */
     public static function parseDate(?string $value): ?CarbonImmutable
     {
-        if ($value === null || preg_match('/^\d{4}-\d{2}-\d{2}$/D', $value) !== 1) {
-            return null;
-        }
-
-        $date = CarbonImmutable::createFromFormat('!Y-m-d', $value, 'UTC');
-
-        return $date instanceof CarbonImmutable && $date->format('Y-m-d') === $value ? $date : null;
+        return CalendarInput::parseDate($value);
     }
 
     /**

@@ -193,7 +193,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 **D-16 — Filament panel layout.**
 
 - Source: TALL plus Filament. Employees use the app too.
-- Default: one Filament panel for all roles, visibility via policies. Custom pages: My Day (daily log form with pinned tasks) and Leave Calendar.
+- Default: one Filament panel for all roles, visibility via policies. Custom pages: My Day (daily log form with pinned tasks) and Leave Calendar (since 2026-11-14 the Calendar tab of Leave Requests).
 - Confirm: no. Record as an ADR in Phase 0.
 
 **D-17 — Expenses are optional and unscoped.**
@@ -357,7 +357,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 **D-44 — Who cancels and who sees leave. Decided by the owner (2026-11-12).**
 
 - Source: the grid has no cancel permission and no permission for a manager to see their reports' requests.
-- Default: a person cancels the requests they made for themselves while pending or approved (not taken). HR (`leave_requests.approve`) and the superadmin (`leave_requests.create_for_others`) cancel any request, including an approved one or a direct day off; a cancelled approved request writes a reversal. A direct manager sees their reports' requests through the `manager_id` relationship plus `leave_requests.approve_direct_reports` (D-28); `view_any` is superadmin and HR as in the grid. The Leave Calendar shows everybody's approved and taken leave to everybody (colleagues see each other's leave) and pending requests only to those who may see the request; holidays are the viewer's own country's (every country for people who see all leave).
+- Default: a person cancels the requests they made for themselves while pending or approved (not taken). HR (`leave_requests.approve`) and the superadmin (`leave_requests.create_for_others`) cancel any request, including an approved one or a direct day off; a cancelled approved request writes a reversal. A direct manager sees their reports' requests through the `manager_id` relationship plus `leave_requests.approve_direct_reports` (D-28); `view_any` is superadmin and HR as in the grid. The Leave Calendar (the Calendar tab of Leave Requests) shows everybody's approved and taken leave to everybody (colleagues see each other's leave) and pending requests only to those who may see the request; holidays are the viewer's own country's (every country for people who see all leave).
 - Confirm: no.
 
 **D-45 — Offboarding transitions and review immutability `[ASSUMED]`.**
@@ -917,7 +917,7 @@ Each workflow names the actor, the steps and the rules that apply.
 **Custom pages**
 
 - My Day: the daily log form with pinned tasks and the direct-logging toggle (BR-03, BR-08).
-- Leave Calendar: bank holidays and leave in one calendar (source: holidays show in the calendar). Choose a maintained calendar plugin compatible with the chosen Filament major, or build an Alpine component.
+- Leave Calendar: bank holidays and leave in one calendar (source: holidays show in the calendar). Choose a maintained calendar plugin compatible with the chosen Filament major, or build an Alpine component. Built as the Calendar tab of Leave Requests: a server-rendered month grid, where a click or a drag across days opens the Request leave form with those dates.
 - My Leave: balances and requests.
 
 **Optional**

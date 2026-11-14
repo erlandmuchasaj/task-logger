@@ -114,7 +114,7 @@ Numbered FR-xx, grouped by module. Each links to business rules (BR), workflows 
 
 **FR-33 Direct day off (W-06, BR-22).** `leave_requests.create_for_others` (superadmin). Stored approved, deducts balance; may override balance with a note (BR-24).
 
-**FR-34 Leave Calendar / My Leave.** Bank holidays and leave on one calendar; balances on My Leave.
+**FR-34 Leave Calendar / My Leave.** Bank holidays and leave on one calendar, which is the Calendar tab of Leave Requests (a click or a drag across days opens the Request leave form); balances on My Leave.
 
 ## 7. Audit and cross-cutting
 

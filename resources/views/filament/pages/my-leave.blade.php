@@ -18,7 +18,12 @@
     <x-filament::section>
         <div class="flex items-center justify-between gap-4">
             <span class="text-sm text-gray-500 dark:text-gray-400">{{ $this->upcoming() }} open request(s)</span>
-            <x-filament::button tag="a" :href="\App\Filament\Resources\LeaveRequests\LeaveRequestResource::getUrl()">Leave requests</x-filament::button>
+            <div class="flex flex-wrap items-center gap-2">
+                @can(\App\Domain\Identity\Permissions::BANK_HOLIDAYS_VIEW)
+                    <x-filament::button tag="a" color="gray" :href="\App\Filament\Resources\LeaveRequests\LeaveRequestResource::getUrl('index', ['tab' => 'calendar'])">Leave calendar</x-filament::button>
+                @endcan
+                <x-filament::button tag="a" :href="\App\Filament\Resources\LeaveRequests\LeaveRequestResource::getUrl()">Leave requests</x-filament::button>
+            </div>
         </div>
     </x-filament::section>
 </x-filament-panels::page>

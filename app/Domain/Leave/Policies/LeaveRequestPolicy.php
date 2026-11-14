@@ -6,7 +6,9 @@ namespace App\Domain\Leave\Policies;
 
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Permissions;
+use App\Domain\Leave\Enums\LeaveStatus;
 use App\Domain\Leave\Models\LeaveRequest;
+use App\Domain\Work\Support\WorkCalendar;
 
 /**
  * Permission-first (SPEC 4.1). Everyone with leave_requests.view_own sees their own requests; view_any
@@ -58,7 +60,15 @@ final class LeaveRequestPolicy
     {
         return $user->can(Permissions::LEAVE_REQUESTS_CREATE_FOR_OTHERS)
             || $user->can(Permissions::LEAVE_REQUESTS_APPROVE)
-            || ($request->created_by === $user->getKey() && $request->user_id === $user->getKey() && $user->can(Permissions::LEAVE_REQUESTS_CREATE_OWN));
+            || ($request->created_by === $user->getKey() && $request->user_id === $user->getKey() && $user->can(Permissions::LEAVE_REQUESTS_CREATE_OWN)
+                && ! $this->hasBegunAndWasApproved($request));
+    }
+
+    /** Approved leave that has already started is history: only HR and the superadmin may take it back. */
+    private function hasBegunAndWasApproved(LeaveRequest $request): bool
+    {
+        return $request->status === LeaveStatus::Approved
+            && $request->start_date->toDateString() < WorkCalendar::today($request->user()->firstOrFail())->toDateString();
     }
 
     private function isManagerOf(User $user, LeaveRequest $request): bool

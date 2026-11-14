@@ -81,6 +81,31 @@ final readonly class LeaveSpan
         return $tenths;
     }
 
+    /**
+     * The half days that are charged, by date: the same days `chargedTenths()` adds up (a working day that is not a
+     * bank holiday), so two parts are one day and one part is half a day. It is for showing a request on a calendar.
+     * It needs no query: the caller passes the person's working week (ISO weekdays) and their country's holiday
+     * dates, so a whole month of requests can share one holiday query.
+     *
+     * @param  list<int>  $workingDays
+     * @param  array<string, true>  $holidayDates
+     * @return array<string, list<'am'|'pm'>>
+     */
+    public function chargedParts(array $workingDays, array $holidayDates): array
+    {
+        $charged = [];
+
+        for ($day = $this->start; $day->lessThanOrEqualTo($this->end); $day = $day->addDay()) {
+            if (! in_array($day->dayOfWeekIso, $workingDays, true) || isset($holidayDates[$day->toDateString()])) {
+                continue;
+            }
+
+            $charged[$day->toDateString()] = $this->partsOn($day);
+        }
+
+        return $charged;
+    }
+
     /** @return list<'am'|'pm'> */
     private function partsOn(CarbonImmutable $day): array
     {

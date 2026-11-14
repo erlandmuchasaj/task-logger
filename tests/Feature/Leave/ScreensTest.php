@@ -10,7 +10,7 @@ use App\Domain\Leave\Enums\ApprovalStage;
 use App\Domain\Leave\Enums\LeaveStatus;
 use App\Domain\Leave\Models\LeaveRequest;
 use App\Domain\MasterData\Models\BankHoliday;
-use App\Filament\Pages\LeaveCalendar;
+use App\Filament\Resources\LeaveRequests\LeaveRequestResource;
 use App\Filament\Resources\LeaveRequests\Pages\ManageLeaveRequests;
 use Illuminate\Support\Facades\Date;
 use Livewire\Livewire;
@@ -138,7 +138,7 @@ it('W-06 BR-22 only the superadmin sees Record a day off, and it deducts the bal
     expect(LeaveRequest::query()->where('user_id', $world['employee']->id)->sole())->status->toBe(LeaveStatus::Approved);
 })->group('W-06', 'BR-22');
 
-it('FR-34 My Leave shows the balance and Leave Calendar shows holidays and leave', function (): void {
+it('FR-34 My Leave shows the balance and the Calendar tab of Leave Requests shows holidays and leave', function (): void {
     $world = leaveWorld();
     BankHoliday::factory()->create(['country_id' => $world['country']->id, 'name' => 'Labour Day', 'start_date' => '2026-06-03', 'end_date' => '2026-06-03']);
     LeaveRequest::factory()->create([
@@ -159,14 +159,14 @@ it('FR-34 My Leave shows the balance and Leave Calendar shows holidays and leave
     $this->actingAs($world['employee'])->get('/app/my-leave')->assertOk()->assertSee('10.0')->assertSee('Annual Leave');
 
     Date::setTestNow('2026-06-15');
-    Livewire::test(LeaveCalendar::class)->set('month', '2026-06')
+    Livewire::test(ManageLeaveRequests::class)->set('activeTab', 'calendar')->set('calendarMonth', '2026-06')
         ->assertSee('Labour Day')->assertSee($world['employee']->getFilamentName())
         ->assertSee('Hidden')          // D-44: colleagues see each other's approved leave
         ->assertDontSee('Waiting');    // but not their pending requests
 
     // HR also sees the pending ones.
     $this->actingAs($world['hr']);
-    Livewire::test(LeaveCalendar::class)->set('month', '2026-06')->assertSee('Hidden')->assertSee('Waiting');
+    Livewire::test(ManageLeaveRequests::class)->set('activeTab', 'calendar')->set('calendarMonth', '2026-06')->assertSee('Hidden')->assertSee('Waiting');
 })->group('FR-34');
 
 it('M5 the leave screens render for every role without N+1 queries', function (RoleName $role): void {
@@ -189,9 +189,12 @@ it('M5 the leave screens render for every role without N+1 queries', function (R
     };
     $this->actingAs($user);
 
-    foreach (['/app/leave-requests', '/app/leave-calendar'] as $url) {
+    foreach (['/app/leave-requests', '/app/leave-requests?tab=calendar'] as $url) {
         $this->get($url)->assertOk();
     }
+
+    // The old Leave Calendar address now leads to the Calendar tab, so bookmarks keep working.
+    $this->get('/app/leave-calendar')->assertRedirect(LeaveRequestResource::getUrl('index', ['tab' => 'calendar']));
 
     $this->get('/app/my-leave')->assertOk();
 })->with([RoleName::Superadmin, RoleName::Admin, RoleName::Hr, RoleName::Assistant, RoleName::Employee])->group('NFR-09');

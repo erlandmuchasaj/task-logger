@@ -23,7 +23,7 @@ app/
     Shared/      Money, Minutes, DateRange value objects; Contracts
   Filament/
     Resources/   one folder per module
-    Pages/       MyDay, LeaveCalendar, MyLeave
+    Pages/       MyDay, MyLeave, LeaveCalendar (only redirects to the Calendar tab of Leave Requests)
   Jobs/ Console/ Providers/
 database/{migrations,seeders,factories}
 tests/{Unit,Feature,Architecture,Performance}
@@ -50,7 +50,7 @@ Rules:
 
 - **Queue:** Redis; Supervisor-run `queue:work` (Horizon not in SPEC; adopt only by ADR). Exports (BR-33) queued.
 - **Scheduler:** one cron `schedule:run`, jobs: `ApplyAnnualGrant` (1 Jan per country timezone, hourly check, idempotent), `MarkLeaveTaken` (daily), `AnonymizeOffboardedUsers` (daily), `PruneActivityLog` not scheduled (audit is retained).
-- **Filament panel:** single panel `/app`; navigation groups by module; custom pages My Day, Leave Calendar, My Leave.
+- **Filament panel:** single panel `/app`; navigation groups by module; custom pages My Day and My Leave. The Leave Calendar is the Calendar tab of Leave Requests; the old `/app/leave-calendar` address redirects to it.
 
 ```mermaid
 flowchart LR
@@ -185,7 +185,7 @@ Built: `app/Domain/Leave` (enums, three models, actions, support, policy), the l
 - **Approvals (D-07, BR-20, BR-21).** `DecideLeave` locks the employee and the request, records one `leave_request_approvals` row per stage, and on HR approval re-checks the balance and writes the deduction. "Not your own request" lives in the action, so root access (D-41) cannot skip it. Policy methods `approveManagerStage` and `approveHrStage` are plain permission checks; the manager one adds the `manager_id` relationship (D-28).
 - **Direct day off (BR-22).** `CreateDirectDayOff` needs `leave_requests.create_for_others`, a note, a balance-affecting type, and an explicit flag to go below zero. It still obeys BR-23.
 - **Concurrency.** Requests, decisions, cancellations and grants lock the employee's user row first (as the 24 hour log cap does), so two requests cannot both pass the balance check.
-- **Calendar.** A server-rendered month grid (no calendar plugin to verify against Filament 5). Visibility reuses `LeaveRequestResource::visibleTo`.
+- **Calendar.** A server-rendered month grid (no calendar plugin to verify against Filament 5). Visibility reuses `LeaveRequestResource::visibleTo`. Since 2026-11-14 it is the Calendar tab of the Leave Requests page (`LeaveCalendar` in `app/Filament/Resources/LeaveRequests/Support`), where a click or a drag across days opens the Request leave form with those dates and a click on a request opens its details with the same decision and cancel buttons as the table.
 - **Not built:** manual balance adjustments (no permission in the grid), leave submission notifications to approvers `[OPTIONAL]` (the employee decision notice is built, D-57), the leave-balance widget `[OPTIONAL]`, an expiry job for requests left pending.
 
 ## 16. M6 outcome (2026-11-12)

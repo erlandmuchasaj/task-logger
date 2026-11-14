@@ -74,3 +74,30 @@ it('refuses dates without a working day, backwards dates and absurd spans', func
         ->and(fn () => resolve(RequestLeave::class)->handle($setup['employee'], leaveData($setup['unpaid'], '2026-01-01', '2028-01-01')))
         ->toThrow(ValidationException::class, 'more than');
 })->group('BR-16', 'D-42');
+
+it('BR-16 BR-17 chargedParts lists the days chargedTenths charges, so a calendar never disagrees with the balance', function (string $from, string $to, DayPart $start, DayPart $end, array $expected): void {
+    $setup = leaveSetup();
+    BankHoliday::factory()->create(['country_id' => $setup['country']->id, 'start_date' => '2026-06-03', 'end_date' => '2026-06-03']);
+
+    $span = new LeaveSpan(Date::parse($from), Date::parse($to), $start, $end);
+    $parts = $span->chargedParts($setup['country']->working_days, ['2026-06-03' => true]);
+
+    $tenths = array_sum(array_map(fn (array $dayParts): int => count($dayParts) === 2 ? 10 : 5, $parts));
+
+    expect($parts)->toBe($expected)
+        ->and($tenths)->toBe($span->chargedTenths($setup['country']));
+})->with([
+    'a weekend is not charged' => ['2026-05-29', '2026-06-01', DayPart::Full, DayPart::Full, ['2026-05-29' => ['am', 'pm'], '2026-06-01' => ['am', 'pm']]],
+    'a holiday is not charged' => ['2026-06-02', '2026-06-04', DayPart::Full, DayPart::Full, ['2026-06-02' => ['am', 'pm'], '2026-06-04' => ['am', 'pm']]],
+    'a half first and last day' => ['2026-06-01', '2026-06-02', DayPart::Pm, DayPart::Am, ['2026-06-01' => ['pm'], '2026-06-02' => ['am']]],
+    'a single half day' => ['2026-06-01', '2026-06-01', DayPart::Am, DayPart::Pm, ['2026-06-01' => ['am']]],
+    'a span without a working day' => ['2026-06-06', '2026-06-07', DayPart::Full, DayPart::Full, []],
+    'a half day on a holiday' => ['2026-06-03', '2026-06-03', DayPart::Am, DayPart::Full, []],
+])->group('BR-16', 'BR-17');
+
+it("BR-16 chargedParts follows the working week it is given, not the app's default", function (): void {
+    $span = new LeaveSpan(Date::parse('2026-06-05'), Date::parse('2026-06-08'));
+
+    expect(array_keys($span->chargedParts([1, 2, 3, 4, 5, 6], [])))->toBe(['2026-06-05', '2026-06-06', '2026-06-08'])
+        ->and(array_keys($span->chargedParts([2, 3, 4, 5, 6, 7], [])))->toBe(['2026-06-05', '2026-06-06', '2026-06-07']);
+})->group('BR-16', 'D-08');

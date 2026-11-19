@@ -12,7 +12,8 @@ use App\Domain\MasterData\Models\Country;
 use Illuminate\Database\Seeder;
 
 /**
- * Creates the first superadmin only when SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD are set.
+ * Always creates the first superadmin, in every environment (D-58): from SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD,
+ * or from the defaults in config/task-logger.php when they are not set. Idempotent on email.
  * Outside production the superadmin is also placed in Albania with an earlier start date and granted its
  * annual leave, like the role logins. In production no HR data is invented: set country and start date on the employee record.
  */
@@ -23,10 +24,8 @@ final class SuperadminSeeder extends Seeder
         $email = config('task-logger.superadmin.email');
         $password = config('task-logger.superadmin.password');
 
-        if (! $email || ! $password) {
-            $this->command?->warn('SUPERADMIN_EMAIL / SUPERADMIN_PASSWORD not set: no superadmin created.');
-
-            return;
+        if (app()->isProduction() && $password === RoleUsersSeeder::PASSWORD) {
+            $this->command?->warn('the superadmin has the default password. Set SUPERADMIN_PASSWORD or change it now.');
         }
 
         $attributes = ['name' => 'Super', 'surname' => 'Admin', 'password' => $password, 'email_verified_at' => now()];

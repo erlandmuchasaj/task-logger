@@ -234,8 +234,9 @@ Constraints: permission-first RBAC (Policies check permissions, never role names
 ## Local development seed data
 
 `php artisan migrate:fresh --seed` creates one login per role, all with the password `12345678`
-(never created in production): `superadmin@test.com`, `admin@test.com`, `hr@test.com`,
+(also created in production, so change them after the first deploy, D-58): `superadmin@test.com`, `admin@test.com`, `hr@test.com`,
 `assistant@test.com`, `employee@test.com`, `finance@test.com`.
 
 When `APP_ENV=local`, `LocalDemoSeeder` also adds demo employees, customers with rates, projects,
-tasks and about two months of logs. It skips itself if customers already exist.
+tasks and about two months of logs. It skips itself if customers already exist. Pass `--force`
+(`php artisan db:seed --class=LocalDemoSeeder --force`) to seed it in another environment.

@@ -63,9 +63,10 @@ return [
         'session_key' => 'impersonated_by',
     ],
 
-    // Optional first superadmin created by SuperadminSeeder (local/bootstrap use).
+    // D-58: the first superadmin, always created by SuperadminSeeder. The defaults match the seeded
+    // superadmin@test.com login of RoleUsersSeeder; set both variables on every real deployment.
     'superadmin' => [
-        'email' => env('SUPERADMIN_EMAIL'),
-        'password' => env('SUPERADMIN_PASSWORD'),
+        'email' => env('SUPERADMIN_EMAIL', 'superadmin@test.com'),
+        'password' => env('SUPERADMIN_PASSWORD', '12345678'),
     ],
 ];

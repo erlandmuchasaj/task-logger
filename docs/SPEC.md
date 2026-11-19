@@ -438,6 +438,12 @@ Each entry: what the source says, the default this spec implements, and whether 
 - Default: the admin role gains `leave_requests.view_any` (read only). Deciding still follows the approval rules: admins approve only their direct reports (`leave_requests.approve_direct_reports`).
 - Confirm: no.
 
+**D-58 — Seeders always create the superadmin and the role logins; demo data needs --force outside local. Asked by the owner (2026-11-19).**
+
+- Source: the owner asked that the root/superadmin and the per-role users are always created when the application is deployed, and that `LocalDemoSeeder` can run outside local when `--force` is passed.
+- Default: `SuperadminSeeder` and `RoleUsersSeeder` run in every environment, production included. The superadmin comes from `SUPERADMIN_EMAIL` and `SUPERADMIN_PASSWORD`, falling back to `superadmin@test.com` / `12345678` (the `config/task-logger.php` defaults) when they are unset; production logs a warning in that case. The role logins stay `{role}@test.com` / `12345678`. Both seeders remain idempotent on email. `LocalDemoSeeder` runs when `APP_ENV=local` or when the seed command has `--force`, and still skips when customers already exist. Supersedes the earlier "never in production" rule for the role logins.
+- Confirm: yes. Known weak credentials exist on a production database until someone changes them. Should production require `SUPERADMIN_PASSWORD` and skip the `@test.com` logins? Note also that `php artisan db:seed --force` is the usual production flag, so a full `DatabaseSeeder` run with it now also seeds the demo data.
+
 ### 3.2 Confirm before coding
 
 1. D-14 and D-05: what employees and assistants may see, and whether an employee sees their own HR record. HR and admin access is now set by the owner.

@@ -14,7 +14,7 @@ use Illuminate\Database\Seeder;
 
 /**
  * One login per role for development: {role}@test.com / 12345678. Idempotent on email.
- * Never runs in production, so these weak credentials cannot reach a live database.
+ * Runs in every environment, production included (D-58), so change these passwords after the first deploy.
  * Each login is placed in Albania with an earlier start date and granted its annual leave, so My Leave
  * shows the full policy straight after seeding (needs CountrySeeder and AlbaniaLeaveSeeder first).
  */
@@ -27,12 +27,6 @@ final class RoleUsersSeeder extends Seeder
      */
     public function run(): void
     {
-        if (app()->isProduction()) {
-            $this->command?->warn('RoleUsersSeeder skipped: test logins are never created in production.');
-
-            return;
-        }
-
         $albaniaId = Country::query()->where('code', 'AL')->value('id');
 
         foreach (RoleName::cases() as $role) {

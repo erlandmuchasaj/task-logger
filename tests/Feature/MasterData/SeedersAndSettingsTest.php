@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Clients\Models\Customer;
 use App\Domain\Identity\Enums\RoleName;
 use App\Domain\Identity\Models\User;
 use App\Domain\Leave\Support\LeaveBalance;
@@ -23,6 +24,7 @@ use Carbon\CarbonImmutable;
 use Database\Seeders\AlbaniaLeaveSeeder;
 use Database\Seeders\CountrySeeder;
 use Database\Seeders\DepartmentSeeder;
+use Database\Seeders\LocalDemoSeeder;
 use Database\Seeders\MasterDataSeeder;
 use Database\Seeders\RoleUsersSeeder;
 use Database\Seeders\SuperadminSeeder;
@@ -168,3 +170,39 @@ it('places the configured superadmin in Albania and grants the 22-day annual lea
     expect($superadmin->country->code)->toBe('AL')
         ->and(LeaveBalance::balance($superadmin, $annual->id))->toBe(220);
 });
+
+it('D-58 creates the role logins and the superadmin in production too, idempotently', function (): void {
+    $this->seed([MasterDataSeeder::class, CountrySeeder::class, AlbaniaLeaveSeeder::class]);
+
+    app()->detectEnvironment(fn (): string => 'production');
+    config(['task-logger.superadmin.email' => 'root@example.com', 'task-logger.superadmin.password' => 'a-long-Passw0rd-1']);
+
+    foreach (range(1, 2) as $_) {
+        $this->artisan('db:seed', ['--class' => RoleUsersSeeder::class, '--force' => true])->assertSuccessful();
+        $this->artisan('db:seed', ['--class' => SuperadminSeeder::class, '--force' => true])->assertSuccessful();
+    }
+
+    expect(User::query()->whereIn('email', array_map(fn (RoleName $role): string => "{$role->value}@test.com", RoleName::cases()))->count())
+        ->toBe(count(RoleName::cases()))
+        ->and(User::query()->where('email', 'root@example.com')->firstOrFail()->hasRole(RoleName::Superadmin->value))->toBeTrue();
+})->group('D-58');
+
+it('D-58 creates the superadmin from the config defaults when no credentials are set', function (): void {
+    $this->seed([MasterDataSeeder::class, CountrySeeder::class, AlbaniaLeaveSeeder::class, SuperadminSeeder::class]);
+
+    expect(User::query()->where('email', 'superadmin@test.com')->firstOrFail()->hasRole(RoleName::Superadmin->value))->toBeTrue();
+})->group('D-58');
+
+it('D-58 skips the demo data outside local, and seeds it when --force is passed', function (): void {
+    $this->seed([MasterDataSeeder::class, CountrySeeder::class, AlbaniaLeaveSeeder::class, TechnologySeeder::class]);
+
+    $this->artisan('db:seed', ['--class' => LocalDemoSeeder::class])->assertSuccessful();
+    expect(Customer::query()->count())->toBe(0);
+
+    $this->artisan('db:seed', ['--class' => LocalDemoSeeder::class, '--force' => true])->assertSuccessful();
+    expect(Customer::query()->count())->toBeGreaterThan(0);
+
+    $customers = Customer::query()->count();
+    $this->artisan('db:seed', ['--class' => LocalDemoSeeder::class, '--force' => true])->assertSuccessful();
+    expect(Customer::query()->count())->toBe($customers);
+})->group('D-58');

@@ -18,8 +18,8 @@ final class DatabaseSeeder extends Seeder
             DepartmentSeeder::class,
             TechnologySeeder::class,
             SuperadminSeeder::class,
-            RoleUsersSeeder::class,     // {role}@test.com / 12345678, never in production
-            LocalDemoSeeder::class,     // dummy customers, projects, tasks, logs, users: local only
+            RoleUsersSeeder::class,     // {role}@test.com / 12345678, every environment (D-58)
+            LocalDemoSeeder::class,     // dummy customers, projects, tasks, logs, users: local, or any environment with --force (D-58)
         ]);
     }
 }

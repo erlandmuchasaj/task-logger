@@ -33,7 +33,8 @@ use Illuminate\Support\Facades\DB;
  * members, tasks and a couple of months of logs. Rows are written through factories (not the actions) for
  * speed, so the seeder keeps the key rules itself: members only, the technology belongs to the project
  * (BR-02/BR-10), weekdays only, at most 8h a day, and the rate snapshot taken on the log date (BR-06).
- * Skipped when any customer already exists, so re-seeding never duplicates.
+ * Skipped when any customer already exists, so re-seeding never duplicates. Runs only when APP_ENV is local,
+ * unless the seed command is given --force (D-58), for example `php artisan db:seed --class=LocalDemoSeeder --force`.
  */
 final class LocalDemoSeeder extends Seeder
 {
@@ -47,7 +48,7 @@ final class LocalDemoSeeder extends Seeder
 
     public function run(): void
     {
-        if (! app()->environment('local')) {
+        if (! app()->environment('local') && ! $this->forced()) {
             return;
         }
 
@@ -109,6 +110,11 @@ final class LocalDemoSeeder extends Seeder
             'LocalDemoSeeder: %d customers, %d projects, %d tasks, %d logs.',
             Customer::query()->count(), Project::query()->count(), Task::query()->count(), Log::query()->count(),
         ));
+    }
+
+    private function forced(): bool
+    {
+        return (bool) $this->command?->option('force');
     }
 
     /** @return Collection<int, User> */

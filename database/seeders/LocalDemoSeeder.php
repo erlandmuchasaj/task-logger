@@ -23,10 +23,12 @@ use App\Domain\Work\Enums\TaskStatus;
 use App\Domain\Work\Models\Log;
 use App\Domain\Work\Models\Task;
 use Carbon\CarbonImmutable;
+use Faker\Factory;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /**
  * Demo data for local development only: employees, customers with rates, projects with technologies and
@@ -46,9 +48,18 @@ final class LocalDemoSeeder extends Seeder
 
     private const int LOG_WEEKDAYS = 40;
 
+    /**
+     * @throws Throwable
+     */
     public function run(): void
     {
         if (! app()->environment('local') && ! $this->forced()) {
+            return;
+        }
+
+        if (! class_exists(Factory::class)) {
+            $this->command?->warn('LocalDemoSeeder skipped: Faker is a dev dependency and is not installed (composer install --no-dev).');
+
             return;
         }
 

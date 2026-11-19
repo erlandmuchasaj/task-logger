@@ -9,6 +9,7 @@ use App\Domain\Identity\Enums\RoleName;
 use App\Domain\Identity\Models\User;
 use App\Domain\Leave\Actions\GrantAnnualLeave;
 use App\Domain\MasterData\Models\Country;
+use Exception;
 use Illuminate\Database\Seeder;
 
 /**
@@ -19,6 +20,9 @@ use Illuminate\Database\Seeder;
  */
 final class SuperadminSeeder extends Seeder
 {
+    /**
+     * @throws Exception
+     */
     public function run(): void
     {
         $email = config('task-logger.superadmin.email');

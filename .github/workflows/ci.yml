@@ -38,4 +38,5 @@ jobs:
       - run: composer test:types
       - run: composer test:type-coverage
       - run: npm ci && npm run build
+      - run: npx playwright install --with-deps chromium
       - run: composer test:unit

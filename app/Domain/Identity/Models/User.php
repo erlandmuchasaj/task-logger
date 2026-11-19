@@ -65,6 +65,13 @@ final class User extends Authenticatable implements BannableContract, FilamentUs
     use Notifiable;
     use SoftDeletes;
 
+    /**
+     * Mirrors the column default, so a freshly created model has the attribute without a reload (strict models).
+     *
+     * @var array<string, bool>
+     */
+    protected $attributes = ['must_change_password' => false];
+
     /** The password hash is fillable but never written to the activity log. */
     public function getActivitylogOptions(): LogOptions
     {

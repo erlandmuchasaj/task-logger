@@ -66,7 +66,6 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Lab404\Impersonate\Events\LeaveImpersonation;
@@ -136,12 +135,6 @@ final class AppServiceProvider extends ServiceProvider
         Gate::policy(Export::class, ExportPolicy::class);
         Gate::policy(TimesheetLock::class, TimesheetLockPolicy::class);
         Gate::policy(LeaveRequest::class, LeaveRequestPolicy::class);
-        // NFR-05 / D-50: HTTPS only outside local and testing; passwords of 12 or more characters, mixed case and a number
-        // (and not found in known breaches in production).
-        URL::forceHttps($this->app->isProduction());
-        Password::defaults(fn (): Password => $this->app->isProduction()
-            ? Password::min(12)->mixedCase()->numbers()->uncompromised()
-            : Password::min(12)->mixedCase()->numbers());
 
         Event::listen(PasswordReset::class, [AccountSignInNotices::class, 'passwordReset']);
         Event::listen(Login::class, [AccountSignInNotices::class, 'login']);
@@ -154,5 +147,11 @@ final class AppServiceProvider extends ServiceProvider
 
         // Catch N+1 queries early outside production (NFR-09).
         Model::preventLazyLoading(! $this->app->isProduction());
+
+        // NFR-05 / D-50: passwords of 12 or more characters, mixed case and a number (and not found in known
+        // breaches in production). HTTPS is forced outside local and testing by nunomaduro/essentials (ForceScheme).
+        Password::defaults(fn (): Password => $this->app->isProduction()
+            ? Password::min(12)->mixedCase()->numbers()->uncompromised()
+            : Password::min(12)->mixedCase()->numbers());
     }
 }

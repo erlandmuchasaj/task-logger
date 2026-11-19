@@ -31,7 +31,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Session\SessionManager;
 use Illuminate\Support\Facades\Date;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Sleep;
+use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use Pest\Browser\Api\AwaitableWebpage;
 use Tests\TestCase;
 
 /*
@@ -45,10 +50,24 @@ use Tests\TestCase;
 |
 */
 
+// pest()->extend(TestCase::class)
+//    ->use(RefreshDatabase::class)
+//    ->beforeEach(fn () => $this->seed(RolesAndPermissionsSeeder::class))
+//    ->in('Browser', 'Feature', 'Unit', 'Performance');
+
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
-    ->beforeEach(fn () => $this->seed(RolesAndPermissionsSeeder::class))
-    ->in('Feature', 'Performance');
+    ->beforeEach(function (): void {
+        $this->seed(RolesAndPermissionsSeeder::class);
+        Str::createRandomStringsNormally();
+        Str::createUuidsNormally();
+        Http::preventStrayRequests();
+        Process::preventStrayProcesses();
+        Sleep::fake();
+
+        $this->freezeTime();
+    })
+    ->in('Browser', 'Feature', 'Unit', 'Performance');
 
 pest()->extend(TestCase::class)->in('Architecture');
 
@@ -261,4 +280,17 @@ function grantDays(User $user, LeaveType $type, string $days, string $on = '2026
 function leaveData(LeaveType $type, string $from, ?string $to = null, DayPart $start = DayPart::Full, DayPart $end = DayPart::Full, ?string $reason = null): LeaveRequestData
 {
     return new LeaveRequestData($type->id, Date::parse($from), Date::parse($to ?? $from), $start, $end, $reason);
+}
+
+/**
+ * Signs a person in through the real login form and returns the page they land on. Use it only where the sign-in
+ * itself is under test; everywhere else call `$this->actingAs($user)` before `visit()`, which carries into the browser.
+ * The ids are Filament's `form.*` ones, so the selectors are explicit (`press('Sign in')` would hit the heading).
+ */
+function signInThroughBrowser(User $user, string $password = 'password'): AwaitableWebpage
+{
+    return visit('/app/login')
+        ->type('[id="form.email"]', $user->email)
+        ->type('[id="form.password"]', $password)
+        ->press('button[type=submit]');
 }

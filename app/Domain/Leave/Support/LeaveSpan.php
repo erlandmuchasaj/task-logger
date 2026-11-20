@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Domain\Leave\Support;
 
 use App\Domain\Leave\Enums\DayPart;
-use App\Domain\MasterData\Models\BankHoliday;
 use App\Domain\MasterData\Models\Country;
+use App\Domain\MasterData\Support\BankHolidays;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 
@@ -124,25 +124,13 @@ final readonly class LeaveSpan
     }
 
     /**
-     * Dates of the country's bank holidays inside the span. A holiday on a weekend is never shifted (D-08).
+     * Dates of the country's bank holidays inside the span, including the working day that observes a weekend
+     * holiday where the country moves them (D-62).
      *
      * @return array<string, true>
      */
     private function holidayDates(Country $country): array
     {
-        $dates = [];
-
-        BankHoliday::query()
-            ->where('country_id', $country->getKey())
-            ->whereDate('start_date', '<=', $this->end->toDateString())
-            ->whereDate('end_date', '>=', $this->start->toDateString())
-            ->get(['start_date', 'end_date'])
-            ->each(function (BankHoliday $holiday) use (&$dates): void {
-                for ($day = CarbonImmutable::parse($holiday->start_date->toDateString()); $day->lessThanOrEqualTo($holiday->end_date); $day = $day->addDay()) {
-                    $dates[$day->toDateString()] = true;
-                }
-            });
-
-        return $dates;
+        return BankHolidays::dates($country, $this->start->toDateString(), $this->end->toDateString());
     }
 }

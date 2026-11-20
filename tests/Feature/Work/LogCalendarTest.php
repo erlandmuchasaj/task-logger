@@ -8,6 +8,7 @@ use App\Domain\Identity\Permissions;
 use App\Domain\Leave\Enums\DayPart;
 use App\Domain\Leave\Enums\LeaveStatus;
 use App\Domain\Leave\Models\LeaveRequest;
+use App\Domain\MasterData\Enums\WeekendHolidayRule;
 use App\Domain\MasterData\Models\BankHoliday;
 use App\Domain\MasterData\Models\Country;
 use App\Domain\Work\Actions\LockMonth;
@@ -499,3 +500,40 @@ it('never sends a rate to the browser, and keeps its helper methods out of reach
 
     livewireUpdate((string) $html, 'ListLogs', 'nextCalendarMonth')->assertOk();
 });
+
+it('D-59 a repeating holiday excuses its day in a later year, and does not before its first year', function (): void {
+    $world = calendarWorld();
+    $world['employee']->update(['start_date' => '2026-06-02']);
+    // Friday 12 June 2026 repeats from 2025, so it is a holiday this year; the Thursday only starts repeating in 2027.
+    BankHoliday::factory()->repeating()->create(['country_id' => $world['country']->id, 'name' => 'Old Day', 'start_date' => '2025-06-12', 'end_date' => '2025-06-12']);
+    BankHoliday::factory()->repeating()->create(['country_id' => $world['country']->id, 'name' => 'New Day', 'start_date' => '2027-06-11', 'end_date' => '2027-06-11']);
+
+    $page = calendarPage($world['employee']);
+
+    expect(calendarDay($page, '2026-06-12')['holidays'])->toBe(['Old Day'])
+        ->and(calendarDay($page, '2026-06-12')['isMissing'])->toBeFalse()
+        ->and(calendarDay($page, '2026-06-11')['holidays'])->toBe([])
+        ->and(calendarDay($page, '2026-06-11')['isMissing'])->toBeTrue();
+})->group('D-59');
+
+it('D-62 shows the observed day of a weekend holiday and does not nudge to log on it', function (): void {
+    $world = calendarWorld();
+    $world['employee']->update(['start_date' => '2026-02-02']);
+    $world['country']->update(['weekend_holiday_rule' => WeekendHolidayRule::NextWorkingDay]);
+    BankHoliday::factory()->repeating()->create(['country_id' => $world['country']->id, 'name' => 'Summer Day', 'start_date' => '2026-03-14', 'end_date' => '2026-03-14']);
+
+    $page = calendarPage($world['employee'], '2026-03');
+
+    expect(calendarDay($page, '2026-03-14')['holidays'])->toBe(['Summer Day'])
+        ->and(calendarDay($page, '2026-03-16')['holidays'])->toBe(['Summer Day (observed)'])
+        ->and(calendarDay($page, '2026-03-16')['isMissing'])->toBeFalse()   // a holiday, so nothing is missing
+        ->and(calendarDay($page, '2026-03-17')['isMissing'])->toBeTrue()    // an ordinary working day with nothing logged
+        ->and(LogCalendar::notice($world['employee'], '2026-03-16'))->toBe('16 March 2026 is a bank holiday (Summer Day (observed)).');
+
+    // Where the country keeps weekend holidays on the weekend, the Monday is an ordinary working day.
+    $world['country']->update(['weekend_holiday_rule' => WeekendHolidayRule::Stays]);
+
+    $stays = calendarPage($world['employee'], '2026-03');
+    expect(calendarDay($stays, '2026-03-16')['holidays'])->toBe([])
+        ->and(calendarDay($stays, '2026-03-16')['isMissing'])->toBeTrue();
+})->group('D-62');

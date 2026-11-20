@@ -13,8 +13,9 @@ use Illuminate\Database\Seeder;
 
 /**
  * Albania's 22-day annual leave policy and its official bank holidays (Bank of Albania schedule).
- * A holiday on a weekend is observed on the following working day, and the app never shifts holidays
- * itself (D-08, BR-25), so every observed day is its own row. Idempotent: holidays are keyed on country and date.
+ * Only the holidays themselves are rows. A holiday on a weekend is observed on the next free working day, and the
+ * app works that day out (D-62), so there is no "(observed)" row: it would be shifted a second time.
+ * Idempotent: holidays are keyed on country and date.
  */
 final class AlbaniaLeaveSeeder extends Seeder
 {
@@ -30,28 +31,27 @@ final class AlbaniaLeaveSeeder extends Seeder
             ['2026-01-01', "New Year's Day", null],
             ['2026-01-02', "New Year's Day", null],
             ['2026-03-14', 'Summer Day', null],
-            ['2026-03-16', 'Summer Day (observed)', null],
             ['2026-03-20', 'Eid al-Fitr', self::LUNAR_NOTE],
             ['2026-03-22', 'Nevruz Day', null],
-            ['2026-03-23', 'Nevruz Day (observed)', null],
             ['2026-04-05', 'Catholic Easter', null],
-            ['2026-04-06', 'Catholic Easter (observed)', null],
             ['2026-04-12', 'Orthodox Easter', null],
-            ['2026-04-13', 'Orthodox Easter (observed)', null],
             ['2026-05-01', "International Workers' Day", null],
             ['2026-05-27', 'Eid al-Adha', self::LUNAR_NOTE],
             ['2026-09-05', "Saint Teresa's Canonisation Day", null],
-            ['2026-09-07', "Saint Teresa's Canonisation Day (observed)", null],
             ['2026-11-22', 'Alphabet Day', null],
-            ['2026-11-23', 'Alphabet Day (observed)', null],
             ['2026-11-28', 'Flag and Independence Day', null],
-            ['2026-11-30', 'Flag and Independence Day (observed)', null],
             ['2026-11-29', 'Liberation Day', null],
-            ['2026-12-01', 'Liberation Day (observed)', null],
             ['2026-12-08', 'National Youth Day', null],
             ['2026-12-25', 'Christmas Day', null],
         ],
     ];
+
+    /**
+     * Fixed-date holidays (month-day) that repeat every year (D-59). Easter and Eid move, so they stay one-off.
+     *
+     * @var list<string>
+     */
+    private const array REPEATING = ['01-01', '01-02', '03-14', '03-22', '05-01', '09-05', '11-22', '11-28', '11-29', '12-08', '12-25'];
 
     public function run(): void
     {
@@ -73,7 +73,7 @@ final class AlbaniaLeaveSeeder extends Seeder
             foreach ($holidays as [$date, $name, $description]) {
                 BankHoliday::query()->firstOrCreate(
                     ['country_id' => $albania->id, 'start_date' => $date],
-                    ['name' => $name, 'end_date' => $date, 'description' => $description],
+                    ['name' => $name, 'end_date' => $date, 'description' => $description, 'repeats_yearly' => in_array(mb_substr($date, 5), self::REPEATING, true)],
                 );
             }
         }

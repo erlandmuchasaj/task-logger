@@ -9,8 +9,8 @@ use App\Domain\Identity\Permissions;
 use App\Domain\Leave\Enums\LeaveStatus;
 use App\Domain\Leave\Models\LeaveRequest;
 use App\Domain\Leave\Support\LeaveSpan;
-use App\Domain\MasterData\Models\BankHoliday;
 use App\Domain\MasterData\Models\Country;
+use App\Domain\MasterData\Support\BankHolidays;
 use App\Domain\Work\Models\Log;
 use App\Domain\Work\Support\TimesheetLocks;
 use App\Domain\Work\Support\WorkCalendar;
@@ -197,18 +197,11 @@ final class LogCalendar
 
         // Only the person's own country: a calendar of days that matter to them.
         if ($user->country_id !== null) {
-            BankHoliday::query()
-                ->where('country_id', $user->country_id)
-                ->where('start_date', '<=', $to)->where('end_date', '>=', $from)
-                ->oldest('start_date')->orderBy('id')
-                ->get(['name', 'start_date', 'end_date'])
-                ->each(function (BankHoliday $holiday) use (&$holidays, $from, $to): void {
-                    $end = min($holiday->end_date->toDateString(), $to);
-
-                    for ($day = CarbonImmutable::parse(max($holiday->start_date->toDateString(), $from)); $day->toDateString() <= $end; $day = $day->addDay()) {
-                        $holidays[$day->toDateString()][] = $holiday->name;
-                    }
-                });
+            foreach (BankHolidays::occurrences([(int) $user->country_id], $from, $to) as $holiday) {
+                foreach ($holiday->days($from, $to) as $date) {
+                    $holidays[$date][] = $holiday->label();
+                }
+            }
         }
 
         /** @var array<string, list<array{label: string, full: bool}>> $leave */

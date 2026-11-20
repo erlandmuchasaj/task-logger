@@ -30,6 +30,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 /**
@@ -139,11 +140,24 @@ final class EmployeeForm
             Section::make('Private HR record')->description('Visible only to people who may view the HR record.')
                 ->columns(2)->schema([
                     DatePicker::make('profile.date_of_birth')->label('Date of birth')->maxDate(now()),
-                    TextInput::make('profile.phone')->label('Phone')->tel()->placeholder('+355 69 123 4567')
-                        ->rule(fn (callable $get): Closure => function (string $attribute, mixed $value, Closure $fail) use ($get): void {
-                            if (filled($value) && ! Phones::isValid((string) $value, FormMapper::countryCode($get('country_id')))) {
-                                $fail('Enter a valid phone number with the country code.');
+                    TextInput::make('profile.phone')->label('Mobile phone')->tel()
+                        ->prefix(fn (callable $get): ?string => FormMapper::countryPrefix($get('country_id')))
+                        ->placeholder(fn (callable $get): string => Phones::exampleMobile(FormMapper::countryCode($get('country_id'))) ?? '+355 69 212 3456')
+                        ->helperText(fn (callable $get): string => filled($get('country_id')) ? 'A mobile number of the chosen country, with or without the leading 0.' : 'Choose the country first, then type the mobile number.')
+                        ->rule(fn (callable $get, ?Model $record): Closure => function (string $attribute, mixed $value, Closure $fail) use ($get, $record): void {
+                            $country = FormMapper::countryCode($get('country_id'));
+                            $stored = $record instanceof User ? $record->profile()->value('phone') : null;
+
+                            if (blank($value) || Phones::isMobileOf((string) $value, $country)) {
+                                return;
                             }
+
+                            // A number saved earlier stays valid while it is not changed (D-60).
+                            if (is_string($stored) && Phones::isValid((string) $value, $country) && Phones::toE164((string) $value, $country) === $stored) {
+                                return;
+                            }
+
+                            $fail(Phones::mobileMessage(FormMapper::countryName($get('country_id')), $country));
                         }),
                     Select::make('profile.gender')->label('Gender')->options(Gender::class),
                     Select::make('profile.marital_status')->label('Marital status')->options(MaritalStatus::class),
@@ -170,6 +184,8 @@ final class EmployeeForm
                     TextInput::make('id')->hidden()->dehydratedWhenHidden(),
                     TextInput::make('name')->required(),
                     TextInput::make('phone')->tel()->required()
+                        ->prefix(fn (callable $get): ?string => FormMapper::countryPrefix($get('../../country_id')))
+                        ->helperText('Any phone number. Type + and the code for a number in another country.')
                         ->rule(fn (callable $get): Closure => function (string $attribute, mixed $value, Closure $fail) use ($get): void {
                             if (filled($value) && ! Phones::isValid((string) $value, FormMapper::countryCode($get('../../country_id')))) {
                                 $fail('Enter a valid phone number with the country code.');

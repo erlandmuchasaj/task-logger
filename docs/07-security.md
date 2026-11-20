@@ -96,6 +96,10 @@ Notes carried from SPEC: assistant `logs.create_own` and task/log own permission
 
 HTTPS only, secure cookies, HSTS in non-local. Receipts on private disk with signed URLs `[OPTIONAL]`. `.env` secrets only in env. Evaluate encrypted casts for DOB, phone, address (NFR-05). Mass-assignment guarded via explicit `$fillable`. Validation via Form Requests/Filament rules; E.164 via `propaganistas/laravel-phone`.
 
+## 5b. Outbound calls
+
+The only request-time call to a third party is the country lookup on the "New country" form (D-61, ADR-0011): server side, a fixed base URL from config, only the typed name or a two-letter code, a 5 second timeout, validated response, cached. A failure never blocks the form.
+
 ## 6. Auditing (BR-32)
 
 `spatie/laravel-activitylog` (v5) on every business model; before/after values are stored in the `attribute_changes` column (not `properties`), with causer and subject. Edits to logs in a locked month always store before/after (BR-07). `activity_logs.view` is superadmin only. Each entry also records the client IP, the user agent and, when someone is acting as another user, the impersonator (`impersonator_id`; D-38). The causer is the user acted as, so "who really did it" is never lost. Activity log is **not** pruned. Properties may hold personal data → scrubbed on anonymisation.

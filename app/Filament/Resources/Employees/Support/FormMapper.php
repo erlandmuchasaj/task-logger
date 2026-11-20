@@ -13,6 +13,7 @@ use App\Domain\People\Data\HrRecordData;
 use App\Domain\People\Data\SalaryData;
 use App\Domain\People\Enums\Gender;
 use App\Domain\People\Enums\MaritalStatus;
+use App\Domain\People\Support\Phones;
 use App\Domain\Shared\Money;
 use BackedEnum;
 use Carbon\CarbonImmutable;
@@ -45,7 +46,7 @@ final class FormMapper
             $profile = $employee->profile;
             $state['profile'] = [
                 'date_of_birth' => $profile?->date_of_birth?->toDateString(),
-                'phone' => $profile?->phone,
+                'phone' => Phones::forCountryField($profile?->phone, self::countryCode($employee->country_id)),
                 'gender' => $profile?->gender?->value,
                 'address' => $profile?->address,
                 'university' => $profile?->university,
@@ -57,7 +58,7 @@ final class FormMapper
                 'metadata' => $profile->metadata ?? [],
             ];
             $state['contacts'] = $employee->emergencyContacts()->get()
-                ->map(fn ($c): array => ['id' => $c->id, 'name' => $c->name, 'phone' => $c->phone, 'relationship' => $c->relationship])->all();
+                ->map(fn ($c): array => ['id' => $c->id, 'name' => $c->name, 'phone' => Phones::forCountryField($c->phone, self::countryCode($employee->country_id)), 'relationship' => $c->relationship])->all();
         }
 
         return $state;
@@ -139,6 +140,17 @@ final class FormMapper
     public static function countryCode(mixed $countryId): ?string
     {
         return filled($countryId) ? Country::query()->whereKey($countryId)->value('code') : null;
+    }
+
+    /** The dial prefix of the chosen country ("+355"), shown in front of the phone inputs (D-60). */
+    public static function countryPrefix(mixed $countryId): ?string
+    {
+        return filled($countryId) ? Country::query()->whereKey($countryId)->value('prefix') : null;
+    }
+
+    public static function countryName(mixed $countryId): ?string
+    {
+        return filled($countryId) ? Country::query()->whereKey($countryId)->value('name') : null;
     }
 
     public static function currencyOf(mixed $countryId): ?string

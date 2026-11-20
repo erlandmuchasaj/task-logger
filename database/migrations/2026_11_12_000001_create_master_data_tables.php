@@ -17,7 +17,9 @@ return new class extends Migration
             $table->string('prefix', 8);                // phone prefix, e.g. +355
             $table->string('timezone', 64);             // IANA, e.g. Europe/Tirane
             $table->char('currency_code', 3);           // ISO 4217
+            $table->char('language', 2)->nullable();    // ISO 639-1 main language, informational (D-61)
             $table->json('working_days');               // ISO weekdays, 1 = Monday (SPEC 5.1 [DERIVED])
+            $table->string('weekend_holiday_rule', 32)->default('stays'); // stays | next_working_day (D-62)
             $table->timestamps();
         });
 
@@ -85,6 +87,8 @@ return new class extends Migration
             $table->date('end_date');
             $table->foreignId('country_id')->constrained()->cascadeOnDelete();
             $table->text('description')->nullable();
+            $table->boolean('repeats_yearly')->default(false);       // D-59: same day and month every year
+            $table->unsignedSmallInteger('repeat_until_year')->nullable(); // D-59: last year it applies
             $table->timestamps();
 
             $table->index(['country_id', 'start_date']);
@@ -92,6 +96,12 @@ return new class extends Migration
 
         Schema::getConnection()->statement(
             'ALTER TABLE bank_holidays ADD CONSTRAINT bank_holidays_dates_check CHECK (end_date >= start_date)'
+        );
+        Schema::getConnection()->statement(
+            'ALTER TABLE bank_holidays ADD CONSTRAINT bank_holidays_repeat_check CHECK (repeat_until_year IS NULL OR (repeats_yearly = 1 AND repeat_until_year >= YEAR(start_date)))'
+        );
+        Schema::getConnection()->statement(
+            'ALTER TABLE bank_holidays ADD CONSTRAINT bank_holidays_repeat_span_check CHECK (repeats_yearly = 0 OR (DATEDIFF(end_date, start_date) < 365 AND NOT (MONTH(start_date) = 2 AND DAY(start_date) = 29) AND NOT (MONTH(end_date) = 2 AND DAY(end_date) = 29)))'
         );
     }
 

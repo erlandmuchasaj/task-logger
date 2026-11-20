@@ -145,8 +145,8 @@ Each entry: what the source says, the default this spec implements, and whether 
 **D-08 — Leave policy vocabulary.**
 
 - Source: country policy with effective dates, confirmed entitlement, proration, carry-over and expiry. In some countries holidays exclude weekends and are carried over. Later: grant on 1 January prorated by start date, no carry-over (setting).
-- Default: carry-over of leave between years is a per-country policy option, off by default (this matches no carry-over as a setting). A bank holiday that falls on a weekend has no automatic effect and is not shifted. Where a country observes it on the Monday (Albania, for a Sunday holiday), HR creates the Monday holiday as its own bank holiday entry (owner answer). Confirmed entitlement means a grant entry written to the ledger after the policy is applied. The working week defaults to Monday–Friday and is configurable per country.
-- Confirm: no for the weekend-holiday question (answered by the owner). Leave carry-over between years stays off unless a country policy turns it on.
+- Default: carry-over of leave between years is a per-country policy option, off by default (this matches no carry-over as a setting). A bank holiday on a weekend is observed on the next working day where the country is set to move weekend holidays (D-62, which replaced the earlier owner answer that HR adds the observed Monday as its own entry). Confirmed entitlement means a grant entry written to the ledger after the policy is applied. The working week defaults to Monday–Friday and is configurable per country.
+- Confirm: no for the weekend-holiday question (answered by the owner, then replaced by D-62). Leave carry-over between years stays off unless a country policy turns it on.
 
 **D-09 — One role per user.**
 
@@ -444,6 +444,30 @@ Each entry: what the source says, the default this spec implements, and whether 
 - Default: `SuperadminSeeder` and `RoleUsersSeeder` run in every environment, production included. The superadmin comes from `SUPERADMIN_EMAIL` and `SUPERADMIN_PASSWORD`, falling back to `superadmin@test.com` / `12345678` (the `config/task-logger.php` defaults) when they are unset; production logs a warning in that case. The role logins stay `{role}@test.com` / `12345678`. Both seeders remain idempotent on email. `LocalDemoSeeder` runs when `APP_ENV=local` or when the seed command has `--force`, and still skips when customers already exist. Supersedes the earlier "never in production" rule for the role logins.
 - Confirm: yes. Known weak credentials exist on a production database until someone changes them. Should production require `SUPERADMIN_PASSWORD` and skip the `@test.com` logins? Note also that `php artisan db:seed --force` is the usual production flag, so a full `DatabaseSeeder` run with it now also seeds the demo data.
 
+**D-59 — Bank holidays can repeat every year. Asked by the owner (2026-11-20).**
+
+- Source: the client asked that fixed-date holidays (28 and 29 November in Albania) are entered once and apply every year, while Easter and Eid, which move, stay one-off.
+- Default: a bank holiday has a "repeats every year" flag and an optional last year. A repeating holiday applies on the same day and month in every year from the year of its own date on, up to its last year when one is set; earlier years are unchanged. A holiday on a weekend is observed on the next working day where the country moves weekend holidays (D-62), so HR does not add the observed day. A repeating holiday cannot start or end on 29 February, and a range of a year or longer cannot repeat; the form and a database constraint both refuse them. `leave_requests.days_requested` is stored when the request is decided and never recounted, so changing a holiday does not change a past request. All readers (day counting, both calendars, the missing-log marker) go through `BankHolidays::occurrences()`. The seeded Albanian fixed-date holidays are flagged to repeat.
+- Confirm: yes. Should 29 February repeat on 28 February in other years? (The question about generating the observed weekday is answered by D-62.)
+
+**D-60 — The employee's phone is a mobile number of their country. Asked by the owner (2026-11-20).**
+
+- Source: the client asked that, once a country such as Albania is chosen, the phone is checked against that country's mobiles, the dial prefix (+355) is shown, and the person types the rest, with or without the leading 0, to get +355XXXXXXXXX.
+- Default: on the Employees form the phone shows the chosen country's `prefix` in front of the input. The employee's own phone must be a valid mobile of that country (national input with or without the leading 0, or a full `+` number of that country) and is stored as E.164. Emergency contacts accept any valid number. The rule is in `UpdateHrRecord`, so it binds every actor. A phone that is already stored and unchanged is kept as it is, so an older landline never blocks an edit of another field. A stored number of the employee's own country is shown after the prefix without it. Customers are unchanged. Note: `0671234567` from the request is not a valid Albanian number in libphonenumber's data (a 067 number continues with 2 to 9); `0672123456` and `0692123456` are.
+- Confirm: yes. May employees from other countries have a foreign mobile as their own phone? Should customers get the same input?
+
+**D-61 — Country lookup from countries.dev, and the country's main language. Asked by the owner (2026-11-20).**
+
+- Source: the client asked that, when adding a country, typing a name searches https://countries.dev and fills the relevant data.
+- Default: the "New country" form has a "Find country" search that asks countries.dev (server side, only the typed name is sent) and fills name, code, phone prefix, currency and main language. The timezone is filled from PHP's country table only when the country has exactly one zone; otherwise the person chooses it. Every filled field stays editable and the usual validation still runs. The lookup appears on create only, never on edit. If the service is slow, down or answers oddly, the form shows a warning and works by hand. Countries gain a nullable `language` (ISO 639-1), informational only because the app is English only. See ADR-0011.
+- Confirm: yes. Should the lookup also refresh existing countries?
+
+**D-62 — A holiday on a weekend is observed on the next free working day. Asked by the owner (2026-11-20).**
+
+- Source: the owner asked that HR adds a holiday once, for example 14 March (Summer Day in Albania), and that in a year when it falls on a Saturday or Sunday it carries over to the Monday: 2026 (Saturday) to Monday 16 March, 2027 (Sunday) to Monday 15 March, and in 2028 (Tuesday) it stays on the 14th. The owner chose "per country, Albania on" and "next free working day". The Bank of Albania 2026 list has the same 8 observed days (16 and 23 March, 6 and 13 April, 7 September, 23 and 30 November, 1 December).
+- Default: each country has a setting "Holiday on a weekend", `stays` or `next_working_day`. Albania is `next_working_day`; Kosovo and every new country start on `stays`. Where it is on, a holiday date that is not a working day of the country (`working_days`) is also observed on the next working day that is not a holiday and not already the observed day of an earlier date: Saturday 28 and Sunday 29 November 2026 give Monday 30 November and Tuesday 1 December; Sunday 28 November 2027 gives Tuesday 30 November because Monday 29 is Liberation Day; two holidays on the same Sunday share one Monday. A weekend day inside a multi-day holiday is observed on its own, so a Friday to Monday closure is also observed on the next two free working days. A holiday that falls on a working day never moves. The observed day is computed in `BankHolidays::occurrences()` and never stored, so day counting (BR-16), both calendars and the missing-log marker agree; it shows as "Name (observed)" and is not charged as leave, so a request for the observed day alone is refused as having no working days. `leave_requests.days_requested` is stored when the request is decided and is never recounted. The seeded "(observed)" rows are removed, because they would be moved a second time. The setting is on the Country form: the superadmin can change it, and the assistant can set it only when adding a country.
+- Confirm: yes. Should Kosovo, or another country, move weekend holidays? Should HR be able to change a country's setting? HR holds `bank_holidays.manage` but not `countries.manage`, so today only the superadmin can edit it. Is it right that each weekend day inside a multi-day range is observed separately? Switching a country on changes what undecided leave requests cost from then on.
+
 ### 3.2 Confirm before coding
 
 1. D-14 and D-05: what employees and assistants may see, and whether an employee sees their own HR record. HR and admin access is now set by the owner.
@@ -462,7 +486,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 15. D-50: whether the private profile columns must be encrypted at rest.
 13. D-46: whether free text written about a former employee (leave reasons, descriptions, review notes) must also be scrubbed.
 
-Answered by the owner and already applied: D-04 (budget includes fixed costs), D-07 (both manager and HR approve), D-08 (weekend holidays are handled manually by HR), D-10 (hr, admin and superadmin manage the HR record, salaries, offboardings, expenses and settings; assignees change their own task status), D-15 (2-month retention), D-44 (HR cancels approved leave; colleagues see each other's leave on the calendar), D-17 and D-51 (expenses are managed by a Finance role and the superadmin only).
+Answered by the owner and already applied: D-04 (budget includes fixed costs), D-07 (both manager and HR approve), D-08 (country leave policy vocabulary; its weekend-holiday answer was later replaced by D-62), D-10 (hr, admin and superadmin manage the HR record, salaries, offboardings, expenses and settings; assignees change their own task status), D-15 (2-month retention), D-44 (HR cancels approved leave; colleagues see each other's leave on the calendar), D-17 and D-51 (expenses are managed by a Finance role and the superadmin only).
 
 ## 4. Roles and permissions
 
@@ -539,7 +563,7 @@ Answered by the owner and already applied: D-04 (budget includes fixed costs), D
 **Owner clarifications (after the first review)**
 
 - hr, admin and superadmin manage the private HR record, salaries, offboardings and settings. Expenses are managed by a Finance role and the superadmin only (D-51, owner answer 2026-11-12, replacing the earlier answer that gave expenses to hr and admin).
-- HR can create bank holidays, for example the Monday observed for a holiday that falls on a Sunday.
+- HR can create bank holidays. The Monday that observes a holiday on a weekend is worked out for a country that moves weekend holidays (D-62), so HR does not add it.
 - An assignee can change the status of their own tasks. The creator of a task (the manager) can change statuses of tasks they created for other users. Admin and superadmin can change any task.
 - A leave request is approved only when both the direct manager and HR approve it.
 
@@ -618,9 +642,9 @@ Legend: ✔ stated in the source or by the owner after review. ✔\* derived or 
 
 **countries** (Country)
 
-- `name`, `code` (ISO 3166-1 alpha-2, e.g. AL, unique), `prefix` (phone prefix, e.g. +355), `timezone` (IANA, e.g. Europe/Tirane), `currency_code` (ISO 4217, e.g. ALL; Kosovo uses EUR, Albania uses ALL).
+- `name`, `code` (ISO 3166-1 alpha-2, e.g. AL, unique), `prefix` (phone prefix, e.g. +355), `timezone` (IANA, e.g. Europe/Tirane), `currency_code` (ISO 4217, e.g. ALL; Kosovo uses EUR, Albania uses ALL), `language` (nullable, ISO 639-1 main language, informational, D-61).
 - Source fields `days_off per year` and `sick leave` are entered on the country form but stored in `country_leave_policies` so they can change over time. `[ASSUMED D-08]`
-- `working_days` (set of weekdays, default Monday–Friday) `[DERIVED]`. There is no automatic weekend-holiday rule: HR adds an observed Monday as its own bank holiday (D-08).
+- `working_days` (set of weekdays, default Monday–Friday) `[DERIVED]`. `weekend_holiday_rule` (`stays` or `next_working_day`, default `stays`, D-62): where it is `next_working_day`, a holiday on a non-working day is observed on the next free working day.
 - The source says etc.: add further country attributes only through the decision log.
 
 **country\_leave\_policies** `[DERIVED]` (FAQ: policy by country with effective dates, proration, carry-over and expiry)
@@ -635,8 +659,8 @@ Legend: ✔ stated in the source or by the owner after review. ✔\* derived or 
 
 **bank\_holidays** (BankHoliday)
 
-- `name`, `start_date`, `end_date` (equal to start for a single day), `country_id`, `description`.
-- Constraint: end\_date on or after start\_date. Index (`country_id`, `start_date`).
+- `name`, `start_date`, `end_date` (equal to start for a single day), `country_id`, `description`, `repeats_yearly` (bool, default false) and `repeat_until_year` (nullable, D-59).
+- Constraints: end\_date on or after start\_date; `repeat_until_year` only with `repeats_yearly` and not before the year of start\_date; a repeating holiday does not touch 29 February and spans less than a year. Index (`country_id`, `start_date`).
 
 **departments** (Department)
 
@@ -818,7 +842,7 @@ Each rule has an ID for traceability and testing (operating rule 6).
 
 ### 6.3 Leave
 
-- **BR-16** Day counting: `days_requested` counts working days only between start and end inclusive. Skip the country’s weekend days and the employee’s country bank holidays. A half day (am or pm) counts 0.5. Computed on the server, never trusted from input. A holiday that falls on a weekend has no effect on the count; HR adds the observed Monday as its own holiday (D-08).
+- **BR-16** Day counting: `days_requested` counts working days only between start and end inclusive. Skip the country’s weekend days and the employee’s country bank holidays. A half day (am or pm) counts 0.5. Computed on the server, never trusted from input. A holiday that falls on a weekend has no effect on the count, except in a country that moves weekend holidays, where the working day that observes it is not charged either (D-62).
 - **BR-17** Half days: the first and last day can each be full, am or pm. A single-day request carries one part.
 - **BR-18** Entitlement: on 1 January (country timezone) a grant ledger entry is written per user and balance-affecting leave type from the active country policy, prorated by start date. For an employee who joins during the year, the grant for that year is written on the start date, prorated by remaining days. `[ASSUMED]` Policies have effective dates. Carry-over and expiry follow the country policy; carry-over is off by default (setting). Prorated values round to the nearest 0.5 day. `[ASSUMED D-08]`
 - **BR-19** Status flow: pending to approved, rejected or cancelled. Approved to taken or cancelled. Rejected, taken and cancelled are final. A scheduled job moves approved to taken after the end date. Cancelling an approved request that is not yet taken writes a reversal ledger entry.
@@ -827,7 +851,7 @@ Each rule has an ID for traceability and testing (operating rule 6).
 - **BR-22** Direct day off: the superadmin can create a leave request for an employee (created\_by = superadmin) that skips approval, is stored as approved and is deducted from PTO or sick leave. Use case: the employee did not come to work and has no platform access.
 - **BR-23** No two active (pending or approved) requests for the same user may overlap. `[DERIVED]`
 - **BR-24** For balance-affecting types, a request cannot exceed the available balance (balance minus pending). A superadmin direct day off may override with a note. `[ASSUMED]`
-- **BR-25** Bank holidays are created by the superadmin or HR per country (country, date or date range, name) and shown on the calendar together with leave. They feed BR-16. Holidays are not shifted automatically: where a country observes a weekend holiday on the Monday (for example Albania), HR creates the Monday holiday as its own entry.
+- **BR-25** Bank holidays are created by the superadmin or HR per country (country, date or date range, name) and shown on the calendar together with leave. They feed BR-16. Where a country moves weekend holidays (for example Albania), a holiday on a weekend is also observed on the next free working day, computed and not entered by HR (D-62). A holiday can repeat every year from the year of its date, with an optional last year (D-59).
 
 ### 6.4 People and governance
 
@@ -890,7 +914,7 @@ Each workflow names the actor, the steps and the rules that apply.
 **W-07 Holidays** (superadmin or HR)
 
 1. Select the country, date (or range) and name.
-2. The holiday shows on the calendar and is excluded from leave counting for that country’s employees (BR-25, BR-16).
+2. The holiday shows on the calendar and is excluded from leave counting for that country’s employees (BR-25, BR-16). A fixed-date holiday is marked "repeats every year" once and then applies in every later year (D-59). In a country that moves weekend holidays, the observed working day appears by itself (D-62).
 
 **W-08 Month close** (superadmin)
 
@@ -999,7 +1023,7 @@ Every block of the original brief and where it now lives.
 - Expense, ExpenseLine: section 5.6.
 - ActivityLog: section 5.7.
 - Naming-is-an-example note: section 5.0.
-- FAQ, in source order: manual logging and no log approval (BR-01); English only (1.3); only assigned members log directly (BR-02, D-12); one assignee (BR-09); leave approved by manager and HR (D-07); HR role (D-06); country leave policy (BR-18, D-08); weekend and carried-over holidays (D-08); currency by country (5.1, D-18); budget from hours and rate (D-04); payment plans are metadata (BR-15); priority per client (D-02); performance visibility (BR-27); equipment boolean (5.2, BR-28); anonymisation (BR-28, D-15); merged technologies (D-01); rate history and snapshot (5.3, BR-06); working-day leave counting (BR-16 to BR-18); privacy split (D-14, BR-26); timesheet lock (D-13, BR-07); force to log (BR-08); invoicing non-goal (1.3); integer money (BR-12).
+- FAQ, in source order: manual logging and no log approval (BR-01); English only (1.3); only assigned members log directly (BR-02, D-12); one assignee (BR-09); leave approved by manager and HR (D-07); HR role (D-06); country leave policy (BR-18, D-08); weekend and carried-over holidays (D-08, D-62); currency by country (5.1, D-18); budget from hours and rate (D-04); payment plans are metadata (BR-15); priority per client (D-02); performance visibility (BR-27); equipment boolean (5.2, BR-28); anonymisation (BR-28, D-15); merged technologies (D-01); rate history and snapshot (5.3, BR-06); working-day leave counting (BR-16 to BR-18); privacy split (D-14, BR-26); timesheet lock (D-13, BR-07); force to log (BR-08); invoicing non-goal (1.3); integer money (BR-12).
 - Package list: section 2.3.
 - Workflow list (initially define): section 10.
 - Filament demo: section 12.

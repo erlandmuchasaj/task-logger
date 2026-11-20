@@ -6,6 +6,7 @@ use App\Domain\Leave\Actions\RequestLeave;
 use App\Domain\Leave\Enums\DayPart;
 use App\Domain\Leave\Support\Days;
 use App\Domain\Leave\Support\LeaveSpan;
+use App\Domain\MasterData\Enums\WeekendHolidayRule;
 use App\Domain\MasterData\Models\BankHoliday;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Validation\ValidationException;
@@ -24,13 +25,25 @@ it('BR-16 FR-29 counts only working days: a Mon to Fri request over a Wednesday 
     expect(charged($setup, '2026-06-01', '2026-06-05'))->toBe('4.0');
 })->group('BR-16', 'FR-29');
 
-it('BR-16 skips the weekend and a holiday that falls on one has no effect (D-08)', function (): void {
+it('BR-16 skips the weekend, and where weekend holidays stay put a holiday on one has no effect (D-08)', function (): void {
     $setup = leaveSetup();
     BankHoliday::factory()->create(['country_id' => $setup['country']->id, 'start_date' => '2026-06-06', 'end_date' => '2026-06-06']);
 
     expect(charged($setup, '2026-05-29', '2026-06-01'))->toBe('2.0')   // Fri to Mon
         ->and(charged($setup, '2026-06-01', '2026-06-07'))->toBe('5.0'); // the Saturday holiday changes nothing
 })->group('BR-16', 'D-08');
+
+it('BR-16 / D-62 does not charge the Monday that observes a Saturday holiday, where the country moves weekend holidays', function (): void {
+    $setup = leaveSetup();
+    BankHoliday::factory()->create(['country_id' => $setup['country']->id, 'name' => 'Summer Day', 'start_date' => '2026-03-14', 'end_date' => '2026-03-14']);
+
+    expect(charged($setup, '2026-03-13', '2026-03-17'))->toBe('3.0'); // the country keeps the holiday on the Saturday: Fri, Mon, Tue
+
+    $setup['country']->update(['weekend_holiday_rule' => WeekendHolidayRule::NextWorkingDay]);
+
+    expect(charged($setup, '2026-03-13', '2026-03-17'))->toBe('2.0')  // Mon 16th is the observed holiday: Fri and Tue
+        ->and(charged($setup, '2026-03-16', '2026-03-16'))->toBe('0.0'); // a request for the observed day alone has nothing to charge
+})->group('BR-16', 'D-62');
 
 it("BR-16 only skips the holidays of the employee's own country and honours a holiday range", function (): void {
     $setup = leaveSetup();
@@ -75,6 +88,19 @@ it('refuses dates without a working day, backwards dates and absurd spans', func
         ->toThrow(ValidationException::class, 'more than');
 })->group('BR-16', 'D-42');
 
+it('BR-16 / D-62 an employee cannot request leave for the observed day alone, only where the country observes it', function (): void {
+    $setup = leaveSetup();
+    BankHoliday::factory()->create(['country_id' => $setup['country']->id, 'name' => 'Summer Day', 'start_date' => '2026-03-14', 'end_date' => '2026-03-14']);
+
+    // Holidays stay on the Saturday here, so Monday 16 March is an ordinary working day.
+    expect(resolve(RequestLeave::class)->handle($setup['employee'], leaveData($setup['unpaid'], '2026-03-16'))->days_requested)->toBe('1.0');
+
+    $setup['country']->update(['weekend_holiday_rule' => WeekendHolidayRule::NextWorkingDay]);
+
+    expect(fn () => resolve(RequestLeave::class)->handle($setup['employee'], leaveData($setup['unpaid'], '2026-03-16')))
+        ->toThrow(ValidationException::class, 'no working days');
+})->group('BR-16', 'D-62');
+
 it('BR-16 BR-17 chargedParts lists the days chargedTenths charges, so a calendar never disagrees with the balance', function (string $from, string $to, DayPart $start, DayPart $end, array $expected): void {
     $setup = leaveSetup();
     BankHoliday::factory()->create(['country_id' => $setup['country']->id, 'start_date' => '2026-06-03', 'end_date' => '2026-06-03']);
@@ -101,3 +127,12 @@ it("BR-16 chargedParts follows the working week it is given, not the app's defau
     expect(array_keys($span->chargedParts([1, 2, 3, 4, 5, 6], [])))->toBe(['2026-06-05', '2026-06-06', '2026-06-08'])
         ->and(array_keys($span->chargedParts([2, 3, 4, 5, 6, 7], [])))->toBe(['2026-06-05', '2026-06-06', '2026-06-07']);
 })->group('BR-16', 'D-08');
+
+it('D-59 a repeating holiday is skipped in later years, not before its own year', function (): void {
+    $setup = leaveSetup();
+    // 2027-11-26 is a Friday, 2027-11-29 a Monday: 28 November 2027 is a Sunday, so use the Monday 29th.
+    BankHoliday::factory()->repeating()->create(['country_id' => $setup['country']->id, 'start_date' => '2026-11-29', 'end_date' => '2026-11-29']);
+
+    expect(charged($setup, '2027-11-29', '2027-12-03'))->toBe('4.0')   // Monday holiday in 2027
+        ->and(charged($setup, '2025-11-24', '2025-11-28'))->toBe('5.0'); // the holiday did not exist yet
+})->group('D-59', 'BR-16');

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Domain\MasterData\Enums\WeekendHolidayRule;
 use App\Domain\MasterData\Models\Country;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -20,15 +21,22 @@ final class CountryFactory extends Factory
             'prefix' => '+'.fake()->numberBetween(1, 999),
             'timezone' => 'Europe/Tirane',
             'currency_code' => 'EUR',
+            'language' => null,
             'working_days' => [1, 2, 3, 4, 5],
         ];
+    }
+
+    /** A country that observes a weekend holiday on the next free working day (D-62). */
+    public function movesWeekendHolidays(): static
+    {
+        return $this->state(fn () => ['weekend_holiday_rule' => WeekendHolidayRule::NextWorkingDay]);
     }
 
     /** A real region, so national-format phone numbers validate. */
     public function albania(): static
     {
         return $this->state(fn () => [
-            'name' => 'Albania', 'code' => 'AL', 'prefix' => '+355', 'timezone' => 'Europe/Tirane', 'currency_code' => 'ALL',
+            'name' => 'Albania', 'code' => 'AL', 'prefix' => '+355', 'timezone' => 'Europe/Tirane', 'currency_code' => 'ALL', 'language' => 'sq',
         ]);
     }
 }

@@ -20,6 +20,13 @@ final class BankHolidayFactory extends Factory
             'start_date' => '2026-05-01',
             'end_date' => '2026-05-01',
             'country_id' => Country::factory(),
+            'repeats_yearly' => false,
+            'repeat_until_year' => null,
         ];
+    }
+
+    public function repeating(?int $untilYear = null): self
+    {
+        return $this->state(fn (): array => ['repeats_yearly' => true, 'repeat_until_year' => $untilYear]);
     }
 }

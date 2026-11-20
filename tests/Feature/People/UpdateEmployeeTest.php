@@ -194,3 +194,80 @@ it('the HR record accepts "Married with kids" as a marital status', function ():
     expect($profile->fresh()->marital_status)->toBe(MaritalStatus::MarriedWithKids)
         ->and(MaritalStatus::MarriedWithKids->getLabel())->toBe('Married with kids');
 });
+
+function albanianEmployee(): User
+{
+    $employee = userWithRole(RoleName::Employee);
+    $employee->update(['country_id' => Country::factory()->albania()->create()->id]);
+
+    return $employee;
+}
+
+it('D-60 national mobile input with or without the leading 0 is stored as the same E.164 number', function (string $typed): void {
+    $employee = albanianEmployee();
+
+    resolve(UpdateHrRecord::class)->handle(userWithRole(RoleName::Hr), $employee, new HrRecordData(phone: $typed));
+
+    expect($employee->profile->phone)->toBe('+355672123456');
+})->group('D-60')->with(['0672123456', '672123456', '+355 67 212 3456']);
+
+it('D-60 the own phone must be a mobile of the own country; emergency contacts may be any valid number', function (string $typed): void {
+    $employee = albanianEmployee();
+
+    expect(fn () => resolve(UpdateHrRecord::class)->handle(userWithRole(RoleName::Hr), $employee, new HrRecordData(phone: $typed)))
+        ->toThrow(ValidationException::class, 'Enter a mobile number for Albania');
+    expect(EmployeeProfile::query()->where('user_id', $employee->id)->exists())->toBeFalse();
+})->group('D-60')->with(['042212345' /* landline */, '+447700900123' /* a UK mobile */, '0671234567' /* not an Albanian range */, '12']);
+
+it('D-60 an emergency contact can still be a landline', function (): void {
+    $employee = albanianEmployee();
+
+    resolve(UpdateHrRecord::class)->handle(userWithRole(RoleName::Hr), $employee, new HrRecordData(
+        phone: '0672123456', contacts: [['name' => 'Ana', 'phone' => '042212345', 'relationship' => 'sister']],
+    ));
+
+    expect($employee->emergencyContacts()->sole()->phone)->toBe('+35542212345');
+})->group('D-60');
+
+it('D-60 a landline stored before the rule stays when the same phone is saved again, and is refused once changed to another landline', function (): void {
+    $employee = albanianEmployee();
+    EmployeeProfile::factory()->create(['user_id' => $employee->id, 'phone' => '+35542212345', 'address' => 'Old']);
+    $action = resolve(UpdateHrRecord::class);
+
+    $action->handle(userWithRole(RoleName::Hr), $employee, new HrRecordData(phone: '042212345', address: 'New'));
+    expect($employee->profile()->first()->phone)->toBe('+35542212345')->and($employee->profile()->first()->address)->toBe('New');
+
+    expect(fn () => $action->handle(userWithRole(RoleName::Hr), $employee, new HrRecordData(phone: '042212346')))
+        ->toThrow(ValidationException::class);
+})->group('D-60');
+
+it('D-60 the edit form shows an own-country number after the prefix, and a foreign number in full', function (): void {
+    $employee = albanianEmployee();
+    EmployeeProfile::factory()->create(['user_id' => $employee->id, 'phone' => '+355692123456']);
+    $this->actingAs(userWithRole(RoleName::Hr));
+
+    Livewire::test(EditEmployee::class, ['record' => $employee->getKey()])
+        ->assertSchemaStateSet(['profile.phone' => '692123456']);
+
+    $employee->profile()->update(['phone' => '+447700900123']);
+
+    Livewire::test(EditEmployee::class, ['record' => $employee->getKey()])
+        ->assertSchemaStateSet(['profile.phone' => '+447700900123']);
+})->group('D-60');
+
+it('D-60 saving the edit form with a typed national mobile stores E.164, and a landline is refused in the form', function (): void {
+    $employee = albanianEmployee();
+    $this->actingAs(userWithRole(RoleName::Hr));
+
+    Livewire::test(EditEmployee::class, ['record' => $employee->getKey()])
+        ->fillForm(['profile.phone' => '0672123456'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+    expect($employee->profile()->first()->phone)->toBe('+355672123456');
+
+    Livewire::test(EditEmployee::class, ['record' => $employee->getKey()])
+        ->fillForm(['profile.phone' => '042212345'])
+        ->call('save')
+        ->assertHasFormErrors(['profile.phone']);
+    expect($employee->profile()->first()->phone)->toBe('+355672123456');
+})->group('D-60');

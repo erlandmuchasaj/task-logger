@@ -11,6 +11,7 @@ use App\Domain\Leave\Enums\ApprovalStage;
 use App\Domain\Leave\Enums\DayPart;
 use App\Domain\Leave\Enums\LeaveStatus;
 use App\Domain\Leave\Models\LeaveRequest;
+use App\Domain\MasterData\Enums\WeekendHolidayRule;
 use App\Domain\MasterData\Models\BankHoliday;
 use App\Domain\MasterData\Models\Country;
 use App\Domain\MasterData\Models\LeaveType;
@@ -702,3 +703,60 @@ it('NFR-09 runs the same number of queries however many people are on leave', fu
 
     expect($queries())->toBe($few);
 });
+
+it('D-59 shows a repeating holiday in a later year, for every country for HR', function (): void {
+    $world = lcWorld();
+    BankHoliday::factory()->repeating()->create(['country_id' => $world['country']->id, 'name' => 'Independence', 'start_date' => '2026-11-28', 'end_date' => '2026-11-29']);
+    $hr = lcPerson($world, 'Hana', 'Hr', role: RoleName::Hr);
+
+    $page = lcPage($hr, '2027-11');
+    expect(lcDay($page, '2027-11-28')['holidays'])->toBe(['Independence (AL)'])
+        ->and(lcDay($page, '2027-11-29')['holidays'])->toBe(['Independence (AL)'])
+        ->and(lcDay($page, '2027-11-30')['holidays'])->toBe([]);
+
+    $before = lcPage($hr, '2025-11');
+    expect(lcDay($before, '2025-11-28')['holidays'])->toBe([]);
+})->group('D-59');
+
+it('D-62 shows the observed day of a weekend holiday in a country that moves them, and paints no leave on it', function (): void {
+    $world = lcWorld();
+    $world['country']->update(['weekend_holiday_rule' => WeekendHolidayRule::NextWorkingDay]);
+    BankHoliday::factory()->repeating()->create(['country_id' => $world['country']->id, 'name' => 'Summer Day', 'start_date' => '2026-03-14', 'end_date' => '2026-03-14']);
+    lcLeave($world['employee'], $world['annual'], '2026-03-13', '2026-03-17');
+    $hr = lcPerson($world, 'Hana', 'Hr', role: RoleName::Hr);
+
+    $page = lcPage($hr, '2026-03');
+    expect(lcDay($page, '2026-03-14')['holidays'])->toBe(['Summer Day (AL)'])
+        ->and(lcDay($page, '2026-03-16')['holidays'])->toBe(['Summer Day (observed) (AL)'])
+        ->and(lcDay($page, '2026-03-17')['holidays'])->toBe([])
+        ->and(lcLabels($page, '2026-03-13'))->toBe(['Zoe Zed · Annual Leave'])
+        ->and(lcLabels($page, '2026-03-16'))->toBe([])      // the observed day is not charged, so it is not painted
+        ->and(lcLabels($page, '2026-03-17'))->toBe(['Zoe Zed · Annual Leave']);
+
+    // An employee sees the same day for their own country, without the country code.
+    expect(lcDay(lcPage($world['employee'], '2026-03'), '2026-03-16')['holidays'])->toBe(['Summer Day (observed)']);
+
+    // Next year the 14th is a Sunday and the 15th is observed; in 2028 it is a Tuesday and nothing moves.
+    $next = lcPage($hr, '2027-03');
+    expect(lcDay($next, '2027-03-14')['holidays'])->toBe(['Summer Day (AL)'])
+        ->and(lcDay($next, '2027-03-15')['holidays'])->toBe(['Summer Day (observed) (AL)']);
+
+    $after = lcPage($hr, '2028-03');
+    expect(lcDay($after, '2028-03-14')['holidays'])->toBe(['Summer Day (AL)'])
+        ->and(lcDay($after, '2028-03-13')['holidays'])->toBe([])
+        ->and(lcDay($after, '2028-03-15')['holidays'])->toBe([]);
+})->group('D-62');
+
+it('D-62 shows an observed day in the month after its holiday, and nothing observed where the country keeps holidays on the weekend', function (): void {
+    $world = lcWorld();
+    // Saturday 30 May 2026 is observed on Monday 1 June: the holiday itself is outside the month shown.
+    BankHoliday::factory()->create(['country_id' => $world['country']->id, 'name' => 'Spring Day', 'start_date' => '2026-05-30', 'end_date' => '2026-05-30']);
+
+    expect(lcDay(lcPage($world['employee']), '2026-06-01')['holidays'])->toBe([]);   // Albania here keeps it on the Saturday
+
+    $world['country']->update(['weekend_holiday_rule' => WeekendHolidayRule::NextWorkingDay]);
+
+    $page = lcPage($world['employee']);
+    expect(lcDay($page, '2026-06-01')['holidays'])->toBe(['Spring Day (observed)'])
+        ->and(lcDay($page, '2026-06-02')['holidays'])->toBe([]);
+})->group('D-62');

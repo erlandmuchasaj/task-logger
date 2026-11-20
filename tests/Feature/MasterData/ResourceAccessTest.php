@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Identity\Enums\RoleName;
+use App\Domain\MasterData\Enums\WeekendHolidayRule;
 use App\Domain\MasterData\Models\Country;
 use App\Domain\MasterData\Models\CountryLeavePolicy;
 use App\Domain\MasterData\Models\LeaveType;
@@ -118,3 +119,63 @@ it('FR-06 a country with leave policies opens for editing', function (): void {
         ->mountTableAction(EditAction::class, $policy->country)
         ->assertSchemaStateSet(['name' => $policy->country->name]);
 })->group('FR-06');
+
+it('D-62 the superadmin switches a country to observing weekend holidays on the next working day, and back', function (): void {
+    $this->actingAs(userWithRole(RoleName::Superadmin));
+    $country = Country::factory()->create(['code' => 'AL']);
+
+    Livewire::test(ManageCountries::class)
+        ->callTableAction(EditAction::class, $country, ['weekend_holiday_rule' => WeekendHolidayRule::NextWorkingDay->value])
+        ->assertHasNoFormErrors();
+
+    expect($country->refresh()->weekend_holiday_rule)->toBe(WeekendHolidayRule::NextWorkingDay)
+        ->and($country->movesWeekendHolidays())->toBeTrue();
+
+    Livewire::test(ManageCountries::class)
+        ->callTableAction(EditAction::class, $country, ['weekend_holiday_rule' => WeekendHolidayRule::Stays->value])
+        ->assertHasNoFormErrors();
+
+    expect($country->refresh()->weekend_holiday_rule)->toBe(WeekendHolidayRule::Stays)
+        ->and($country->movesWeekendHolidays())->toBeFalse();
+})->group('D-62');
+
+it('D-62 a new country starts with weekend holidays staying where they are, unless it is added with the rule on', function (): void {
+    $fields = ['prefix' => '+383', 'timezone' => 'Europe/Belgrade', 'currency_code' => 'EUR', 'working_days' => [1, 2, 3, 4, 5]];
+
+    $this->actingAs(userWithRole(RoleName::Assistant));
+    Livewire::test(ManageCountries::class)
+        ->callAction(CreateAction::class, ['name' => 'Kosovo', 'code' => 'XK', ...$fields])
+        ->assertHasNoFormErrors();
+
+    $this->actingAs(userWithRole(RoleName::Superadmin));
+    Livewire::test(ManageCountries::class)
+        ->callAction(CreateAction::class, ['name' => 'Albania', 'code' => 'AL', ...$fields, 'weekend_holiday_rule' => WeekendHolidayRule::NextWorkingDay->value])
+        ->assertHasNoFormErrors();
+
+    expect(Country::query()->where('code', 'XK')->sole()->weekend_holiday_rule)->toBe(WeekendHolidayRule::Stays)
+        ->and(Country::query()->where('code', 'AL')->sole()->weekend_holiday_rule)->toBe(WeekendHolidayRule::NextWorkingDay);
+})->group('D-62');
+
+it('D-62 refuses an unknown or empty weekend holiday rule', function (mixed $value): void {
+    $this->actingAs(userWithRole(RoleName::Superadmin));
+    $country = Country::factory()->create(['code' => 'AL']);
+
+    Livewire::test(ManageCountries::class)
+        ->callTableAction(EditAction::class, $country, ['weekend_holiday_rule' => $value])
+        ->assertHasFormErrors(['weekend_holiday_rule']);
+
+    expect($country->refresh()->weekend_holiday_rule)->toBe(WeekendHolidayRule::Stays);
+})->with(['an unknown value' => 'sometimes', 'an empty value' => null])->group('D-62');
+
+it('D-62 only a role that manages countries can change the rule: the assistant has no edit action, HR and employees no screen', function (): void {
+    $country = Country::factory()->create(['code' => 'AL']);
+
+    $this->actingAs(userWithRole(RoleName::Assistant));
+    Livewire::test(ManageCountries::class)->assertTableActionHidden(EditAction::class, $country);
+
+    foreach ([RoleName::Hr, RoleName::Employee] as $role) {
+        $this->actingAs(userWithRole($role))->get('/app/countries')->assertForbidden();
+    }
+
+    expect($country->refresh()->weekend_holiday_rule)->toBe(WeekendHolidayRule::Stays);
+})->group('D-62');

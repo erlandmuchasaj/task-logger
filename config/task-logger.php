@@ -63,6 +63,13 @@ return [
         'session_key' => 'impersonated_by',
     ],
 
+    // D-61: the optional country lookup on the "New country" form (ADR-0011). Only the typed name leaves the app.
+    'country_directory' => [
+        'base_url' => env('COUNTRY_DIRECTORY_URL', 'https://countries.dev'),
+        'timeout' => 5,         // seconds; a slow answer is treated as no answer
+        'cache_hours' => 24,
+    ],
+
     // D-58: the first superadmin, always created by SuperadminSeeder. The defaults match the seeded
     // superadmin@test.com login of RoleUsersSeeder; set both variables on every real deployment.
     'superadmin' => [

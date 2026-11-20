@@ -8,6 +8,7 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Leave\Support\LeaveBalance;
 use App\Domain\Leave\Support\LeaveSpan;
 use App\Domain\MasterData\Enums\Proration;
+use App\Domain\MasterData\Enums\WeekendHolidayRule;
 use App\Domain\MasterData\Models\BankHoliday;
 use App\Domain\MasterData\Models\Country;
 use App\Domain\MasterData\Models\CountryLeavePolicy;
@@ -18,6 +19,8 @@ use App\Domain\MasterData\Models\PaymentPlan;
 use App\Domain\MasterData\Models\Technology;
 use App\Domain\MasterData\Settings\LeaveSettings;
 use App\Domain\MasterData\Settings\PrivacySettings;
+use App\Domain\MasterData\Support\BankHolidays;
+use App\Domain\MasterData\Support\HolidayOccurrence;
 use App\Domain\Shared\Money;
 use App\Filament\Pages\ManageSettings;
 use Carbon\CarbonImmutable;
@@ -117,7 +120,7 @@ it('seeds the Albania 22-day policy and 2026 bank holidays idempotently', functi
     $policy = CountryLeavePolicy::query()->where('country_id', $albania->id)->sole();
 
     expect(Country::query()->count())->toBe(2)
-        ->and(BankHoliday::query()->where('country_id', $albania->id)->count())->toBe(23)
+        ->and(BankHoliday::query()->where('country_id', $albania->id)->count())->toBe(15)
         ->and(BankHoliday::query()->where('country_id', '!=', $albania->id)->count())->toBe(0)
         ->and($policy->leaveType->name)->toBe('annual_leave')
         ->and((string) $policy->days_per_year)->toBe('22.0')
@@ -126,14 +129,25 @@ it('seeds the Albania 22-day policy and 2026 bank holidays idempotently', functi
         ->and($policy->carry_over_enabled)->toBeFalse();
 });
 
-it('seeds every observed Albania holiday on a working day', function (): void {
+it('D-62 seeds Albania as a country that moves weekend holidays, Kosovo as one that does not, and stores no observed day', function (): void {
     $this->seed([MasterDataSeeder::class, CountrySeeder::class, AlbaniaLeaveSeeder::class]);
 
-    $observed = BankHoliday::query()->where('name', 'like', '%(observed)')->get();
+    expect(Country::query()->where('code', 'AL')->firstOrFail()->weekend_holiday_rule)->toBe(WeekendHolidayRule::NextWorkingDay)
+        ->and(Country::query()->where('code', 'XK')->firstOrFail()->weekend_holiday_rule)->toBe(WeekendHolidayRule::Stays)
+        ->and(BankHoliday::query()->where('name', 'like', '%(observed)')->count())->toBe(0);
+})->group('D-62');
 
-    expect($observed)->toHaveCount(8)
-        ->and($observed->every(fn (BankHoliday $holiday): bool => $holiday->start_date->isWeekday()))->toBeTrue();
-});
+it('D-62 works out the 8 observed days of the Bank of Albania 2026 list from the 15 seeded holidays', function (): void {
+    $this->seed([MasterDataSeeder::class, CountrySeeder::class, AlbaniaLeaveSeeder::class]);
+
+    $albania = Country::query()->where('code', 'AL')->firstOrFail();
+    $observed = BankHolidays::occurrences([(int) $albania->getKey()], '2026-01-01', '2026-12-31')
+        ->filter(fn (HolidayOccurrence $occurrence): bool => $occurrence->observed)
+        ->map(fn (HolidayOccurrence $occurrence): string => $occurrence->start->toDateString())
+        ->values()->all();
+
+    expect($observed)->toBe(['2026-03-16', '2026-03-23', '2026-04-06', '2026-04-13', '2026-09-07', '2026-11-23', '2026-11-30', '2026-12-01']);
+})->group('D-62');
 
 it('charges two days for 27 Nov to 2 Dec 2026 in Albania, the weekend holidays being observed on Monday and Tuesday', function (): void {
     $this->seed([MasterDataSeeder::class, CountrySeeder::class, AlbaniaLeaveSeeder::class]);

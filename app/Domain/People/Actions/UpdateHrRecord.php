@@ -30,7 +30,7 @@ final class UpdateHrRecord
 
         $profile = EmployeeProfile::query()->updateOrCreate(['user_id' => $employee->getKey()], [
             'date_of_birth' => $data->dateOfBirth?->toDateString(),
-            'phone' => Phones::toE164($data->phone, $country),
+            'phone' => $this->profilePhone($employee, $data->phone, $country),
             'gender' => $data->gender,
             'address' => $data->address,
             'university' => $data->university,
@@ -45,6 +45,27 @@ final class UpdateHrRecord
         $this->syncContacts($employee, $data->contacts, $country);
 
         return $profile;
+    }
+
+    /**
+     * The employee's own phone must be a mobile of their country (D-60). A number that is already stored stays
+     * as it is, so an older landline never blocks an edit of another field.
+     */
+    private function profilePhone(User $employee, ?string $input, ?string $country): ?string
+    {
+        $input = $input === null ? null : mb_trim($input);
+
+        if ($input === null || $input === '') {
+            return null;
+        }
+
+        $stored = $employee->profile()->value('phone');
+
+        if (is_string($stored) && Phones::isValid($input, $country) && Phones::toE164($input, $country) === $stored) {
+            return $stored;
+        }
+
+        return Phones::mobileToE164($input, $country, $employee->country()->value('name'));
     }
 
     /** @param  list<array{id?: int|null, name: string, phone: string, relationship: string}>  $contacts */

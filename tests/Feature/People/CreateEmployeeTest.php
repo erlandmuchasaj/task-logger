@@ -159,3 +159,39 @@ it('FR-01 the Create screen creates an employee end to end for the superadmin', 
 it('FR-01 admin, hr and assistant cannot open the Create screen', function (RoleName $role): void {
     $this->actingAs(userWithRole($role))->get('/app/employees/create')->assertForbidden();
 })->group('FR-01')->with([RoleName::Admin, RoleName::Hr, RoleName::Assistant, RoleName::Employee]);
+
+it('D-60 the Create screen stores a typed national mobile as E.164 for the chosen country, as hr or the superadmin', function (): void {
+    $this->actingAs(userWithRole(RoleName::Superadmin));
+    $country = Country::factory()->albania()->create();
+    $department = Department::factory()->create();
+
+    Livewire::test(CreateEmployeePage::class)
+        ->fillForm([
+            'name' => 'Ina', 'surname' => 'Gjoka', 'email' => 'ina@example.test', 'role' => 'employee',
+            'country_id' => $country->id, 'department_id' => $department->id, 'position' => 'Tester',
+            'employment_type' => 'full_time', 'start_date' => '2026-11-02', 'profile.phone' => '672123456',
+            'salary.amount' => '1000', 'salary.currency' => 'ALL', 'salary.effective_date' => '2026-11-02',
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(User::query()->where('email', 'ina@example.test')->firstOrFail()->profile->phone)->toBe('+355672123456');
+})->group('D-60');
+
+it('D-60 the Create screen refuses a landline as the own phone and shows the dial prefix of the country', function (): void {
+    $this->actingAs(userWithRole(RoleName::Superadmin));
+    $country = Country::factory()->albania()->create();
+    $department = Department::factory()->create();
+
+    $page = Livewire::test(CreateEmployeePage::class)
+        ->fillForm(['country_id' => $country->id])
+        ->assertSee('+355');
+
+    $page->fillForm([
+        'name' => 'Ina', 'surname' => 'Gjoka', 'email' => 'ina2@example.test', 'role' => 'employee',
+        'department_id' => $department->id, 'position' => 'Tester', 'employment_type' => 'full_time', 'start_date' => '2026-11-02',
+        'profile.phone' => '042212345', 'salary.amount' => '1000', 'salary.currency' => 'ALL', 'salary.effective_date' => '2026-11-02',
+    ])->call('create')->assertHasFormErrors(['profile.phone']);
+
+    expect(User::query()->where('email', 'ina2@example.test')->exists())->toBeFalse();
+})->group('D-60');

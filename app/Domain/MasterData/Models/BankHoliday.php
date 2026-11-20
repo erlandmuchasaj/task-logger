@@ -13,10 +13,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * A holiday on a weekend is never shifted automatically (D-08, BR-25). HR adds an observed
- * Monday as its own entry.
+ * A holiday as HR entered it, on its real date (BR-25). Where the country moves weekend holidays (D-62) the
+ * observed working day is worked out by `BankHolidays`, not stored here.
  */
-#[Fillable(['name', 'start_date', 'end_date', 'country_id', 'description'])]
+#[Fillable(['name', 'start_date', 'end_date', 'country_id', 'description', 'repeats_yearly', 'repeat_until_year'])]
 #[UseFactory(BankHolidayFactory::class)]
 final class BankHoliday extends Model
 {
@@ -33,6 +33,11 @@ final class BankHoliday extends Model
 
     protected function casts(): array
     {
-        return ['start_date' => 'date', 'end_date' => 'date'];
+        return [
+            'start_date' => 'date',
+            'end_date' => 'date',
+            'repeats_yearly' => 'boolean',
+            'repeat_until_year' => 'integer',
+        ];
     }
 }

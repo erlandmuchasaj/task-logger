@@ -12,9 +12,10 @@ use App\Domain\Leave\Models\LeaveRequest;
 use App\Domain\Leave\Support\Days;
 use App\Domain\Leave\Support\LeaveBalance;
 use App\Domain\Leave\Support\LeaveSpan;
-use App\Domain\MasterData\Models\BankHoliday;
 use App\Domain\MasterData\Models\Country;
 use App\Domain\MasterData\Models\LeaveType;
+use App\Domain\MasterData\Support\BankHolidays;
+use App\Domain\MasterData\Support\HolidayOccurrence;
 use App\Domain\Work\Support\WorkCalendar;
 use App\Filament\Resources\LeaveRequests\LeaveRequestResource;
 use App\Filament\Support\CalendarInput;
@@ -23,6 +24,7 @@ use Carbon\CarbonInterface;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection as SupportCollection;
 
 /**
  * The month calendar on the Leave Requests page: bank holidays and leave in one grid (FR-34, D-44). Everybody
@@ -73,17 +75,17 @@ final class LeaveCalendar
         $agenda = [];
 
         foreach ($holidays as $holiday) {
-            $days = self::holidayDays($holiday, $firstDate, $lastDate);
+            $days = $holiday->days($firstDate, $lastDate);
 
             foreach ($days as $date) {
-                $holidayDatesByCountry[$holiday->country_id][$date] = true;
+                $holidayDatesByCountry[$holiday->countryId][$date] = true;
             }
 
-            if (! $seesEveryCountry && $holiday->country_id !== $viewer->country_id) {
+            if (! $seesEveryCountry && $holiday->countryId !== $viewer->country_id) {
                 continue;
             }
 
-            $label = $holiday->name.($seesEveryCountry ? ' ('.$holiday->country?->code.')' : '');
+            $label = $holiday->label().($seesEveryCountry ? ' ('.$holiday->country?->code.')' : '');
 
             foreach ($days as $date) {
                 $holidaysByDate[$date][] = $label;
@@ -91,8 +93,8 @@ final class LeaveCalendar
 
             $agenda[] = [
                 'kind' => 'holiday', 'id' => null, 'label' => $label, 'pending' => false, 'mine' => false,
-                'dates' => self::dates($holiday->start_date, $holiday->end_date),
-                'sort' => $holiday->start_date->toDateString().'0',
+                'dates' => self::dates($holiday->start, $holiday->end),
+                'sort' => $holiday->start->toDateString().'0',
             ];
         }
 
@@ -198,16 +200,12 @@ final class LeaveCalendar
         $from = $span->start->toDateString();
         $to = $span->end->toDateString();
 
-        $holidays = BankHoliday::query()
-            ->where('country_id', $country->getKey())
-            ->where('start_date', '<=', $to)->where('end_date', '>=', $from)
-            ->oldest('start_date')->orderBy('id')
-            ->get(['name', 'start_date', 'end_date']);
+        $holidays = BankHolidays::occurrences([(int) $country->getKey()], $from, $to);
 
         $holidayDates = [];
 
         foreach ($holidays as $holiday) {
-            foreach (self::holidayDays($holiday, $from, $to) as $date) {
+            foreach ($holiday->days($from, $to) as $date) {
                 $holidayDates[$date] = true;
             }
         }
@@ -228,7 +226,7 @@ final class LeaveCalendar
         }
 
         if ($holidays->isNotEmpty()) {
-            $notices[] = 'Bank holidays are not charged: '.$holidays->pluck('name')->unique()->implode(', ').'.';
+            $notices[] = 'Bank holidays are not charged: '.$holidays->map(fn (HolidayOccurrence $holiday): string => $holiday->label())->unique()->implode(', ').'.';
         }
 
         // The same half-day check as ValidatesLeave::assertNoOverlap(), so a Saturday inside a Friday to Monday request counts.
@@ -304,19 +302,15 @@ final class LeaveCalendar
      * (their charged days depend on them), or every country for people who see all leave.
      *
      * @param  Collection<int, LeaveRequest>  $requests
-     * @return Collection<int, BankHoliday>
+     * @return SupportCollection<int, HolidayOccurrence>
      */
-    private static function holidays(User $viewer, Collection $requests, string $from, string $to, bool $seesEveryCountry): Collection
+    private static function holidays(User $viewer, Collection $requests, string $from, string $to, bool $seesEveryCountry): SupportCollection
     {
         $countryIds = $requests->toBase()->map(fn (LeaveRequest $request): ?int => $request->user->country_id)
-            ->push($viewer->country_id)->filter()->unique()->values()->all();
+            ->push($viewer->country_id)->filter()->unique()->all();
+        $countryIds = array_values($countryIds);
 
-        return BankHoliday::query()
-            ->when($seesEveryCountry, fn (Builder $query) => $query->with('country'))
-            ->unless($seesEveryCountry, fn (Builder $query) => $query->whereIn('country_id', $countryIds))
-            ->where('start_date', '<=', $to)->where('end_date', '>=', $from)
-            ->oldest('start_date')->orderBy('id')
-            ->get();
+        return BankHolidays::occurrences($seesEveryCountry ? null : $countryIds, $from, $to);
     }
 
     /**
@@ -335,23 +329,6 @@ final class LeaveCalendar
             LeaveRequestResource::visibleTo($viewer, LeaveRequest::query())->whereKey($requests->modelKeys())->pluck('id')->map(fn (mixed $id): int => (int) $id)->all(),
             true,
         );
-    }
-
-    /**
-     * The days of a holiday that fall between two dates, inclusive.
-     *
-     * @return list<string>
-     */
-    private static function holidayDays(BankHoliday $holiday, string $from, string $to): array
-    {
-        $days = [];
-        $end = min($holiday->end_date->toDateString(), $to);
-
-        for ($day = CarbonImmutable::parse(max($holiday->start_date->toDateString(), $from)); $day->toDateString() <= $end; $day = $day->addDay()) {
-            $days[] = $day->toDateString();
-        }
-
-        return $days;
     }
 
     /** "3 Jun", "8 Jun - 9 Jun" or, for one half day, "3 Jun (AM)". */

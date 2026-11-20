@@ -45,7 +45,7 @@ Run `vendor/bin/larastan`, `vendor/bin/pest`, then `pest --group=BR-xx` per rule
 | BR-13 | FR-20 | Budget = Σ hours × rate at start_date + fixed costs (unit) | M3 |
 | BR-14 | FR-21 | Fixed cost counts in budget; currency mismatch rejected (feature) | M3 |
 | BR-15 | FR-17 | No invoice tables or generators exist (arch) | M3 |
-| BR-16 | FR-29 | Weekends, country holidays, half days, weekend holiday no-op (unit) | M5 |
+| BR-16 | FR-29 | Weekends, country holidays, half days, weekend holiday no-op or observed on the next working day by country rule (D-62) (unit) | M5 |
 | BR-17 | FR-29 | First/last day parts; single-day one part (unit) | M5 |
 | BR-18 | FR-32 | 1 Jan grant, proration, round 0.5, joiner grant, carry-over off by default (unit + feature) | M5 |
 | BR-19 | FR-31 | Transition table; job approved→taken; reversal on cancel (feature) | M5 |

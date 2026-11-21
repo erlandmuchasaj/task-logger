@@ -64,8 +64,11 @@ final class FormMapper
         return $state;
     }
 
-    /** @param  array<string, mixed>  $data */
-    public static function employee(array $data): EmployeeData
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<int, int> technology_id => level
+     */
+    public static function skills(array $data): array
     {
         $skills = [];
         foreach ((array) ($data['skills'] ?? []) as $row) {
@@ -73,6 +76,13 @@ final class FormMapper
                 $skills[(int) $row['technology_id']] = (int) $row['level'];
             }
         }
+
+        return $skills;
+    }
+
+    /** @param  array<string, mixed>  $data */
+    public static function employee(array $data): EmployeeData
+    {
 
         return new EmployeeData(
             name: (string) $data['name'],
@@ -86,7 +96,7 @@ final class FormMapper
             employmentType: filled($data['employment_type'] ?? null) ? EmploymentType::from(self::value($data['employment_type'])) : null,
             startDate: filled($data['start_date'] ?? null) ? CarbonImmutable::parse((string) $data['start_date']) : null,
             avatarPath: $data['avatar_path'] ?? null,
-            skills: $skills,
+            skills: self::skills($data),
         );
     }
 

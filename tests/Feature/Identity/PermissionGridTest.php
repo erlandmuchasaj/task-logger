@@ -41,6 +41,23 @@ it('D-10 unspecified means denied', function (): void {
     }
 });
 
+it('D-64 settings.manage belongs to the superadmin alone', function (): void {
+    foreach (RoleName::cases() as $role) {
+        expect(PermissionCatalog::forRole($role) === [] || in_array(Permissions::SETTINGS_MANAGE, PermissionCatalog::forRole($role), true))
+            ->toBe($role === RoleName::Superadmin, $role->value);
+    }
+})->group('D-64');
+
+it('D-63 only roles that work with clients and projects hold their view permissions', function (): void {
+    foreach (RoleName::cases() as $role) {
+        $held = PermissionCatalog::forRole($role);
+        $expected = $role !== RoleName::Employee;
+
+        expect(in_array(Permissions::CLIENTS_VIEW, $held, true))->toBe($expected, $role->value.' clients')
+            ->and(in_array(Permissions::PROJECTS_VIEW, $held, true))->toBe($expected, $role->value.' projects');
+    }
+})->group('D-63');
+
 it('D-10 assistant adds master data but cannot edit or delete it', function (): void {
     $assistant = userWithRole(RoleName::Assistant);
 

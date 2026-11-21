@@ -37,6 +37,12 @@ final class PermissionCatalog
         return array_values(array_unique($held));
     }
 
+    /** D-66: whether the role carries root access, which is how "the superadmin" is told apart without naming a role. */
+    public static function roleHoldsRoot(RoleName $role): bool
+    {
+        return in_array(Permissions::SYSTEM_ROOT, self::forRole($role), true);
+    }
+
     /**
      * Every role inherits the employee baseline (D-09).
      *

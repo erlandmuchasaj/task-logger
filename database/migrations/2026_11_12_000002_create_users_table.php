@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 // SPEC 5.2 operational columns. Salary and leave balance are NOT columns (D-03).
 // country/department/employment_type/start_date are nullable at the database level so the
 // first superadmin can be seeded; the CreateUser action (M2) requires them (W-01).
+// D-67: user 1, the first superadmin the seeder creates, can be neither deleted nor soft-deleted. The database refuses it
+// whatever the code does. On a server with binary logging, creating a trigger needs SUPER or log_bin_trust_function_creators=1.
 return new class extends Migration
 {
     public function up(): void
@@ -36,10 +39,31 @@ return new class extends Migration
             $table->softDeletes();
             $table->timestamps();
         });
+
+        DB::unprepared(<<<'SQL'
+            CREATE TRIGGER users_protect_root_delete BEFORE DELETE ON users FOR EACH ROW
+            BEGIN
+                IF OLD.id = 1 THEN
+                    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User 1 is the root superadmin and cannot be deleted.';
+                END IF;
+            END
+        SQL);
+
+        DB::unprepared(<<<'SQL'
+            CREATE TRIGGER users_protect_root_soft_delete BEFORE UPDATE ON users FOR EACH ROW
+            BEGIN
+                IF OLD.id = 1 AND OLD.deleted_at IS NULL AND NEW.deleted_at IS NOT NULL THEN
+                    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User 1 is the root superadmin and cannot be deleted.';
+                END IF;
+            END
+        SQL);
     }
 
     public function down(): void
     {
+        DB::unprepared('DROP TRIGGER IF EXISTS users_protect_root_delete');
+        DB::unprepared('DROP TRIGGER IF EXISTS users_protect_root_soft_delete');
+
         Schema::dropIfExists('users');
     }
 };

@@ -27,7 +27,8 @@ function dataFor(User $user, array $overrides = []): EmployeeData
     return employeeData(array_merge([
         'name' => $user->name, 'surname' => $user->surname, 'email' => $user->email,
         'role' => RoleName::from($user->roles()->first()->name), 'countryId' => $user->country_id,
-        'departmentId' => $user->department_id, 'position' => $user->position, 'managerId' => $user->manager_id,
+        'departmentId' => $user->department_id, 'position' => $user->position,
+        'managerId' => $user->manager_id ?? userWithRole(RoleName::Admin)->id,
         'employmentType' => $user->employment_type, 'startDate' => $user->start_date,
     ], $overrides));
 }
@@ -100,7 +101,7 @@ it('DERIVED the update action rejects a manager cycle', function (): void {
 
 it('FR-11 superadmin, admin and hr update the HR record; phones are stored as E.164', function (RoleName $role): void {
     $employee = userWithRole(RoleName::Employee);
-    $employee->update(['country_id' => Country::factory()->albania()->create()->id]);
+    $employee->update(['country_id' => Country::factory()->albania()->create()->id, 'manager_id' => userWithRole(RoleName::Admin)->id]);
 
     resolve(UpdateHrRecord::class)->handle(userWithRole($role), $employee, new HrRecordData(
         phone: '0692123456', address: '1 Rruga', hasHealthInsurance: true,
@@ -144,7 +145,7 @@ it('FR-13 emergency contacts are added, updated and removed, each audited', func
 it('FR-11 an HR user changes the HR record on the Edit screen but not the account', function (): void {
     $hr = userWithRole(RoleName::Hr);
     $employee = userWithRole(RoleName::Employee);
-    $employee->update(['name' => 'Original', 'position' => 'Engineer']);
+    $employee->update(['name' => 'Original', 'position' => 'Engineer', 'manager_id' => userWithRole(RoleName::Admin)->id]);
     $this->actingAs($hr);
 
     Livewire::test(EditEmployee::class, ['record' => $employee->getKey()])
@@ -159,7 +160,7 @@ it('FR-11 an HR user changes the HR record on the Edit screen but not the accoun
 it('FR-01 the superadmin edits the account on the Edit screen', function (): void {
     $this->actingAs(userWithRole(RoleName::Superadmin));
     $employee = userWithRole(RoleName::Employee);
-    $employee->update(['position' => 'Engineer']);
+    $employee->update(['position' => 'Engineer', 'manager_id' => userWithRole(RoleName::Admin)->id]);
 
     Livewire::test(EditEmployee::class, ['record' => $employee->getKey()])
         ->fillForm(['position' => 'Principal Engineer'])
@@ -171,6 +172,7 @@ it('FR-01 the superadmin edits the account on the Edit screen', function (): voi
 
 it('FR-11 the Edit screen of an HR user loads the private HR record', function (): void {
     $employee = userWithRole(RoleName::Employee);
+    $employee->update(['manager_id' => userWithRole(RoleName::Admin)->id]);
     EmployeeProfile::factory()->create(['user_id' => $employee->id, 'address' => '5 Visible Lane']);
     $this->actingAs(userWithRole(RoleName::Hr));
 
@@ -198,7 +200,7 @@ it('the HR record accepts "Married with kids" as a marital status', function ():
 function albanianEmployee(): User
 {
     $employee = userWithRole(RoleName::Employee);
-    $employee->update(['country_id' => Country::factory()->albania()->create()->id]);
+    $employee->update(['country_id' => Country::factory()->albania()->create()->id, 'manager_id' => userWithRole(RoleName::Admin)->id]);
 
     return $employee;
 }

@@ -89,7 +89,7 @@ it('D-15 / D-08 settings default to 2 months retention and carry-over off', func
         ->and(resolve(LeaveSettings::class)->carry_over_default)->toBeFalse();
 });
 
-it('settings.manage holders (superadmin, admin, hr) can change settings', function (RoleName $role): void {
+it('D-64 the superadmin can change settings', function (RoleName $role): void {
     $this->actingAs(userWithRole($role));
 
     Livewire::test(ManageSettings::class)
@@ -99,11 +99,11 @@ it('settings.manage holders (superadmin, admin, hr) can change settings', functi
 
     expect(resolve(PrivacySettings::class)->anonymize_after_months)->toBe(3)
         ->and(resolve(LeaveSettings::class)->carry_over_default)->toBeTrue();
-})->with([RoleName::Superadmin, RoleName::Admin, RoleName::Hr]);
+})->with([RoleName::Superadmin])->group('D-64');
 
-it('assistants and employees cannot open settings', function (RoleName $role): void {
+it('D-64 admin, HR, finance, assistants and employees cannot open settings', function (RoleName $role): void {
     $this->actingAs(userWithRole($role))->get('/app/manage-settings')->assertForbidden();
-})->with([RoleName::Assistant, RoleName::Employee]);
+})->with([RoleName::Admin, RoleName::Hr, RoleName::Finance, RoleName::Assistant, RoleName::Employee])->group('D-64');
 
 it('BR-12 every seeded country uses a currency from the ISO 4217 table', function (): void {
     $this->seed(CountrySeeder::class);

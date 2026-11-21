@@ -37,7 +37,7 @@ final class UserPolicy
         return $user->can(Permissions::EMPLOYEES_CREATE);
     }
 
-    /** Open the edit page: account or HR record rights. */
+    /** Open the edit page: account, HR record or skills rights. */
     public function update(User $user, User $employee): bool
     {
         return $this->updateAccount($user, $employee) || $this->updateHrRecord($user, $employee);
@@ -48,9 +48,16 @@ final class UserPolicy
         return $user->can(Permissions::EMPLOYEES_UPDATE);
     }
 
+    /** D-65: the HR record of a root user needs employees.edit_root_profile on top, so HR cannot change a superadmin's profile. */
     public function updateHrRecord(User $user, User $employee): bool
     {
-        return $user->can(Permissions::EMPLOYEES_UPDATE_HR_RECORD);
+        return $user->can(Permissions::EMPLOYEES_UPDATE_HR_RECORD) && $this->mayTouchProfileOf($user, $employee);
+    }
+
+    /** D-65: skills follow the HR record, or the account right for those who hold it. */
+    public function updateSkills(User $user, User $employee): bool
+    {
+        return $this->updateAccount($user, $employee) || $this->updateHrRecord($user, $employee);
     }
 
     public function viewSalaries(User $user, User $employee): bool
@@ -99,5 +106,10 @@ final class UserPolicy
     public function forceDelete(User $user, User $employee): bool
     {
         return false;
+    }
+
+    private function mayTouchProfileOf(User $actor, User $employee): bool
+    {
+        return ! $employee->holdsRootAccess() || $actor->hasPermissionTo(Permissions::EMPLOYEES_EDIT_ROOT_PROFILE);
     }
 }

@@ -8,6 +8,7 @@ use App\Domain\Identity\Enums\EmploymentType;
 use App\Domain\Identity\Enums\RoleName;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Permissions;
+use App\Domain\Identity\Support\PermissionCatalog;
 use App\Domain\MasterData\Models\Country;
 use App\Domain\MasterData\Models\Department;
 use App\Domain\MasterData\Models\Technology;
@@ -16,6 +17,7 @@ use App\Domain\People\Enums\MaritalStatus;
 use App\Domain\People\Support\ManagerChain;
 use App\Domain\People\Support\Phones;
 use App\Domain\Shared\IsoCurrency;
+use BackedEnum;
 use Closure;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
@@ -29,6 +31,7 @@ use Filament\Forms\Components\ToggleButtons;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -43,12 +46,13 @@ final class EmployeeForm
     {
         $user = auth()->user();
         $canAccount = $creating ? (bool) $user?->can('create', User::class) : $record instanceof User && $user?->can('updateAccount', $record);
-        $canHr = (bool) $user?->can(Permissions::EMPLOYEES_UPDATE_HR_RECORD);
+        $canHr = $record instanceof User ? (bool) $user?->can('updateHrRecord', $record) : (bool) $user?->can(Permissions::EMPLOYEES_UPDATE_HR_RECORD);
+        $canSkills = $creating ? $canAccount : $record instanceof User && $user?->can('updateSkills', $record);
         $canSalary = $creating && (bool) $user?->can(Permissions::SALARIES_MANAGE);
 
         $tabs = [
             Tab::make('Account')->schema(self::account($record, $creating))->disabled(! $canAccount),
-            Tab::make('Skills')->schema(self::skills())->disabled(! $canAccount),
+            Tab::make('Skills')->schema(self::skills())->disabled(! $canSkills),
         ];
 
         if ($user?->can(Permissions::EMPLOYEES_VIEW_HR_RECORD)) {
@@ -89,7 +93,7 @@ final class EmployeeForm
                     ->helperText($creating ? 'The login. A set-password link is emailed to this address.' : null),
                 Select::make('role')
                     ->options(collect(RoleName::cases())->mapWithKeys(fn (RoleName $r): array => [$r->value => Str::headline($r->value)])->all())
-                    ->required()
+                    ->required()->live()
                     ->helperText('One role per user (D-09).'),
                 Select::make('country_id')->label('Country')
                     ->options(fn (): array => Country::query()->orderBy('name')->pluck('name', 'id')->all())
@@ -103,6 +107,8 @@ final class EmployeeForm
                     ->options(fn (): array => User::query()->whereNull('banned_at')->when($record, fn ($q) => $q->whereKeyNot($record->getKey()))
                         ->orderBy('name')->get()->mapWithKeys(fn (User $u): array => [$u->id => $u->getFilamentName()])->all())
                     ->searchable()
+                    ->required(fn (Get $get): bool => filled($get('role')) && ! PermissionCatalog::roleHoldsRoot(RoleName::from(self::roleValue($get('role')))))
+                    ->helperText('Everyone but a superadmin has a manager (D-66).')
                     ->rule(fn (): Closure => function (string $attribute, mixed $value, Closure $fail) use ($record): void {
                         if (ManagerChain::wouldCycle($record?->getKey(), filled($value) ? (int) $value : null)) {
                             $fail('A person cannot manage themselves or their own manager.');
@@ -113,6 +119,11 @@ final class EmployeeForm
                 FileUpload::make('avatar_path')->label('Avatar')->image()->avatar()->disk('public')->directory('avatars')->maxSize(2048),
             ]),
         ];
+    }
+
+    private static function roleValue(mixed $state): string
+    {
+        return $state instanceof BackedEnum ? (string) $state->value : (string) $state;
     }
 
     /** @return array<int, mixed> */

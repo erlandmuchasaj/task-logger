@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\People\Actions;
 
 use App\Domain\Identity\Models\User;
+use App\Domain\Identity\Support\PermissionCatalog;
 use App\Domain\People\Data\EmployeeData;
 use App\Domain\People\Support\ManagerChain;
 use Illuminate\Validation\ValidationException;
@@ -30,6 +31,10 @@ trait ValidatesEmployee
                     $errors[$field] = 'This field is required.';
                 }
             }
+        }
+
+        if ($data->managerId === null && ! PermissionCatalog::roleHoldsRoot($data->role)) {
+            $errors['manager_id'] = 'Choose a manager. Only a superadmin has none.';
         }
 
         if (ManagerChain::wouldCycle($existing?->getKey(), $data->managerId)) {

@@ -154,9 +154,9 @@ it('renders the action modals on both tabs, because the request and details moda
         ->set('activeTab', 'table')->assertSeeHtml('wire:partial="action-modals"');
 });
 
-it('has no calendar without bank_holidays.view, even with ?tab=calendar, and no old calendar address either', function (): void {
+it('has no calendar without bank_holidays.view_calendar, even with ?tab=calendar, and no old calendar address either', function (): void {
     $world = lcWorld();
-    Role::findByName(RoleName::Employee->value)->revokePermissionTo(Permissions::BANK_HOLIDAYS_VIEW);
+    Role::findByName(RoleName::Employee->value)->revokePermissionTo(Permissions::BANK_HOLIDAYS_VIEW_CALENDAR);
     $world['employee']->forgetCachedPermissions();
     $mine = lcLeave($world['employee'], $world['annual'], '2026-06-10', status: LeaveStatus::Pending);
     $this->actingAs($world['employee']);

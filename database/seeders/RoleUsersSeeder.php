@@ -7,6 +7,7 @@ namespace Database\Seeders;
 use App\Domain\Identity\Actions\AssignUserRole;
 use App\Domain\Identity\Enums\RoleName;
 use App\Domain\Identity\Models\User;
+use App\Domain\Identity\Support\PermissionCatalog;
 use App\Domain\Leave\Actions\GrantAnnualLeave;
 use App\Domain\MasterData\Models\Country;
 use Exception;
@@ -45,6 +46,28 @@ final class RoleUsersSeeder extends Seeder
             app(AssignUserRole::class)->handle($user, $role);
         }
 
+        $this->assignManagers();
+
         app(GrantAnnualLeave::class)->handle();
+    }
+
+    /**
+     * D-66: everybody but the superadmin has a manager. The staff roles report to the first superadmin, the employee login to the admin login.
+     * Only an empty manager is filled, so a hierarchy set by hand is never rewritten.
+     */
+    private function assignManagers(): void
+    {
+        $root = User::query()->where('email', config('task-logger.superadmin.email'))->first()
+            ?? User::query()->where('email', RoleName::Superadmin->value.'@test.com')->firstOrFail();
+        $admin = User::query()->where('email', RoleName::Admin->value.'@test.com')->firstOrFail();
+
+        foreach (RoleName::cases() as $role) {
+            if (PermissionCatalog::roleHoldsRoot($role)) {
+                continue;
+            }
+
+            User::query()->where('email', "{$role->value}@test.com")->whereNull('manager_id')
+                ->update(['manager_id' => $role === RoleName::Employee ? $admin->getKey() : $root->getKey()]);
+        }
     }
 }

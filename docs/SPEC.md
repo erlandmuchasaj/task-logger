@@ -158,6 +158,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 
 - Source: the role lists are partial. Nothing is said for hr, salaries, offboarding, labels, expenses, settings. The assistant can add master data but nothing about editing it.
 - Default: unspecified means denied. Owner answers: hr, admin and superadmin manage the private HR record, salaries, offboardings, expenses and settings; HR can also create bank holidays; an assignee can change the status of their own tasks. Superadmin holds every permission, assigned explicitly by the seeder so the grid stays the single source of truth. (Amended by D-41: the superadmin additionally has root access through a before-gate.) Assistant gets create only on master data.
+- Superseded in part: settings are superadmin only (D-64).
 - Confirm: partly answered. Still unspecified and therefore denied: labels (superadmin only), the assistant editing master data, and employee access to expenses.
 
 **D-11 — Log data model.**
@@ -399,7 +400,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 **D-51 — A Finance role manages expenses. Decided by the owner (2026-11-12); ADR-0010.**
 
 - Source: D-17 asked who may use expenses. The owner answered: "finance and superadmin only manage expenses". The spec had no Finance role (D-24 and ADR-0003 listed it as a conflict with D-09's five roles); the earlier owner answer gave expenses to hr, admin and superadmin.
-- Default: a sixth role `finance` (`RoleName::Finance`). It holds the employee baseline plus every `expenses.*` permission and nothing else; one role per user still holds (D-09). hr and admin do not manage expenses. Assistant and employee have no expense access, including to their own. Superadmin keeps every permission explicitly and root access (D-41). The grid in 4.4 shows the superadmin column; the `finance` column is exactly the employee column plus the expenses row.
+- Default: a sixth role `finance` (`RoleName::Finance`). It holds the employee baseline plus every `expenses.*` permission and nothing else; one role per user still holds (D-09). hr and admin do not manage expenses. Assistant and employee have no expense access, including to their own. Superadmin keeps every permission explicitly and root access (D-41). The grid in 4.4 shows the superadmin column; the `finance` column is exactly the employee column plus the expenses row. D-63 adds `clients.view`, `projects.view` and `bank_holidays.view` to finance, because the employee column no longer has them.
 - Confirm: no. Open for the owner: should finance see anything else (clients, rates, logs)? It sees none of it today.
 
 **D-52 — Expense rules `[ASSUMED]`.**
@@ -467,6 +468,42 @@ Each entry: what the source says, the default this spec implements, and whether 
 - Source: the owner asked that HR adds a holiday once, for example 14 March (Summer Day in Albania), and that in a year when it falls on a Saturday or Sunday it carries over to the Monday: 2026 (Saturday) to Monday 16 March, 2027 (Sunday) to Monday 15 March, and in 2028 (Tuesday) it stays on the 14th. The owner chose "per country, Albania on" and "next free working day". The Bank of Albania 2026 list has the same 8 observed days (16 and 23 March, 6 and 13 April, 7 September, 23 and 30 November, 1 December).
 - Default: each country has a setting "Holiday on a weekend", `stays` or `next_working_day`. Albania is `next_working_day`; Kosovo and every new country start on `stays`. Where it is on, a holiday date that is not a working day of the country (`working_days`) is also observed on the next working day that is not a holiday and not already the observed day of an earlier date: Saturday 28 and Sunday 29 November 2026 give Monday 30 November and Tuesday 1 December; Sunday 28 November 2027 gives Tuesday 30 November because Monday 29 is Liberation Day; two holidays on the same Sunday share one Monday. A weekend day inside a multi-day holiday is observed on its own, so a Friday to Monday closure is also observed on the next two free working days. A holiday that falls on a working day never moves. The observed day is computed in `BankHolidays::occurrences()` and never stored, so day counting (BR-16), both calendars and the missing-log marker agree; it shows as "Name (observed)" and is not charged as leave, so a request for the observed day alone is refused as having no working days. `leave_requests.days_requested` is stored when the request is decided and is never recounted. The seeded "(observed)" rows are removed, because they would be moved a second time. The setting is on the Country form: the superadmin can change it, and the assistant can set it only when adding a country.
 - Confirm: yes. Should Kosovo, or another country, move weekend holidays? Should HR be able to change a country's setting? HR holds `bank_holidays.manage` but not `countries.manage`, so today only the superadmin can edit it. Is it right that each weekend day inside a multi-day range is observed separately? Switching a country on changes what undecided leave requests cost from then on.
+
+**D-63 — Projects, clients and the bank holiday list are hidden from employees. Asked by the owner (2026-11-22).**
+
+- Source: the owner asked that employees see only Tasks & Logs and Leave Requests, and that finance and HR still see projects and clients. This replaces the "everyone can read projects and customers" part of D-05 and D-10.
+- Default: `clients.view`, `projects.view` and `bank_holidays.view` (the list) are no longer in the baseline every role shares. Admin, HR, assistant and finance hold them explicitly; the employee does not, so the sidebar entry is gone and a typed URL is a 403. The log form still offers an employee the projects they are a member of (`LogChoices`). Holidays stay on the Leave calendar through the new `bank_holidays.view_calendar`, which every role holds.
+- Confirm: yes. The assistant keeps projects and clients because the owner named only finance and HR. Should the assistant lose them too?
+
+**D-64 — Settings are for the superadmin only. Asked by the owner (2026-11-22).**
+
+- Source: the owner answered "change to superadmin only".
+- Default: `settings.manage` is held by the superadmin alone; admin and HR lose it. Anything that must stay available to them has its own permission.
+- Confirm: no.
+
+**D-65 — Who edits whose profile and skills. Asked by the owner (2026-11-22).**
+
+- Source: the owner said HR may edit other HR users and that an admin may edit a superadmin.
+- Default: HR edits the HR record and the skills of an employee and of other HR users, never of a person holding root access. A new permission, `employees.edit_root_profile`, held by the superadmin and the admin, allows the HR record and skills of a superadmin. The account itself (name, role, manager) stays with `employees.update`. Skills are saved by the new `UpdateSkills` Action, so a person who may not change the account can still keep skills up to date.
+- Confirm: no.
+
+**D-66 — Everyone but a superadmin has a manager. Asked by the owner (2026-11-22).**
+
+- Source: the owner said that any user with a role other than superadmin should have a `manager_id`, and that a requester without one is a superadmin.
+- Default: `CreateEmployee` and `UpdateEmployee` refuse an empty manager unless the chosen role holds `system.root`, and the form marks the field required for those roles. The existing cycle check stays. The rule is in the Action and the form, not in a model hook, because the seeders and the factories create users first and assign the role afterwards. The seeder gives the demo logins a manager when they have none. Existing rows without a manager are not rewritten.
+- Confirm: yes. Should a model-level guard be added as well, and should the rows without a manager be filled in?
+
+**D-67 — The first superadmin cannot be deleted. Asked by the owner (2026-11-22).**
+
+- Source: the owner asked for a database trigger that keeps user 1, created first as the root superadmin, from ever being deleted.
+- Default: two MySQL triggers on `users` (`users_protect_root_delete` and `users_protect_root_soft_delete`) refuse a DELETE of id 1 and an update that sets `deleted_at` on it, with SQLSTATE 45000. They are part of the create-users migration. Banning or deactivating the account is not blocked.
+- Confirm: yes. A server with binary logging needs `log_bin_trust_function_creators=1` or the SUPER privilege to create triggers. Should deactivation of user 1 be blocked too?
+
+**D-68 — Employees keep no Users list. Asked by the owner (2026-11-22).**
+
+- Source: the owner answered "keep as is this one, do not change it" about the employee Users list, and also asked that the Hierarchy is visible to everyone.
+- Default: D-54 stays, and employees get no Users list. The Hierarchy page of the later phase is a separate screen open to everyone, showing only name, avatar and job title.
+- Confirm: yes. Is that reading right, or should the Hierarchy live inside a Users screen for employees?
 
 ### 3.2 Confirm before coding
 
@@ -578,15 +615,16 @@ Legend: ✔ stated in the source or by the owner after review. ✔\* derived or 
 | employees.view\_hr\_record / update\_hr\_record | ✔ | ✔ | ✔ | — | — |
 | salaries.view / manage | ✔ | ✔ | ✔ | — | — |
 | offboardings.view / manage | ✔ | ✔ | ✔ | — | — |
+| employees.edit\_root\_profile (D-65) | ✔\* | ✔ | — | — | — |
 | employees.impersonate `[OPTIONAL]` | ✔\* | — | — | — | — |
 | performances.create | ✔ | ✔ | — | — | — |
 | performances.view | ✔ | direct manager only | ✔ | — | — |
-| clients.view | ✔\* | ✔ | ✔\* | ✔ | ✔ |
+| clients.view (D-63) | ✔\* | ✔ | ✔\* | ✔ | — |
 | clients.create / update / activate / deactivate | ✔ | ✔ | — | — | — |
 | clients.export | ✔\* | — | — | ✔ | — |
 | clients.view\_rates (rates, payment plan) | ✔\* | ✔\* | — | — | — |
 | payment\_plans.manage | ✔ | — | — | — | — |
-| projects.view | ✔\* | ✔ | ✔\* | ✔ | ✔ |
+| projects.view (D-63) | ✔\* | ✔ | ✔\* | ✔ | — |
 | projects.create | ✔ | ✔ | — | — | — |
 | projects.update / delete / change\_status | ✔\* | ✔ | — | — | — |
 | projects.export | ✔\* | — | — | ✔ | — |
@@ -615,13 +653,14 @@ Legend: ✔ stated in the source or by the owner after review. ✔\* derived or 
 | leave\_requests.create\_for\_others (direct day off) | ✔ | — | — | — | — |
 | leave\_types.manage, country\_leave\_policies.manage | ✔\* | — | — | — | — |
 | bank\_holidays.manage | ✔ | — | ✔ | — | — |
-| bank\_holidays.view (calendar) | ✔\* | ✔\* | ✔\* | ✔\* | ✔\* |
+| bank\_holidays.view (the list, D-63) | ✔\* | ✔\* | ✔\* | ✔\* | — |
+| bank\_holidays.view\_calendar (holidays on the Leave calendar) | ✔\* | ✔\* | ✔\* | ✔\* | ✔\* |
 | countries.manage | ✔ | — | — | add | — |
 | departments.manage | ✔ | — | — | add | — |
 | technologies.manage | ✔ | — | — | add | — |
 | expenses.\* `[OPTIONAL]` (D-51: also held by the `finance` role) | ✔ | — | — | — | — |
 | activity\_logs.view | ✔\* | — | — | — | — |
-| settings.manage | ✔ | ✔ | ✔ | — | — |
+| settings.manage (D-64) | ✔ | — | — | — | — |
 | two\_factor.manage (D-26) | ✔ | — | — | — | — |
 | system.root (D-41) | ✔ | — | — | — | — |
 

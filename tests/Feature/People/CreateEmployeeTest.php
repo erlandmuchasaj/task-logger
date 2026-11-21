@@ -102,10 +102,11 @@ it('FR-01 rejects a duplicate email, including a soft-deleted account', function
 
 it('FR-12 skill levels outside 1 to 10 are rejected and nothing is created', function (int $level): void {
     $actor = userWithRole(RoleName::Superadmin);
+    $data = employeeData(['email' => 'level@example.test', 'skills' => [Technology::factory()->create()->id => $level]]);
     $before = User::query()->count();
 
     try {
-        resolve(CreateEmployee::class)->handle($actor, employeeData(['email' => 'level@example.test', 'skills' => [Technology::factory()->create()->id => $level]]));
+        resolve(CreateEmployee::class)->handle($actor, $data);
     } catch (ValidationException) {
     }
 
@@ -141,7 +142,7 @@ it('FR-01 the Create screen creates an employee end to end for the superadmin', 
 
     Livewire::test(CreateEmployeePage::class)
         ->fillForm([
-            'name' => 'Ola', 'surname' => 'Berisha', 'email' => 'ola@example.test', 'role' => 'employee',
+            'name' => 'Ola', 'surname' => 'Berisha', 'email' => 'ola@example.test', 'role' => 'employee', 'manager_id' => userWithRole(RoleName::Admin)->id,
             'country_id' => $country->id, 'department_id' => $department->id, 'position' => 'Tester',
             'employment_type' => 'full_time', 'start_date' => '2026-11-02',
             'profile.phone' => '0692123456', 'salary.amount' => '1200.50', 'salary.currency' => 'ALL', 'salary.effective_date' => '2026-11-02',
@@ -167,7 +168,7 @@ it('D-60 the Create screen stores a typed national mobile as E.164 for the chose
 
     Livewire::test(CreateEmployeePage::class)
         ->fillForm([
-            'name' => 'Ina', 'surname' => 'Gjoka', 'email' => 'ina@example.test', 'role' => 'employee',
+            'name' => 'Ina', 'surname' => 'Gjoka', 'email' => 'ina@example.test', 'role' => 'employee', 'manager_id' => userWithRole(RoleName::Admin)->id,
             'country_id' => $country->id, 'department_id' => $department->id, 'position' => 'Tester',
             'employment_type' => 'full_time', 'start_date' => '2026-11-02', 'profile.phone' => '672123456',
             'salary.amount' => '1000', 'salary.currency' => 'ALL', 'salary.effective_date' => '2026-11-02',

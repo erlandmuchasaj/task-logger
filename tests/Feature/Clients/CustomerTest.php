@@ -117,11 +117,11 @@ it('FR-17 superadmin and admin deactivate and activate; others cannot', function
     [RoleName::Superadmin, true], [RoleName::Admin, true], [RoleName::Hr, false], [RoleName::Assistant, false], [RoleName::Employee, false],
 ]);
 
-it('D-05 clients are readable by everyone, rates and the payment plan only by superadmin and admin', function (RoleName $role, bool $seesRates): void {
+it('D-05 D-63 clients are readable by everyone but the employee, rates and the payment plan only by superadmin and admin', function (RoleName $role, bool $seesRates): void {
     $user = userWithRole($role);
     $client = Customer::factory()->create();
 
-    expect($user->can('view', $client))->toBeTrue()
+    expect($user->can('view', $client))->toBe($role !== RoleName::Employee)
         ->and($user->can('viewRates', Customer::class))->toBe($seesRates)
         ->and($user->can('manageRates', $client))->toBe($seesRates)
         ->and($user->can('update', $client))->toBe($seesRates)
@@ -130,7 +130,7 @@ it('D-05 clients are readable by everyone, rates and the payment plan only by su
     [RoleName::Superadmin, true], [RoleName::Admin, true], [RoleName::Hr, false], [RoleName::Assistant, false], [RoleName::Employee, false],
 ]);
 
-it('D-05 an employee sees client contact data but no payment plan, currency or rates', function (RoleName $role): void {
+it('D-05 D-63 finance, assistant and HR see client contact data but no payment plan, currency or rates', function (RoleName $role): void {
     [$client] = clientWithRates(['Angular' => 2000], '2025-01-01', ['company_name' => 'Visible Co', 'email' => 'contact@visible.test']);
     $client->update(['payment_plan_id' => PaymentPlan::factory()->create(['name' => 'SecretPlan30'])->id]);
     $this->actingAs(userWithRole($role));
@@ -142,7 +142,15 @@ it('D-05 an employee sees client contact data but no payment plan, currency or r
     $html = $this->get("/app/clients/{$client->id}")->assertOk()->getContent();
     expect($html)->toContain('Visible Co')->not->toContain('SecretPlan30')->not->toContain('Hourly rates');
     expect(RatesRelationManager::canViewForRecord($client, ViewCustomer::class))->toBeFalse();
-})->group('D-05')->with([RoleName::Employee, RoleName::Assistant, RoleName::Hr]);
+})->group('D-05')->with([RoleName::Finance, RoleName::Assistant, RoleName::Hr]);
+
+it('D-63 an employee cannot open the clients screens', function (): void {
+    $client = Customer::factory()->create();
+    $this->actingAs(userWithRole(RoleName::Employee));
+
+    $this->get('/app/clients')->assertForbidden();
+    $this->get("/app/clients/{$client->id}")->assertForbidden();
+})->group('D-63');
 
 it('D-05 the superadmin and admin see the payment plan and the rates tab', function (RoleName $role): void {
     [$client] = clientWithRates(['Angular' => 2000], '2025-01-01', ['company_name' => 'Visible Co']);

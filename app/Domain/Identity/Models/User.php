@@ -129,6 +129,12 @@ final class User extends Authenticatable implements BannableContract, FilamentUs
         return ! $this->isBanned() && $this->anonymized_at === null;
     }
 
+    /** D-65: whether this user holds root access (the superadmin). */
+    public function holdsRootAccess(): bool
+    {
+        return $this->hasPermissionTo(Permissions::SYSTEM_ROOT);
+    }
+
     /** D-47: only holders of employees.impersonate may act as someone else. Read by lab404/laravel-impersonate. */
     public function canImpersonate(): bool
     {
@@ -138,7 +144,7 @@ final class User extends Authenticatable implements BannableContract, FilamentUs
     /** D-47: never a deactivated or anonymised account, and never another root user (that would gain nothing and hide who acted). */
     public function canBeImpersonated(): bool
     {
-        return ! $this->isBanned() && $this->anonymized_at === null && ! $this->hasPermissionTo(Permissions::SYSTEM_ROOT);
+        return ! $this->isBanned() && $this->anonymized_at === null && ! $this->holdsRootAccess();
     }
 
     public function getFilamentName(): string

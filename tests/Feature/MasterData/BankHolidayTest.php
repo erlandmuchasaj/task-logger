@@ -29,15 +29,15 @@ it('BR-25 superadmin and hr create a bank holiday per country', function (RoleNa
     expect(BankHoliday::query()->where('name', 'Labour Day')->where('country_id', $country->id)->exists())->toBeTrue();
 })->group('BR-25')->with([RoleName::Superadmin, RoleName::Hr]);
 
-it('BR-25 admin, assistant and employee cannot manage bank holidays but can view them', function (RoleName $role): void {
+it('BR-25 D-63 admin and assistant cannot manage bank holidays but can view them; an employee cannot even list them', function (RoleName $role): void {
     $user = userWithRole($role);
     $holiday = BankHoliday::factory()->create();
 
     expect($user->can('create', BankHoliday::class))->toBeFalse()
         ->and($user->can('update', $holiday))->toBeFalse()
         ->and($user->can('delete', $holiday))->toBeFalse()
-        ->and($user->can('viewAny', BankHoliday::class))->toBeTrue(); // bank_holidays.view: calendar
-})->group('BR-25')->with([RoleName::Admin, RoleName::Assistant, RoleName::Employee]);
+        ->and($user->can('viewAny', BankHoliday::class))->toBe($role !== RoleName::Employee); // bank_holidays.view; the employee sees holidays on the calendar only
+})->group('BR-25', 'D-63')->with([RoleName::Admin, RoleName::Assistant, RoleName::Employee]);
 
 it('BR-25 rejects an end date before the start date, in the form and in the database', function (): void {
     $this->actingAs(userWithRole(RoleName::Hr));
@@ -244,11 +244,12 @@ it('D-59 the database refuses a last year without the repeat flag or before the 
         ->toThrow(QueryException::class);
 })->group('D-59');
 
-it('D-59 an assistant or employee cannot create a repeating holiday', function (RoleName $role): void {
-    $this->actingAs(userWithRole($role));
-
+it('D-59 an assistant cannot create a repeating holiday, and an employee cannot open the page', function (): void {
+    $this->actingAs(userWithRole(RoleName::Assistant));
     Livewire::test(ManageBankHolidays::class)->assertActionHidden(CreateAction::class);
-})->group('D-59')->with([RoleName::Assistant, RoleName::Employee]);
+
+    $this->actingAs(userWithRole(RoleName::Employee))->get('/app/bank-holidays')->assertForbidden();
+})->group('D-59', 'D-63');
 
 it('D-59 a repeating holiday returns every year from its own year on, never before', function (): void {
     $country = Country::factory()->create();

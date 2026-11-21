@@ -60,10 +60,10 @@ final class ManageLeaveRequests extends ManageRecords
     /** @var array<int, LeaveRequest|null> The requests opened from the calendar during this request, by id. */
     private array $openedRequests = [];
 
-    /** Without bank_holidays.view (the old Leave Calendar's gate) there is no calendar to switch to, so the page shows only the table, as it always did. */
+    /** Without bank_holidays.view_calendar (the old Leave Calendar's gate) there is no calendar to switch to, so the page shows only the table, as it always did. */
     public function getTabs(): array
     {
-        if (! auth()->user()?->can(Permissions::BANK_HOLIDAYS_VIEW)) {
+        if (! auth()->user()?->can(Permissions::BANK_HOLIDAYS_VIEW_CALENDAR)) {
             return [];
         }
 

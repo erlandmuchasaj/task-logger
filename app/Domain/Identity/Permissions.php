@@ -25,6 +25,9 @@ final class Permissions
 
     public const string EMPLOYEES_UPDATE_HR_RECORD = 'employees.update_hr_record';
 
+    /** D-65: change the HR record and skills of a user who holds root access. Without it only the HR record of everyone else can be changed. */
+    public const string EMPLOYEES_EDIT_ROOT_PROFILE = 'employees.edit_root_profile';
+
     /** [OPTIONAL] Act as another user (D-47). Superadmin only. */
     public const string EMPLOYEES_IMPERSONATE = 'employees.impersonate';
 
@@ -141,7 +144,11 @@ final class Permissions
     /** Bank Holidays */
     public const string BANK_HOLIDAYS_MANAGE = 'bank_holidays.manage';
 
+    /** Browse the Bank Holidays list. Not part of the employee baseline (D-63). */
     public const string BANK_HOLIDAYS_VIEW = 'bank_holidays.view';
+
+    /** See bank holidays on the Leave Requests calendar. Every role holds it through the employee baseline (D-63). */
+    public const string BANK_HOLIDAYS_VIEW_CALENDAR = 'bank_holidays.view_calendar';
 
     /** Countries */
     public const string COUNTRIES_CREATE = 'countries.create';

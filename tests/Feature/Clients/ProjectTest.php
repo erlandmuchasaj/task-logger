@@ -188,15 +188,22 @@ it('FR-19 a project with tasks cannot be deleted; an empty one can (soft delete)
     expect(Project::query()->find($empty->id))->toBeNull()->and(Project::withTrashed()->find($empty->id))->not->toBeNull();
 })->group('FR-19');
 
-it('D-05 everyone can read projects but only superadmin and admin see the budget', function (RoleName $role, bool $seesBudget): void {
+it('D-05 D-63 everyone but the employee reads projects, only superadmin and admin see the budget', function (RoleName $role, bool $seesBudget): void {
     $project = makeProject(null, ['Angular' => '100']);
     $project->update(['name' => 'Visible Project']);
 
     $user = userWithRole($role);
     $this->actingAs($user);
 
-    expect($user->can('view', $project))->toBeTrue()
+    expect($user->can('view', $project))->toBe($role !== RoleName::Employee)
         ->and($user->can('viewBudget', $project))->toBe($seesBudget);
+
+    if ($role === RoleName::Employee) {
+        $this->get('/app/projects')->assertForbidden();
+        $this->get("/app/projects/{$project->id}")->assertForbidden();
+
+        return;
+    }
 
     $list = Livewire::test(ListProjects::class)->assertSee('Visible Project');
     $view = Livewire::test(ViewProject::class, ['record' => $project->getKey()])->assertSee('Visible Project');

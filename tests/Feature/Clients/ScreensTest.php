@@ -41,5 +41,6 @@ it('M3 every clients, projects and tasks screen renders for the roles that may s
     'admin' => [RoleName::Admin, ['/app/clients', '/app/clients/{client}', '/app/clients/{client}/edit', '/app/projects', '/app/projects/create', '/app/projects/{project}', '/app/projects/{project}/edit', '/app/tasks', '/app/tasks/{task}', '/app/tasks/{task}/edit']],
     'assistant' => [RoleName::Assistant, ['/app/clients', '/app/clients/{client}', '/app/projects', '/app/projects/{project}', '/app/tasks', '/app/tasks/{task}']],
     'hr' => [RoleName::Hr, ['/app/clients', '/app/clients/{client}', '/app/projects', '/app/projects/{project}', '/app/tasks']],
-    'employee' => [RoleName::Employee, ['/app/clients', '/app/clients/{client}', '/app/projects', '/app/projects/{project}', '/app/tasks']],
+    'employee' => [RoleName::Employee, ['/app/tasks']],
+    'finance' => [RoleName::Finance, ['/app/clients', '/app/clients/{client}', '/app/projects', '/app/projects/{project}']],
 ]);

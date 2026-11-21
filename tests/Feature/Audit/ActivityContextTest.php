@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Identity\Actions\AssignUserRole;
 use App\Domain\Identity\Enums\RoleName;
 use App\Domain\Identity\Models\ActivityLog;
+use App\Domain\Identity\Models\User;
 use App\Domain\MasterData\Models\Label;
 use App\Domain\MasterData\Models\Technology;
 use App\Filament\Resources\ActivityLogs\Pages\ListActivityLogs;
@@ -130,7 +131,7 @@ it('D-38 stamping also works when activity buffering is on', function (): void {
 });
 
 it('D-38 deleting the impersonator keeps the entry and clears the link', function (): void {
-    $admin = userWithRole(RoleName::Admin);
+    $admin = User::factory()->withRole(RoleName::Admin)->create(['id' => 900]); // not id 1: the database protects the root user (D-67)
     $this->actingAs(userWithRole(RoleName::Superadmin));
     asRequest(impersonatedBy: $admin->id);
     Label::factory()->create();
@@ -142,7 +143,7 @@ it('D-38 deleting the impersonator keeps the entry and clears the link', functio
 });
 
 it('D-38 a soft-deleted impersonator is still named', function (): void {
-    $admin = userWithRole(RoleName::Admin);
+    $admin = User::factory()->withRole(RoleName::Admin)->create(['id' => 900]); // not id 1: the database protects the root user (D-67)
     $this->actingAs(userWithRole(RoleName::Superadmin));
     asRequest(impersonatedBy: $admin->id);
     Label::factory()->create();

@@ -9,11 +9,8 @@ use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 // Employee baseline: every role inherits it (D-09).
+// D-63: projects, clients and the Bank Holidays list are not in it; roles that need them name them.
 $employee = [
-    Permissions::CLIENTS_VIEW,
-
-    Permissions::PROJECTS_VIEW,
-
     Permissions::TASKS_VIEW_OWN,
     Permissions::TASKS_CHANGE_STATUS_OWN,
 
@@ -25,7 +22,7 @@ $employee = [
     Permissions::LEAVE_REQUESTS_CREATE_OWN,
     Permissions::LEAVE_REQUESTS_VIEW_OWN,
 
-    Permissions::BANK_HOLIDAYS_VIEW,
+    Permissions::BANK_HOLIDAYS_VIEW_CALENDAR,
 ];
 
 return [
@@ -47,6 +44,7 @@ return [
             Permissions::EMPLOYEES_IMPERSONATE,
             Permissions::EMPLOYEES_VIEW_HR_RECORD,
             Permissions::EMPLOYEES_UPDATE_HR_RECORD,
+            Permissions::EMPLOYEES_EDIT_ROOT_PROFILE,
 
             Permissions::SALARIES_VIEW,
             Permissions::SALARIES_MANAGE,
@@ -112,6 +110,7 @@ return [
 
             Permissions::BANK_HOLIDAYS_MANAGE,
             Permissions::BANK_HOLIDAYS_VIEW,
+            Permissions::BANK_HOLIDAYS_VIEW_CALENDAR,
 
             Permissions::COUNTRIES_CREATE,
             Permissions::COUNTRIES_MANAGE,
@@ -138,8 +137,13 @@ return [
         RoleName::Admin->value => [
             ...$employee,
 
+            Permissions::CLIENTS_VIEW,
+            Permissions::PROJECTS_VIEW,
+            Permissions::BANK_HOLIDAYS_VIEW,
+
             Permissions::EMPLOYEES_VIEW_HR_RECORD,
             Permissions::EMPLOYEES_UPDATE_HR_RECORD,
+            Permissions::EMPLOYEES_EDIT_ROOT_PROFILE,
 
             Permissions::SALARIES_VIEW,
             Permissions::SALARIES_MANAGE,
@@ -173,11 +177,13 @@ return [
 
             Permissions::LEAVE_REQUESTS_VIEW_ANY, // D-56: admin reads every leave request (owner, 2026-11-13)
             Permissions::LEAVE_REQUESTS_APPROVE_DIRECT_REPORTS,
-
-            Permissions::SETTINGS_MANAGE,
         ],
         RoleName::Hr->value => [
             ...$employee,
+
+            Permissions::CLIENTS_VIEW,
+            Permissions::PROJECTS_VIEW,
+            Permissions::BANK_HOLIDAYS_VIEW,
 
             Permissions::EMPLOYEES_VIEW_HR_RECORD,
             Permissions::EMPLOYEES_UPDATE_HR_RECORD,
@@ -195,11 +201,13 @@ return [
             Permissions::LEAVE_REQUESTS_APPROVE_DIRECT_REPORTS,
 
             Permissions::BANK_HOLIDAYS_MANAGE,
-
-            Permissions::SETTINGS_MANAGE,
         ],
         RoleName::Assistant->value => [
             ...$employee,
+
+            Permissions::CLIENTS_VIEW,
+            Permissions::PROJECTS_VIEW,
+            Permissions::BANK_HOLIDAYS_VIEW,
 
             Permissions::CLIENTS_EXPORT,
 
@@ -221,6 +229,10 @@ return [
         // D-51 (ADR-0010): the owner's Finance role manages expenses with the superadmin, and nothing else beyond the baseline.
         RoleName::Finance->value => [
             ...$employee,
+
+            Permissions::CLIENTS_VIEW,
+            Permissions::PROJECTS_VIEW,
+            Permissions::BANK_HOLIDAYS_VIEW,
 
             Permissions::EXPENSES_VIEW,
             Permissions::EXPENSES_CREATE,

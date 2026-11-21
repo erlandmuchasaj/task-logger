@@ -292,7 +292,10 @@ it('BR-33 the export and prune jobs are scheduled', function (): void {
 it('BR-33 the Export button shows on the list screens only for people who may export', function (RoleName $role, bool $sees): void {
     $this->actingAs(userWithRole($role));
 
-    foreach ([ListLogs::class, ListProjects::class] as $page) {
+    // D-63: an employee cannot open the project list at all.
+    $pages = $role === RoleName::Employee ? [ListLogs::class] : [ListLogs::class, ListProjects::class];
+
+    foreach ($pages as $page) {
         $component = Livewire::test($page);
         $sees ? $component->assertActionVisible('export') : $component->assertActionHidden('export');
     }

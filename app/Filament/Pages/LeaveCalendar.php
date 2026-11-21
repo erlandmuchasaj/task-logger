@@ -20,7 +20,7 @@ final class LeaveCalendar extends Page
 
     public static function canAccess(): bool
     {
-        return (bool) auth()->user()?->can(Permissions::BANK_HOLIDAYS_VIEW);
+        return (bool) auth()->user()?->can(Permissions::BANK_HOLIDAYS_VIEW_CALENDAR);
     }
 
     public function mount(): void

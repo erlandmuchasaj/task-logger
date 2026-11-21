@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Employees\Pages;
 use App\Domain\Identity\Models\User;
 use App\Domain\People\Actions\UpdateEmployee;
 use App\Domain\People\Actions\UpdateHrRecord;
+use App\Domain\People\Actions\UpdateSkills;
 use App\Filament\Resources\Employees\EmployeeResource;
 use App\Filament\Resources\Employees\Support\FormMapper;
 use Filament\Resources\Pages\EditRecord;
@@ -43,7 +44,8 @@ final class EditEmployee extends EditRecord
 
     /**
      * Each part is saved through its own action, which re-checks its own permission: an admin or HR
-     * user can change the HR record but not the account (employees.update is superadmin only).
+     * user can change the HR record and the skills but not the account (employees.update is superadmin only).
+     * The account action also syncs skills, so the skills action runs only when the account one did not.
      *
      * @param  array<string, mixed>  $data
      */
@@ -55,6 +57,8 @@ final class EditEmployee extends EditRecord
         try {
             if ($actor?->can('updateAccount', $record)) {
                 resolve(UpdateEmployee::class)->handle($actor, $record, FormMapper::employee($data));
+            } elseif ($actor?->can('updateSkills', $record) && isset($data['skills'])) {
+                resolve(UpdateSkills::class)->handle($actor, $record, FormMapper::skills($data));
             }
 
             if ($actor?->can('updateHrRecord', $record) && isset($data['profile'])) {

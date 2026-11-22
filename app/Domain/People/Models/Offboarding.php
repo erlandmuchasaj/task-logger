@@ -42,6 +42,7 @@ final class Offboarding extends Model
             'end_date' => 'date',
             'equipment_returned' => 'boolean',
             'resignation_letter_signed' => 'boolean',
+            'thanks_sent_at' => 'datetime',
             'status' => OffboardingStatus::class,
         ];
     }

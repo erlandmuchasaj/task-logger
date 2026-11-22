@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Offboardings;
 
+use App\Domain\Identity\Models\User;
 use App\Domain\People\Actions\ChangeOffboardingStatus;
+use App\Domain\People\Actions\ReassignDirectReports;
 use App\Domain\People\Actions\UpdateOffboarding;
 use App\Domain\People\Data\OffboardingData;
 use App\Domain\People\Enums\OffboardingStatus;
@@ -16,6 +18,7 @@ use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
@@ -29,6 +32,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Validation\ValidationException;
 use UnitEnum;
 
@@ -48,7 +52,24 @@ final class OffboardingResource extends Resource
     /** @return Builder<Model> */
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['employee', 'creator']);
+        return parent::getEloquentQuery()->with([
+            'employee' => fn (Relation $employee): Relation => $employee->withCount(['directReports as active_reports_count' => fn (Builder $reports): Builder => $reports->whereNull('banned_at')->whereNull('anonymized_at')]),
+            'creator',
+        ]);
+    }
+
+    /**
+     * D-74: who can take over a leaving person's team: active people who are staying. The action checks it again.
+     *
+     * @return array<int, string>
+     */
+    public static function managerChoices(?int $exceptId = null): array
+    {
+        return User::query()->whereNull('banned_at')->whereNull('anonymized_at')
+            ->when($exceptId, fn (Builder $query): Builder => $query->whereKeyNot($exceptId))
+            ->whereNotIn('id', Offboarding::query()->where('status', '!=', OffboardingStatus::Cancelled)->select('user_id'))
+            ->orderBy('name')->get()
+            ->mapWithKeys(fn (User $user): array => [(int) $user->getKey() => $user->getFilamentName()])->all();
     }
 
     public static function canCreate(): bool
@@ -81,6 +102,8 @@ final class OffboardingResource extends Resource
                     ->searchable(['name' => 'users.name']),
                 TextColumn::make('end_date')->label('Last day')->date()->sortable(),
                 TextColumn::make('status')->badge(),
+                TextColumn::make('employee.active_reports_count')->label('Direct reports')
+                    ->formatStateUsing(fn (mixed $state): ?string => (int) $state > 0 ? (string) $state : null),
                 IconColumn::make('equipment_returned')->boolean()->label('Equipment'),
                 IconColumn::make('resignation_letter_signed')->boolean()->label('Letter'),
                 TextColumn::make('description')->limit(50)->toggleable(),
@@ -101,6 +124,23 @@ final class OffboardingResource extends Resource
                                     (bool) $data['resignation_letter_signed'], $data['description'] ?? null,
                                 ));
                                 Notification::make()->title('Offboarding updated')->success()->send();
+                            } catch (ValidationException $validationException) {
+                                ActionErrors::notify($validationException);
+                                $action->halt();
+                            }
+                        }),
+                    Action::make('reassign')->label('Reassign direct reports')->icon(Heroicon::OutlinedUsers)
+                        ->visible(fn (Offboarding $record): bool => ! $record->status->isFinal() && (int) $record->employee->getAttribute('active_reports_count') > 0 && (bool) auth()->user()?->can('update', $record))
+                        ->modalDescription('Everyone who reports to this person moves to the manager you choose.')
+                        ->schema(fn (Offboarding $record, Schema $schema): Schema => $schema->components([
+                            Select::make('new_manager_id')->label('New manager')->required()->searchable()
+                                ->options(fn (): array => self::managerChoices($record->user_id)),
+                        ]))
+                        ->action(function (Offboarding $record, array $data, Action $action): void {
+                            try {
+                                $newManager = User::query()->whereKey($data['new_manager_id'])->firstOrFail();
+                                $moved = resolve(ReassignDirectReports::class)->handle(auth()->user(), $record->employee, $newManager);
+                                Notification::make()->title($moved === 1 ? '1 person reassigned' : $moved.' people reassigned')->success()->send();
                             } catch (ValidationException $validationException) {
                                 ActionErrors::notify($validationException);
                                 $action->halt();

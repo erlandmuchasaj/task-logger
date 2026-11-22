@@ -9,6 +9,7 @@ use App\Domain\Leave\Actions\MarkLeaveTaken;
 use App\Domain\Leave\Actions\SendLeaveReminders;
 use App\Domain\People\Actions\ActivateDueSalaries;
 use App\Domain\People\Actions\AnonymizeDueEmployees;
+use App\Domain\People\Actions\SendOffboardingThanks;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -55,4 +56,11 @@ Schedule::call(fn () => resolve(PruneExports::class)->handle())
 Schedule::call(fn () => resolve(AnonymizeDueEmployees::class)->handle())
     ->name('people.anonymize')
     ->daily()
+    ->withoutOverlapping();
+
+// D-76: on a person's last working day, thank them by email, once. Idempotent.
+Schedule::call(fn () => resolve(SendOffboardingThanks::class)->handle())
+    ->name('people.offboarding-thanks')
+    ->dailyAt((string) config('task-logger.offboarding_thanks.run_at'))
+    ->timezone((string) config('task-logger.offboarding_thanks.timezone'))
     ->withoutOverlapping();

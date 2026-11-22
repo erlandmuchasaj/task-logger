@@ -364,7 +364,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 **D-45 — Offboarding transitions and review immutability `[ASSUMED]`.**
 
 - Source: D-19 lists the offboarding statuses `pending`, `in_progress`, `completed`, `cancelled`; W-10 says completion deactivates the login; BR-27 restricts reading reviews. No transition rules or edit rules are given.
-- Default: `pending` moves to `in_progress`, `completed` or `cancelled`; `in_progress` to `completed` or `cancelled`; `completed` and `cancelled` are final and the facts of a final offboarding cannot be edited. An offboarding may be created `pending`, `in_progress` or `completed` (completing at creation deactivates the login straight away) but not `cancelled`. Completing is refused for yourself and for the last superadmin, like deactivating (D-32); it is atomic with the ban. Offboardings are cancelled, never deleted. Performance reviews are never edited or deleted. Root access does not change either rule (RootAccess `POLICY_ONLY`). A review's date has no limit and the reviewer may be anyone holding `performances.create`.
+- Default: `pending` moves to `in_progress`, `completed` or `cancelled`; `in_progress` to `completed` or `cancelled`; `completed` and `cancelled` are final and the facts of a final offboarding cannot be edited. An offboarding may be created `pending`, `in_progress` or `completed` (completing at creation deactivates the login straight away) but not `cancelled`. Completing is refused for yourself and for the last superadmin, like deactivating (D-32), and while the person has direct reports (D-74); it is atomic with the ban. Offboardings are cancelled, never deleted. Performance reviews are never edited or deleted. Root access does not change either rule (RootAccess `POLICY_ONLY`). A review's date has no limit and the reviewer may be anyone holding `performances.create`.
 - Confirm: no.
 
 **D-46 — What anonymisation does exactly `[ASSUMED]`.**
@@ -534,6 +534,24 @@ Each entry: what the source says, the default this spec implements, and whether 
 - Source: the owner asked that someone who requested five days and returns on the third day gets the remaining days back.
 - Default: HR (`leave_requests.approve`) and the superadmin (`leave_requests.create_for_others`) can use "Back at work earlier" on an approved request, but never on their own leave. It ends the leave on the day before the chosen return date, which must fall after the first day and on or before the last day, recomputes `days_requested` and writes a reversal entry for the working days no longer taken. The status stays approved, and taken leave is final (BR-19). A request with no working day left is cancelled instead.
 - Confirm: no. The owner confirmed (2026-11-22) that HR can do it too.
+
+**D-74 — A person with direct reports cannot be offboarded until the reports have a new manager. Asked by the owner (2026-11-22).**
+
+- Source: the owner's brief: offboarding needs a last working day and the reassignment of direct reports to another manager, and is blocked until that is done. The grid gives HR and admin `offboardings.manage` but not `employees.update`, which is the permission for changing a manager (D-66).
+- Default: the last day (`end_date`) is required. Starting an offboarding, whatever its status, and completing one are refused while the person has active direct reports, that is people with `manager_id` set to them who are not deactivated and not anonymised; those stay on record under the old manager. The check runs again on completion, because somebody may have been given this manager in between. `ReassignDirectReports` moves all active reports to one new manager and needs `offboardings.manage`, not `employees.update`, so HR can finish an offboarding alone; the Start form offers it (and requires it when the person has reports), and an open offboarding has a "Reassign direct reports" row action. The new manager must be somebody else who is active, has no offboarding of their own that is not cancelled, and must not create a loop (`ManagerChain`, D-66: not one of the reports, nor anybody who works under one). Each person is updated as a model, so the audit log shows the actor and the old and new manager. Starting with a new manager is one transaction: if the offboarding is then refused, the reports do not move. Pending leave of the reports follows the live `manager_id`, so it reaches the new manager without further work. The new manager gets one email and one in-app notification naming everyone who moved, and each moved person gets one saying who their manager is now and who it was; neither says why. They are sent at once and after the commit, so a refused offboarding sends nothing. The leaving person is not told.
+- Confirm: no. The owner confirmed (2026-11-22) that HR may move a leaving person's team, and that the new manager and the moved people are told by email and in the app.
+
+**D-75 — Who is told when an offboarding starts. Asked by the owner (2026-11-22).**
+
+- Source: the owner's brief: notify the person's manager and HR, by email and in the app.
+- Default: when an offboarding is created, in any status, the manager and HR get an email and an in-app notification, sent at once and after the commit, never to a deactivated or anonymised person. HR is the group of D-70 (holders of `leave_requests.approve` who are not root). When there is no manager to tell (the person is a superadmin, or their manager is deactivated or anonymised) the superadmins are told in their place. The person is never told about their own offboarding. The person who started it is told too if they are HR. The message names the person and the last day only (the description is HR's note); the "View" link and the email button show only to people who may open Offboardings, because a manager usually may not. Changing the facts, completing or cancelling does not notify again.
+- Confirm: no. The owner confirmed (2026-11-22) that a change of the last day or a cancellation is not announced.
+
+**D-76 — The thank-you email on the last working day. Asked by the owner (2026-11-22).**
+
+- Source: the owner's brief: on the last working day, around 09:00 Europe/Tirane, send the person a thank-you email; handle a changed last day and a cancellation; never send it twice.
+- Default: the daily job `people.offboarding-thanks` (`task-logger.offboarding_thanks`, 09:00 Europe/Tirane) emails a person whose offboarding is not cancelled and whose last day is today in their own calendar (BR-34). The email only, no in-app message, because the login may be switched off. Because the job reads the date and status when it runs, a last day moved earlier or later sends on the day it holds then, and a cancelled offboarding sends nothing. A completed offboarding still sends (the ban stops the login, not the address); an anonymised person has no address and gets nothing. The send is claimed with a conditional update on `offboardings.thanks_sent_at` before the mail goes, including a re-check of date and status, so two runs, or a run racing an edit or a cancel, send at most once. The claim is never undone: if the last day moves after the email went out, no second one is sent, and a person already thanked for an earlier offboarding that was cancelled is not thanked for a later one. A day on which the job did not run is not made up, and an offboarding created on its own last day after 09:00, or for a date in the past, sends nothing.
+- Confirm: no. The owner confirmed (2026-11-22) that a missed run is not repaired and that nothing is sent when the date changes after the email. Still open, not asked: a person offboarded with a last day in the past gets nothing (the default above).
 
 ### 3.2 Confirm before coding
 
@@ -997,9 +1015,10 @@ Each workflow names the actor, the steps and the rules that apply.
 
 **W-10 Offboarding** (superadmin, admin or hr)
 
-1. Create the offboarding: end date, equipment returned, resignation letter signed, description, status.
-2. On completion the login is deactivated.
-3. Two months after the end date the anonymisation job runs (BR-28).
+1. Create the offboarding: end date (required), equipment returned, resignation letter signed, description, status. It is refused while the person still has direct reports; their reports move to a new manager first or in the same step (D-74). The manager and HR are told (D-75).
+2. On the last day, around 09:00 Europe/Tirane, the person gets a thank-you email, once (D-76).
+3. On completion the login is deactivated, again only when no direct reports are left (D-74).
+4. Two months after the end date the anonymisation job runs (BR-28).
 
 ## 8. UI surfaces (Filament) `[DERIVED]`
 

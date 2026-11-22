@@ -16,10 +16,13 @@ use Spatie\Activitylog\Support\CauserResolver;
 /**
  * W-10 step 2 (D-45): pending moves to in progress, completed or cancelled; in progress to completed or cancelled;
  * completed and cancelled are final. Completing deactivates the login as a system effect of offboardings.manage,
- * not of employees.deactivate (ADR-0008); it is refused for the last superadmin and for yourself (D-32).
+ * not of employees.deactivate (ADR-0008); it is refused for the last superadmin and for yourself (D-32), and while
+ * the person still has direct reports (D-74).
  */
 final class ChangeOffboardingStatus
 {
+    use ValidatesOffboarding;
+
     public function handle(User $actor, Offboarding $offboarding, OffboardingStatus $to): Offboarding
     {
         Gate::forUser($actor)->authorize('changeStatus', $offboarding);
@@ -32,6 +35,7 @@ final class ChangeOffboardingStatus
             }
 
             if ($to === OffboardingStatus::Completed) {
+                $this->assertReportsReassigned($offboarding->employee);
                 $this->deactivate($actor, $offboarding);
             }
 

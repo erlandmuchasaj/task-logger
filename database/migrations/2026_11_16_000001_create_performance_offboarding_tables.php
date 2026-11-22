@@ -37,6 +37,7 @@ return new class extends Migration
             $table->boolean('resignation_letter_signed')->default(false);
             $table->text('description')->nullable();
             $table->string('status', 16);                                    // OffboardingStatus enum [ASSUMED D-19]
+            $table->timestamp('thanks_sent_at')->nullable();                 // D-76: the thank-you email went out (claimed before sending, so never twice)
             $table->timestamps();
 
             $table->unsignedBigInteger('active_user_id')->nullable()

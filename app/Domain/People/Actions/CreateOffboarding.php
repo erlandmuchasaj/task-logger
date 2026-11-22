@@ -8,6 +8,8 @@ use App\Domain\Identity\Models\User;
 use App\Domain\People\Data\OffboardingData;
 use App\Domain\People\Enums\OffboardingStatus;
 use App\Domain\People\Models\Offboarding;
+use App\Domain\People\Support\DirectReports;
+use App\Domain\People\Support\NotifyOffboarding;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -17,13 +19,14 @@ use Spatie\Activitylog\Support\CauserResolver;
 /**
  * W-10 step 1: end date, equipment returned, resignation letter signed, description, status. At most one
  * non-cancelled offboarding per user; the database enforces it too. Creating one already `completed` deactivates
- * the login like completing it later does (ADR-0008).
+ * the login like completing it later does (ADR-0008). Nobody can be offboarded while people still report to them (D-74):
+ * pass `$newManagerForReports` to move them in the same step. The manager and HR are told once it is saved (D-75).
  */
 final class CreateOffboarding
 {
     use ValidatesOffboarding;
 
-    public function handle(User $actor, User $employee, OffboardingData $data): Offboarding
+    public function handle(User $actor, User $employee, OffboardingData $data, ?User $newManagerForReports = null): Offboarding
     {
         Gate::forUser($actor)->authorize('create', Offboarding::class);
 
@@ -31,9 +34,15 @@ final class CreateOffboarding
             throw ValidationException::withMessages(['status' => 'An offboarding cannot start cancelled.']);
         }
 
-        return resolve(CauserResolver::class)->withCauser($actor, fn (): Offboarding => DB::transaction(function () use ($actor, $employee, $data): Offboarding {
+        return resolve(CauserResolver::class)->withCauser($actor, fn (): Offboarding => DB::transaction(function () use ($actor, $employee, $data, $newManagerForReports): Offboarding {
             User::query()->whereKey($employee->getKey())->lockForUpdate()->first();
             $this->assertCanOffboard($employee);
+
+            if ($newManagerForReports instanceof User && DirectReports::activeOf($employee)->exists()) {
+                resolve(ReassignDirectReports::class)->handle($actor, $employee, $newManagerForReports);
+            }
+
+            $this->assertReportsReassigned($employee);
 
             try {
                 $offboarding = Offboarding::query()->create([
@@ -52,6 +61,8 @@ final class CreateOffboarding
             if ($data->status === OffboardingStatus::Completed) {
                 resolve(ChangeOffboardingStatus::class)->deactivate($actor, $offboarding);
             }
+
+            NotifyOffboarding::send($offboarding, $employee);
 
             return $offboarding;
         }));

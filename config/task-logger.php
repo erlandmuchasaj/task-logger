@@ -24,6 +24,12 @@ return [
         'timezone' => 'Europe/Tirane',
     ],
 
+    // D-76: the daily job that emails a thank-you to a person on their last working day.
+    'offboarding_thanks' => [
+        'run_at' => '09:00',        // time of the daily run, in the timezone below
+        'timezone' => 'Europe/Tirane',
+    ],
+
     // D-42: longest span (in calendar days) one leave request may cover; a guard against typos such as a wrong year.
     'leave_max_request_days' => 366,
 

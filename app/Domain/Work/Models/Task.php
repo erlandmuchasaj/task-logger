@@ -59,6 +59,12 @@ final class Task extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /** @return HasMany<Log, $this> */
+    public function logs(): HasMany
+    {
+        return $this->hasMany(Log::class);
+    }
+
     /** @return BelongsTo<Task, $this> */
     public function parent(): BelongsTo
     {

@@ -28,7 +28,8 @@ use Filament\Schemas\Schema;
 /** The project form and its mapping to ProjectData. D-02: there is no priority. D-04: the budget is shown, never typed. */
 final class ProjectForm
 {
-    public static function configure(Schema $schema, ?Project $record): Schema
+    /** With `$customer` the client is fixed (the project is created from the client's page). */
+    public static function configure(Schema $schema, ?Project $record, ?Customer $customer = null): Schema
     {
         $creating = ! $record instanceof Project;
 
@@ -37,7 +38,8 @@ final class ProjectForm
                 Select::make('customer_id')->label('Client')
                     ->options(fn (): array => Customer::query()->when($creating, fn ($q) => $q->where('is_active', true))
                         ->orderBy('company_name')->get()->mapWithKeys(fn (Customer $c): array => [$c->id => $c->displayName()])->all())
-                    ->searchable()->required()->live()->disabled(! $creating)->dehydrated()
+                    ->searchable()->required()->live()->disabled(! $creating || $customer instanceof Customer)->dehydrated()
+                    ->default($customer?->getKey())
                     ->helperText($creating ? "Only active clients. Technologies below come from the client's rates." : 'The client of an existing project cannot change.'),
                 Select::make('project_type')->label('Type')->options(ProjectType::class)->required(),
                 TextInput::make('name')->required()->maxLength(255),

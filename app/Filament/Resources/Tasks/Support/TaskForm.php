@@ -23,7 +23,8 @@ use Filament\Schemas\Schema;
 /** The task form and its mapping to TaskData (W-03 step 1). One assignee (BR-09); technology and parent follow BR-10 and BR-11. */
 final class TaskForm
 {
-    public static function configure(Schema $schema, ?Task $record): Schema
+    /** With `$project` the project is fixed (the task is created from the project's page). */
+    public static function configure(Schema $schema, ?Task $record, ?Project $project = null): Schema
     {
         $creating = ! $record instanceof Task;
         $canAssign = (bool) auth()->user()?->can('assign', $record ?? new Task);
@@ -34,7 +35,8 @@ final class TaskForm
                     ->options(fn (): array => Project::query()->with('customer')
                         ->when($creating, fn ($q) => $q->whereHas('customer', fn ($c) => $c->where('is_active', true)))
                         ->orderBy('name')->pluck('name', 'id')->all())
-                    ->searchable()->required()->live()->disabled(! $creating)->dehydrated()
+                    ->searchable()->required()->live()->disabled(! $creating || $project instanceof Project)->dehydrated()
+                    ->default($project?->getKey())
                     ->afterStateUpdated(fn (callable $set) => $set('technology_id', null))
                     ->helperText($creating ? 'Projects of active clients only.' : 'The project of an existing task cannot change.'),
                 Select::make('technology_id')->label('Technology')

@@ -11,6 +11,7 @@ use App\Filament\Resources\Customers\Pages\CreateCustomer;
 use App\Filament\Resources\Customers\Pages\EditCustomer;
 use App\Filament\Resources\Customers\Pages\ListCustomers;
 use App\Filament\Resources\Customers\Pages\ViewCustomer;
+use App\Filament\Resources\Customers\RelationManagers\ProjectsRelationManager;
 use App\Filament\Resources\Customers\RelationManagers\RatesRelationManager;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -132,7 +133,7 @@ final class CustomerResource extends Resource
 
     public static function getRelations(): array
     {
-        return [RatesRelationManager::class];
+        return [RatesRelationManager::class, ProjectsRelationManager::class];
     }
 
     public static function getPages(): array

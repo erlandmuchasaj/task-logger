@@ -14,6 +14,7 @@ use App\Filament\Resources\Tasks\Pages\CreateTask;
 use App\Filament\Resources\Tasks\Pages\EditTask;
 use App\Filament\Resources\Tasks\Pages\ListTasks;
 use App\Filament\Resources\Tasks\Pages\ViewTask;
+use App\Filament\Resources\Tasks\RelationManagers\LogsRelationManager;
 use App\Filament\Support\ActionErrors;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -137,6 +138,11 @@ final class TaskResource extends Resource
                 ]),
             ])
             ->defaultSort('id', 'desc');
+    }
+
+    public static function getRelations(): array
+    {
+        return [LogsRelationManager::class];
     }
 
     public static function getPages(): array

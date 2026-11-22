@@ -13,6 +13,7 @@ use App\Filament\Resources\Projects\Pages\EditProject;
 use App\Filament\Resources\Projects\Pages\ListProjects;
 use App\Filament\Resources\Projects\Pages\ViewProject;
 use App\Filament\Resources\Projects\RelationManagers\FixedCostsRelationManager;
+use App\Filament\Resources\Projects\RelationManagers\TasksRelationManager;
 use App\Filament\Support\ActionErrors;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -149,7 +150,7 @@ final class ProjectResource extends Resource
 
     public static function getRelations(): array
     {
-        return [FixedCostsRelationManager::class];
+        return [TasksRelationManager::class, FixedCostsRelationManager::class];
     }
 
     public static function getPages(): array

@@ -29,10 +29,7 @@ final class LogForm
     public static function components(User $owner, ?Log $record = null): array
     {
         return [
-            DatePicker::make('date')->required()
-                ->maxDate(fn (): CarbonImmutable => WorkCalendar::today($owner))
-                ->default(fn (): CarbonImmutable => WorkCalendar::today($owner))
-                ->helperText('Back-dating is allowed until the month is locked.'),
+            self::dateField($owner),
             Toggle::make('direct')->label('Log directly to a project (no task)')->live()
                 ->afterStateUpdated(function (callable $set): void {
                     $set('task_id', null);
@@ -54,13 +51,20 @@ final class LogForm
                 ->options(fn (callable $get): array => LogChoices::projectTechnologyOptions(filled($get('project_id')) ? (int) $get('project_id') : null))
                 ->searchable()->required(fn (callable $get): bool => (bool) $get('direct'))
                 ->visible(fn (callable $get): bool => (bool) $get('direct')),
-            Section::make('Time')->columns(3)->schema([
-                TextInput::make('hours')->numeric()->integer()->minValue(0)->maxValue(24)->default(0)->required(),
-                TextInput::make('minutes')->numeric()->integer()->minValue(0)->maxValue(59)->default(0)->required(),
-                Select::make('log_type')->label('Type')->options(LogType::class)->default(LogType::NormalHours)->required(),
-            ]),
-            Textarea::make('description')->rows(2),
+            self::timeSection(),
+            self::descriptionField(),
         ];
+    }
+
+    /**
+     * The fields of a log on a task that is already chosen (the Logs tab of a task): the person, the task and so the
+     * project and technology are fixed, only the date, time, type and description are typed.
+     *
+     * @return array<int, mixed>
+     */
+    public static function taskLogComponents(User $owner): array
+    {
+        return [self::dateField($owner), self::timeSection(), self::descriptionField()];
     }
 
     public static function configure(Schema $schema, User $owner, ?Log $record = null): Schema
@@ -99,5 +103,27 @@ final class LogForm
             projectId: $direct && filled($data['project_id'] ?? null) ? (int) $data['project_id'] : null,
             technologyId: $direct && filled($data['technology_id'] ?? null) ? (int) $data['technology_id'] : null,
         );
+    }
+
+    private static function dateField(User $owner): DatePicker
+    {
+        return DatePicker::make('date')->required()
+            ->maxDate(fn (): CarbonImmutable => WorkCalendar::today($owner))
+            ->default(fn (): CarbonImmutable => WorkCalendar::today($owner))
+            ->helperText('Back-dating is allowed until the month is locked.');
+    }
+
+    private static function timeSection(): Section
+    {
+        return Section::make('Time')->columns(3)->schema([
+            TextInput::make('hours')->numeric()->integer()->minValue(0)->maxValue(24)->default(0)->required(),
+            TextInput::make('minutes')->numeric()->integer()->minValue(0)->maxValue(59)->default(0)->required(),
+            Select::make('log_type')->label('Type')->options(LogType::class)->default(LogType::NormalHours)->required(),
+        ]);
+    }
+
+    private static function descriptionField(): Textarea
+    {
+        return Textarea::make('description')->rows(2);
     }
 }

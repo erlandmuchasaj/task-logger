@@ -11,13 +11,17 @@ use App\Domain\Shared\Priority;
 use App\Domain\Work\Data\TaskData;
 use App\Domain\Work\Enums\TaskStatus;
 use App\Domain\Work\Models\Task;
+use App\Domain\Work\Support\TechnologyEstimate;
 use Carbon\CarbonImmutable;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Callout;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 
 /** The task form and its mapping to TaskData (W-03 step 1). One assignee (BR-09); technology and parent follow BR-10 and BR-11. */
@@ -31,6 +35,7 @@ final class TaskForm
 
         return $schema->components([
             Section::make('Task')->columns(2)->schema([
+                self::estimateNotice($record),
                 Select::make('project_id')->label('Project')
                     ->options(fn (): array => Project::query()->with('customer')
                         ->when($creating, fn ($q) => $q->whereHas('customer', fn ($c) => $c->where('is_active', true)))
@@ -42,12 +47,12 @@ final class TaskForm
                 Select::make('technology_id')->label('Technology')
                     ->options(fn (callable $get): array => Project::query()->find((int) $get('project_id'))?->technologyLines()->with('technology')->get()
                         ->mapWithKeys(fn ($l): array => [$l->technology_id => $l->technology->name])->all() ?? [])
-                    ->searchable()->required()->helperText("One of the project's technologies."),
+                    ->searchable()->required()->live()->helperText("One of the project's technologies."),
                 TextInput::make('name')->required()->maxLength(255)->columnSpanFull(),
                 Textarea::make('description')->columnSpanFull(),
                 Select::make('status')->options(TaskStatus::class)->required()->default(TaskStatus::Backlog),
                 Select::make('priority')->options(Priority::class)->required()->default(Priority::Medium),
-                TextInput::make('estimated_hours')->label('Estimated hours')->numeric()->minValue(0)->maxValue(999999.99)->default(0)->required(),
+                TextInput::make('estimated_hours')->label('Estimated hours')->numeric()->minValue(0)->maxValue(999999.99)->default(0)->required()->live(onBlur: true),
                 DatePicker::make('due_date'),
                 Select::make('assignee_id')->label('Assignee')
                     ->options(fn (): array => User::query()->whereNull('banned_at')->whereNull('anonymized_at')->orderBy('name')->get()
@@ -63,6 +68,16 @@ final class TaskForm
                 Toggle::make('force_to_log')->label("Pin in the assignee's daily log until closed"),
             ]),
         ]);
+    }
+
+    /** D-82: after a save, repeats the warning as a notification, because the callout is easy to miss when the form is saved at once. */
+    public static function warnIfOverEstimate(Task $task): void
+    {
+        $notice = TechnologyEstimate::notice($task->project_id, $task->technology_id, $task->estimated_hours, $task->getKey(), $task->status);
+
+        if ($notice !== null) {
+            Notification::make()->warning()->title('Technology estimate exceeded')->body($notice)->send();
+        }
     }
 
     /** @return array<string, mixed> */
@@ -97,5 +112,27 @@ final class TaskForm
             dueDate: filled($data['due_date'] ?? null) ? CarbonImmutable::parse((string) $data['due_date']) : null,
             labelIds: array_values(array_map(intval(...), (array) ($data['labels'] ?? []))),
         );
+    }
+
+    /** D-82: a warning, never a refusal, that follows the project, technology and hours as they are typed. */
+    private static function estimateNotice(?Task $record): Callout
+    {
+        $notices = [];
+        $notice = function (Get $get) use ($record, &$notices): string {
+            $project = $get('project_id');
+            $technology = $get('technology_id');
+
+            if (blank($project) || blank($technology)) {
+                return '';
+            }
+
+            $key = json_encode([$project, $technology, $get('estimated_hours'), $get('status')]);
+
+            return $notices[$key] ??= TechnologyEstimate::notice((int) $project, (int) $technology, $get('estimated_hours'), $record?->getKey(), $get('status')) ?? '';
+        };
+
+        return Callout::make('Heads up')->key('estimateNotice')->warning()->columnSpanFull()
+            ->description(fn (Get $get): string => $notice($get))
+            ->visible(fn (Get $get): bool => $notice($get) !== '');
     }
 }

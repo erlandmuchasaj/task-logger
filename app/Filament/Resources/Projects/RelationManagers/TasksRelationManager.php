@@ -92,7 +92,10 @@ final class TasksRelationManager extends RelationManager
                         $project = $this->getOwnerRecord();
 
                         try {
-                            return resolve(CreateTask::class)->handle(auth()->user(), TaskForm::data([...$data, 'project_id' => $project->getKey()]));
+                            $task = resolve(CreateTask::class)->handle(auth()->user(), TaskForm::data([...$data, 'project_id' => $project->getKey()]));
+                            TaskForm::warnIfOverEstimate($task);
+
+                            return $task;
                         } catch (ValidationException $validationException) {
                             ActionErrors::report($this, $validationException, 'mountedActions.0.data.');
                             throw new Halt;
@@ -107,7 +110,10 @@ final class TasksRelationManager extends RelationManager
                         ->mutateRecordDataUsing(fn (array $data, Task $record): array => TaskForm::fill($record))
                         ->using(function (Task $record, array $data): Model {
                             try {
-                                return resolve(UpdateTask::class)->handle(auth()->user(), $record, TaskForm::data($data));
+                                $task = resolve(UpdateTask::class)->handle(auth()->user(), $record, TaskForm::data($data));
+                                TaskForm::warnIfOverEstimate($task);
+
+                                return $task;
                             } catch (ValidationException $validationException) {
                                 ActionErrors::report($this, $validationException, 'mountedActions.0.data.');
                                 throw new Halt;

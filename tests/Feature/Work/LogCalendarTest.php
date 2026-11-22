@@ -13,7 +13,10 @@ use App\Domain\MasterData\Models\BankHoliday;
 use App\Domain\MasterData\Models\Country;
 use App\Domain\Work\Actions\LockMonth;
 use App\Domain\Work\Models\Log;
+use App\Filament\Pages\MyDay;
 use App\Filament\Resources\Logs\LogResource;
+use App\Filament\Resources\Logs\Pages\CreateLog;
+use App\Filament\Resources\Logs\Pages\EditLog;
 use App\Filament\Resources\Logs\Pages\ListLogs;
 use App\Filament\Resources\Logs\Support\LogCalendar;
 use Illuminate\Support\Facades\Date;
@@ -537,3 +540,41 @@ it('D-62 shows the observed day of a weekend holiday and does not nudge to log o
     expect(calendarDay($stays, '2026-03-16')['holidays'])->toBe([])
         ->and(calendarDay($stays, '2026-03-16')['isMissing'])->toBeTrue();
 })->group('D-62');
+
+/** The "Heads up" in a page's own form (the Log screens and My Day), or null while it is hidden. */
+function formNotice(Testable $page): ?string
+{
+    $callout = $page->instance()->getSchema('form')->getFlatComponents(withHidden: false)['dateNotice'] ?? null;
+
+    return $callout === null ? null : (string) $callout->getDescription();
+}
+
+it('warns on the Log screen, in My Day and when editing a log, as the calendar modal does, and never blocks', function (): void {
+    $world = calendarWorld();
+    BankHoliday::factory()->create(['country_id' => $world['country']->id, 'name' => 'Founders Day', 'start_date' => '2026-06-12', 'end_date' => '2026-06-12']);
+    calendarLeave($world, 'annual', '2026-06-09');
+    $log = calendarLog($world, '2026-06-10');
+    test()->actingAs($world['employee']);
+
+    foreach ([CreateLog::class, MyDay::class] as $screen) {
+        $page = Livewire::test($screen)->fillForm(['date' => '2026-06-12']);
+        expect(formNotice($page))->toBe('12 June 2026 is a bank holiday (Founders Day).', $screen);
+
+        $page->fillForm(['date' => '2026-06-11']);
+        expect(formNotice($page))->toBeNull($screen);
+
+        $page->fillForm(['date' => '2026-06-09']);
+        expect(formNotice($page))->toBe('You are on leave on 9 June 2026 (Annual Leave).', $screen);
+    }
+
+    $page = Livewire::test(EditLog::class, ['record' => $log->getRouteKey()]);
+    expect(formNotice($page))->toBeNull();
+    $page->fillForm(['date' => '2026-06-12']);
+    expect(formNotice($page))->toBe('12 June 2026 is a bank holiday (Founders Day).');
+
+    // A warning is not a refusal: the log is still saved on the holiday.
+    Livewire::test(CreateLog::class)
+        ->fillForm(['task_id' => $world['task']->id, 'date' => '2026-06-12', 'hours' => 1, 'minutes' => 0, 'log_type' => 'normal_hours'])
+        ->call('create')->assertHasNoFormErrors();
+    expect(Log::query()->whereDate('date', '2026-06-12')->count())->toBe(1);
+});

@@ -19,7 +19,6 @@ use BackedEnum;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
-use Filament\Forms\Components\DatePicker;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Schema;
@@ -68,12 +67,7 @@ final class MyDay extends Page implements HasTable
 
     public function form(Schema $schema): Schema
     {
-        $components = LogForm::components($this->user());
-        $components[0] = DatePicker::make('date')->required()->live()
-            ->maxDate(fn (): CarbonImmutable => $this->today())
-            ->helperText('Back-dating is allowed until the month is locked.');
-
-        return $schema->components($components)->statePath('data');
+        return $schema->components(LogForm::components($this->user()))->statePath('data');
     }
 
     public function save(): void

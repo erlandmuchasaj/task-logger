@@ -27,7 +27,10 @@ final class CreateTask extends CreateRecord
     protected function handleRecordCreation(array $data): Model
     {
         try {
-            return resolve(CreateTaskAction::class)->handle(auth()->user(), TaskForm::data($data));
+            $task = resolve(CreateTaskAction::class)->handle(auth()->user(), TaskForm::data($data));
+            TaskForm::warnIfOverEstimate($task);
+
+            return $task;
         } catch (ValidationException $validationException) {
             ActionErrors::report($this, $validationException);
             throw new Halt;

@@ -16,7 +16,9 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Callout;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 
 /**
@@ -29,6 +31,7 @@ final class LogForm
     public static function components(User $owner, ?Log $record = null): array
     {
         return [
+            self::dateNotice($owner),
             self::dateField($owner),
             Toggle::make('direct')->label('Log directly to a project (no task)')->live()
                 ->afterStateUpdated(function (callable $set): void {
@@ -64,7 +67,7 @@ final class LogForm
      */
     public static function taskLogComponents(User $owner): array
     {
-        return [self::dateField($owner), self::timeSection(), self::descriptionField()];
+        return [self::dateNotice($owner), self::dateField($owner), self::timeSection(), self::descriptionField()];
     }
 
     public static function configure(Schema $schema, User $owner, ?Log $record = null): Schema
@@ -105,9 +108,29 @@ final class LogForm
         );
     }
 
+    /**
+     * "Heads up" when the chosen day is a bank holiday, not a working day or a day of leave (LogCalendar::notice). It
+     * follows the date field, which is live, so every place that logs time warns the same way; saving is never blocked.
+     * $owner is the person whose calendar counts, which on an edit is the owner of the log.
+     */
+    private static function dateNotice(User $owner): Callout
+    {
+        $notices = [];
+        $notice = function (Get $get) use ($owner, &$notices): string {
+            $state = $get('date');
+            $key = is_scalar($state) ? (string) $state : '';
+
+            return $notices[$key] ??= LogCalendar::notice($owner, $state) ?? '';
+        };
+
+        return Callout::make('Heads up')->key('dateNotice')->warning()->columnSpanFull()
+            ->description(fn (Get $get): string => $notice($get))
+            ->visible(fn (Get $get): bool => $notice($get) !== '');
+    }
+
     private static function dateField(User $owner): DatePicker
     {
-        return DatePicker::make('date')->required()
+        return DatePicker::make('date')->required()->live()
             ->maxDate(fn (): CarbonImmutable => WorkCalendar::today($owner))
             ->default(fn (): CarbonImmutable => WorkCalendar::today($owner))
             ->helperText('Back-dating is allowed until the month is locked.');

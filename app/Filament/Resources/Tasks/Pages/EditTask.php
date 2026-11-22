@@ -44,7 +44,10 @@ final class EditTask extends EditRecord
     {
         /** @var Task $record */
         try {
-            return resolve(UpdateTask::class)->handle(auth()->user(), $record, TaskForm::data($data));
+            $task = resolve(UpdateTask::class)->handle(auth()->user(), $record, TaskForm::data($data));
+            TaskForm::warnIfOverEstimate($task);
+
+            return $task;
         } catch (ValidationException $validationException) {
             ActionErrors::report($this, $validationException);
             throw new Halt;

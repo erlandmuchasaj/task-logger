@@ -24,6 +24,13 @@ return [
         'timezone' => 'Europe/Tirane',
     ],
 
+    // D-81: the daily job that reminds an assignee of a task that is almost due.
+    'task_due_reminder' => [
+        'days_before' => 1,         // remind this many days before the due date (the leave reminder uses 2, D-72)
+        'run_at' => '09:00',        // time of the daily run, in the timezone below
+        'timezone' => 'Europe/Tirane',
+    ],
+
     // D-76: the daily job that emails a thank-you to a person on their last working day.
     'offboarding_thanks' => [
         'run_at' => '09:00',        // time of the daily run, in the timezone below

@@ -18,6 +18,12 @@ enum TaskStatus: string implements HasColor, HasLabel
     case Completed = 'completed';
     case Cancelled = 'cancelled';
 
+    /** @return list<self> */
+    public static function dueReminderStatuses(): array
+    {
+        return [self::Backlog, self::Todo, self::InProgress];
+    }
+
     public function getLabel(): string
     {
         return Str::headline($this->value);
@@ -39,5 +45,11 @@ enum TaskStatus: string implements HasColor, HasLabel
     public function isClosed(): bool
     {
         return $this === self::Completed || $this === self::Cancelled;
+    }
+
+    /** D-81: a task still being worked on. In review, completed and cancelled tasks are not reminded about their due date. */
+    public function awaitsDueReminder(): bool
+    {
+        return in_array($this, self::dueReminderStatuses(), true);
     }
 }

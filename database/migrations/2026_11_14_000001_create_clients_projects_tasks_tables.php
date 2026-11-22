@@ -113,11 +113,13 @@ return new class extends Migration
             $table->foreignId('parent_id')->nullable()->constrained('tasks');
             $table->boolean('force_to_log')->default(false);
             $table->date('due_date')->nullable();
+            $table->dateTime('due_reminder_sent_at')->nullable();    // D-81: claimed before the reminder goes out, so the daily job is idempotent
             $table->softDeletes();
             $table->timestamps();
 
             $table->index(['assignee_id', 'status']);
             $table->index(['project_id', 'status']);
+            $table->index(['status', 'due_date']);                   // D-81: the reminder job's lookup
 
             // BR-10: a task's technology must belong to the task's project.
             $table->foreign(['project_id', 'technology_id'])

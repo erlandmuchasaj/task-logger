@@ -29,7 +29,14 @@ final class AssignTask
         $previousAssigneeId = $task->assignee_id;
 
         $task = resolve(CauserResolver::class)->withCauser($actor, function () use ($task, $assigneeId): Task {
-            $task->update(['assignee_id' => $assigneeId]);
+            $task->fill(['assignee_id' => $assigneeId]);
+
+            // D-81: a new assignee earns a new reminder.
+            if ($task->isDirty('assignee_id')) {
+                $task->forceFill(['due_reminder_sent_at' => null]);
+            }
+
+            $task->save();
 
             return $task->refresh();
         });

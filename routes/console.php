@@ -10,6 +10,7 @@ use App\Domain\Leave\Actions\SendLeaveReminders;
 use App\Domain\People\Actions\ActivateDueSalaries;
 use App\Domain\People\Actions\AnonymizeDueEmployees;
 use App\Domain\People\Actions\SendOffboardingThanks;
+use App\Domain\Work\Actions\SendTaskDueReminders;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -63,4 +64,11 @@ Schedule::call(fn () => resolve(SendOffboardingThanks::class)->handle())
     ->name('people.offboarding-thanks')
     ->dailyAt((string) config('task-logger.offboarding_thanks.run_at'))
     ->timezone((string) config('task-logger.offboarding_thanks.timezone'))
+    ->withoutOverlapping();
+
+// D-81: remind the assignee the day before a task that is still being worked on is due, once. Idempotent.
+Schedule::call(fn () => resolve(SendTaskDueReminders::class)->handle())
+    ->name('work.task-due-reminders')
+    ->dailyAt((string) config('task-logger.task_due_reminder.run_at'))
+    ->timezone((string) config('task-logger.task_due_reminder.timezone'))
     ->withoutOverlapping();

@@ -91,6 +91,7 @@ final class Task extends Model
             'estimated_hours' => 'decimal:2',
             'force_to_log' => 'boolean',
             'due_date' => 'date',
+            'due_reminder_sent_at' => 'datetime',
         ];
     }
 }

@@ -20,14 +20,11 @@ use App\Filament\Support\ExportAction;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
-use Filament\Forms\Components\DatePicker;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
-use Filament\Schemas\Components\Callout;
 use Filament\Schemas\Components\EmbeddedTable;
 use Filament\Schemas\Components\RenderHook;
 use Filament\Schemas\Components\Tabs\Tab;
-use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 use Filament\Support\Components\Attributes\Unexposed;
@@ -125,13 +122,6 @@ final class ListLogs extends ListRecords
     public function logTimeAction(): Action
     {
         $user = $this->user();
-        $notices = [];
-        $notice = function (Get $get) use ($user, &$notices): string {
-            $state = $get('date');
-            $key = is_scalar($state) ? (string) $state : '';
-
-            return $notices[$key] ??= LogCalendar::notice($user, $state) ?? '';
-        };
 
         return Action::make('logTime')
             ->label('Log time')
@@ -149,20 +139,7 @@ final class ListLogs extends ListRecords
 
                 return $this->blankEntry(($date ?? WorkCalendar::today($user))->toDateString());
             })
-            ->schema(function () use ($user, $notice): array {
-                $components = LogForm::components($user);
-                // Live, so the warning follows the date when it is changed in the modal (the same swap My Day makes).
-                $components[0] = DatePicker::make('date')->required()->live()
-                    ->maxDate(fn (): CarbonImmutable => WorkCalendar::today($user))
-                    ->helperText('Back-dating is allowed until the month is locked.');
-
-                return [
-                    Callout::make('Heads up')->key('dateNotice')->warning()
-                        ->description(fn (Get $get): string => $notice($get))
-                        ->visible(fn (Get $get): bool => $notice($get) !== ''),
-                    ...$components,
-                ];
-            })
+            ->schema(fn (): array => LogForm::components($user))
             ->extraModalFooterActions(fn (Action $action): array => [
                 $action->makeModalSubmitAction('logAnother', arguments: ['another' => true])->label('Log & add another'),
             ])

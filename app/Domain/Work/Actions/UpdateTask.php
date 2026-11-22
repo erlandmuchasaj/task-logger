@@ -37,9 +37,11 @@ final readonly class UpdateTask
 
         $this->validateTask($data, $task->project()->with('customer')->firstOrFail(), $task);
         $previousAssigneeId = $task->assignee_id;
+        // D-81: a new due date or a new assignee earns a new reminder.
+        $reminderStale = $task->due_date?->toDateString() !== $data->dueDate?->toDateString() || $task->assignee_id !== $data->assigneeId;
 
-        $task = resolve(CauserResolver::class)->withCauser($actor, fn (): Task => DB::transaction(function () use ($actor, $task, $data): Task {
-            $task->update([
+        $task = resolve(CauserResolver::class)->withCauser($actor, fn (): Task => DB::transaction(function () use ($actor, $task, $data, $reminderStale): Task {
+            $task->fill([
                 'name' => $data->name,
                 'description' => $data->description,
                 'technology_id' => $data->technologyId,
@@ -50,6 +52,12 @@ final readonly class UpdateTask
                 'force_to_log' => $data->forceToLog,
                 'due_date' => $data->dueDate?->toDateString(),
             ]);
+
+            if ($reminderStale) {
+                $task->forceFill(['due_reminder_sent_at' => null]);
+            }
+
+            $task->save();
 
             $this->syncLabels($task, $data->labelIds);
 

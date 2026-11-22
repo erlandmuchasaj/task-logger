@@ -30,6 +30,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Schema;
 use Filament\Support\Exceptions\Halt;
 use Filament\Support\Icons\Heroicon;
@@ -117,12 +118,15 @@ final class LeaveRequestResource extends Resource
             Select::make('leave_type_id')->label('Type')->required()->live(condition: $live)
                 ->options(fn (): array => LeaveType::query()->where('is_active', true)->orderBy('name')->get()
                     ->mapWithKeys(fn (LeaveType $type): array => [$type->getKey() => $type->label()])->all()),
-            DatePicker::make('start_date')->required()->live(condition: $live),
-            Select::make('start_day_part')->label('First day')->options(DayPart::class)->default(DayPart::Full->value)->required()->native(false)->live(condition: $live),
-            DatePicker::make('end_date')->required()->afterOrEqual('start_date')->live(condition: $live)
-                ->helperText(self::INCLUSIVE_NOTE),
-            Select::make('end_day_part')->label('Last day')->options(DayPart::class)->default(DayPart::Full->value)->required()->native(false)->live(condition: $live)
-                ->helperText('Ignored for a single-day request.'),
+            // Two rows of two: the dates, then what part of the first and last day is taken. The grid has no state path of its own.
+            Grid::make(['default' => 1, 'sm' => 2])->columnSpanFull()->schema([
+                DatePicker::make('start_date')->required()->live(condition: $live),
+                DatePicker::make('end_date')->required()->afterOrEqual('start_date')->live(condition: $live)
+                    ->helperText(self::INCLUSIVE_NOTE),
+                Select::make('start_day_part')->label('First day')->options(DayPart::class)->default(DayPart::Full->value)->required()->native(false)->live(condition: $live),
+                Select::make('end_day_part')->label('Last day')->options(DayPart::class)->default(DayPart::Full->value)->required()->native(false)->live(condition: $live)
+                    ->helperText('Ignored for a single-day request.'),
+            ]),
             Textarea::make('reason')->label($note ? 'Note' : 'Reason')->required($note)->rows(3)->columnSpanFull(),
         ];
     }

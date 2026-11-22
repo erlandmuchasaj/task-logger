@@ -31,6 +31,9 @@ final class Permissions
     /** D-77: change your own name, email, phone, date of birth, university, address, gender and marital status. Every role holds it through the employee baseline. */
     public const string PROFILE_UPDATE_OWN = 'profile.update_own';
 
+    /** D-79: open the Hierarchy page (name, avatar and job title of everyone active) and see this week's joiners and leavers on the dashboard. Every role holds it through the employee baseline. */
+    public const string HIERARCHY_VIEW = 'hierarchy.view';
+
     /** [OPTIONAL] Act as another user (D-47). Superadmin only. */
     public const string EMPLOYEES_IMPERSONATE = 'employees.impersonate';
 

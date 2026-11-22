@@ -562,6 +562,18 @@ Each entry: what the source says, the default this spec implements, and whether 
 - Estimated vs Logged: the project-status filter starts at "Any status" instead of Active. The filter itself stays.
 - Confirm: yes. Should an employee be able to change the login email without HR, and should a changed email be verified first?
 
+**D-78 — The employee dashboard. Asked by the owner (2026-11-22).**
+
+- Source: the owner's brief (Phase 5): active tasks, hours this month, remaining leave, a bar chart of hours per day this week, leave taken against remaining this year, and a "This week" panel with new joiners, leavers and tasks assigned to me.
+- Default: widgets under `app/Filament/Widgets`, every figure scoped to the signed-in person and gated by the permission of the data behind it (`tasks.view_own`, `logs.view_own`, `leave_requests.view_own`); the Filament account and version widgets are removed from the panel. "Active tasks" are the person's tasks that are not completed or cancelled. "Hours this month" is the sum of their logs from the first to the last day of the month in their own calendar (BR-34). The week runs Monday to Sunday in their calendar. "Remaining leave" is `LeaveBalance::available` of the leave type named in `task-logger.dashboard.leave_type` (`annual_leave`), so it is the same number as My Leave; "taken" is the days of approved or taken requests of that type that start this year; if the type is missing or inactive the figure shows "—". "Tasks assigned to me" in the week panel means tasks created this week and assigned to me (the owner's answer, 2026-11-22); a task has no assigned-on date, so its creation is the moment it reached the person, and a task given to me later by reassignment is not listed. New joiners are active people whose start date is in the week. Leavers are people whose offboarding is in progress or completed with a last day in the week; a pending or cancelled offboarding is not announced (D-75 treats it as sensitive). Joiners and leavers show name, job title and date only, to everyone who holds `hierarchy.view` (D-79).
+- Confirm: no. The owner confirmed (2026-11-22) that `annual_leave` is the dashboard leave type, that "assigned to me" is a task created and assigned to me, and that pending offboardings are not shown.
+
+**D-79 — The Hierarchy page. Asked by the owner (2026-11-22). Uses the D-68 default.**
+
+- Source: the owner's brief (Phase 5): a Users tab with a tree built from a recursive query, starting at the superadmins who have no manager, with name, role or position and avatar. Open question 7 (who may see it) is unanswered, so the D-68 default is used.
+- Default: a People page "Hierarchy", linked from the Employees list, open to everyone who holds `hierarchy.view`, which is the employee baseline and so every role. It lists active people only (not deactivated, not anonymised, not deleted). It shows name, job title and avatar (initials when there is no photo) and the number of people below; it does not show the role, email, phone or any HR field. One recursive query (`OrgTree`) reads the whole tree, so the query count does not grow with the headcount. A root is an active person with no manager, or whose manager is no longer active, so nobody disappears when a manager leaves. The walk stops at `task-logger.hierarchy_max_depth` (20) levels, which also bounds a cycle should one exist.
+- Confirm: no. The owner confirmed (2026-11-22) that everyone may see the hierarchy (D-68). Still open, not asked: the role is not shown next to the job title (the default above).
+
 ### 3.2 Confirm before coding
 
 1. D-14 and D-05: what employees and assistants may see, and whether an employee sees their own HR record. HR and admin access is now set by the owner.

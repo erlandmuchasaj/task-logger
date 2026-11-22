@@ -78,9 +78,10 @@ it('FR-02 the sidebar shows each role only the groups and screens it holds', fun
         expect($labels)->not->toContain($text);
     }
 })->with([
-    'employee' => [RoleName::Employee, ['Work', 'Leave'], ['People', 'Employees', 'Two-factor authentication', 'Expenses', 'Master data']],
+    // D-79: every role holds hierarchy.view, so the People group shows for all of them, with Hierarchy but not Employees.
+    'employee' => [RoleName::Employee, ['Work', 'Leave', 'People', 'Hierarchy'], ['Employees', 'Two-factor authentication', 'Expenses', 'Master data']],
     'hr' => [RoleName::Hr, ['People', 'Employees'], ['Two-factor authentication', 'Expenses', 'Activity log']],
-    'finance' => [RoleName::Finance, ['Expenses'], ['People', 'Employees', 'Two-factor authentication']],
+    'finance' => [RoleName::Finance, ['Expenses', 'Hierarchy'], ['Employees', 'Two-factor authentication']],
     'superadmin' => [RoleName::Superadmin, ['People', 'Employees', 'Two-factor authentication', 'Expenses'], []],
 ])->group('browser', 'FR-02');
 

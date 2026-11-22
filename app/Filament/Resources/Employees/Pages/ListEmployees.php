@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Employees\Pages;
 
 use App\Domain\Identity\Models\User;
+use App\Filament\Pages\Hierarchy;
 use App\Filament\Resources\Employees\EmployeeResource;
 use App\Filament\Resources\Employees\Widgets\EmployeeStats;
+use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Builder;
 
 final class ListEmployees extends ListRecords
@@ -41,7 +44,15 @@ final class ListEmployees extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()];
+        return [
+            Action::make('hierarchy')
+                ->label('Hierarchy')
+                ->icon(Heroicon::OutlinedShare)
+                ->color('gray')
+                ->url(fn (): string => Hierarchy::getUrl())
+                ->visible(fn (): bool => Hierarchy::canAccess()),
+            CreateAction::make(),
+        ];
     }
 
     protected function getHeaderWidgets(): array

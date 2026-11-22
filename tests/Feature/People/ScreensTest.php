@@ -43,6 +43,13 @@ it('M2 every people screen renders for the roles that may see it, without N+1 qu
     'hr' => [RoleName::Hr, ['/app/employees', '/app/employees/{id}/edit']],
 ]);
 
+it('D-79 the Hierarchy page renders for every role without N+1 queries', function (RoleName $role): void {
+    populatedCompany();
+    $this->actingAs(userWithRole($role));
+
+    $this->get('/app/hierarchy')->assertOk();
+})->with(RoleName::cases())->group('D-79');
+
 it('D-54 the Directory is removed', function (): void {
     $this->actingAs(userWithRole(RoleName::Employee))->get('/app/directory')->assertNotFound();
 });

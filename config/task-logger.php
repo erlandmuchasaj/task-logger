@@ -52,6 +52,15 @@ return [
     // BR-04: maximum minutes one user may log per calendar date.
     'max_log_minutes_per_day' => 24 * 60,
 
+    // D-78: the dashboard shows the leave balance of this one leave type (leave_types.name); sick leave and the
+    // other balance types are not added to it. No such type, or an inactive one, shows "—".
+    'dashboard' => [
+        'leave_type' => 'annual_leave',
+    ],
+
+    // D-79: the Hierarchy page stops this many levels below a root; a manager cycle can never run it away.
+    'hierarchy_max_depth' => 20,
+
     // D-01: technology level scale.
     'technology_level_min' => 1,
     'technology_level_max' => 10,

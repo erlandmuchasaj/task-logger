@@ -26,6 +26,7 @@ $employee = [
     Permissions::BANK_HOLIDAYS_VIEW_CALENDAR,
 
     Permissions::PROFILE_UPDATE_OWN,
+    Permissions::HIERARCHY_VIEW,
 ];
 
 return [
@@ -116,6 +117,7 @@ return [
             Permissions::BANK_HOLIDAYS_VIEW_CALENDAR,
 
             Permissions::PROFILE_UPDATE_OWN,
+            Permissions::HIERARCHY_VIEW,
 
             Permissions::COUNTRIES_CREATE,
             Permissions::COUNTRIES_MANAGE,

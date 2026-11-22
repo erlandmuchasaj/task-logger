@@ -37,6 +37,9 @@ function approvalSetup(): array
     return [...$setup, 'manager' => $manager, 'hr' => $hr];
 }
 
+// D-71: cancelling depends on today against the first day, so the file runs in May, before its June fixtures.
+beforeEach(fn () => $this->travelTo(Date::parse('2026-05-25 10:00:00')));
+
 function pendingRequest(array $setup, string $from = '2026-06-01', ?string $to = '2026-06-02'): LeaveRequest
 {
     return resolve(RequestLeave::class)->handle($setup['employee'], leaveData($setup['annual'], $from, $to));
@@ -269,9 +272,9 @@ it('BR-32 every leave write is audited with the actor', function (): void {
 })->group('BR-32');
 
 it('D-57 the employee is told about the final approval and about a rejection, not about the manager step', function (): void {
-    Notification::fake();
     $setup = approvalSetup();
     $request = pendingRequest($setup);
+    Notification::fake(); // after the request: making it tells the manager and HR (D-70)
 
     resolve(DecideLeave::class)->handle($setup['manager'], $request, ApprovalStage::Manager, ApprovalDecision::Approved);
     Notification::assertNothingSent();
@@ -307,13 +310,14 @@ it('D-57 the decision lands in the in-app notification drawer and a banned emplo
         ->set('isOpen', true)
         ->assertSee('Your leave request was rejected');
 
+    $another = pendingRequest($setup, '2026-06-08', '2026-06-09');
     Notification::fake();
     $setup['employee']->ban();
-    resolve(DecideLeave::class)->handle($setup['manager'], pendingRequest($setup), ApprovalStage::Manager, ApprovalDecision::Rejected, 'No');
+    resolve(DecideLeave::class)->handle($setup['manager'], $another, ApprovalStage::Manager, ApprovalDecision::Rejected, 'No');
     Notification::assertNothingSent();
 })->group('D-57');
 
-it('D-44 approved leave that has already started can only be cancelled by HR or the superadmin, not by its owner', function (): void {
+it('D-44 D-71 approved leave that has started can only be cancelled by the superadmin, not by its owner or HR', function (): void {
     $this->travelTo(Date::parse('2026-06-15 10:00:00'));
     $setup = approvalSetup();
     $past = pendingRequest($setup, '2026-06-10', '2026-06-11');
@@ -323,12 +327,14 @@ it('D-44 approved leave that has already started can only be cancelled by HR or 
     $future->update(['status' => LeaveStatus::Approved]);
 
     expect(fn () => resolve(CancelLeave::class)->handle($setup['employee'], $past))->toThrow(AuthorizationException::class)
+        ->and(fn () => resolve(CancelLeave::class)->handle($setup['hr'], $past))->toThrow(AuthorizationException::class)
         ->and($setup['employee']->can('cancel', $past))->toBeFalse()
-        ->and($setup['hr']->can('cancel', $past))->toBeTrue()
+        ->and($setup['hr']->can('cancel', $past))->toBeFalse()
         ->and(userWithRole(RoleName::Superadmin)->can('cancel', $past))->toBeTrue()
-        ->and($setup['employee']->can('cancel', $future))->toBeTrue(); // not started yet: still theirs to take back
+        ->and($setup['employee']->can('cancel', $future))->toBeTrue() // not started yet: still theirs to take back
+        ->and($setup['hr']->can('cancel', $future))->toBeTrue();
 
-    resolve(CancelLeave::class)->handle($setup['hr'], $past);
+    resolve(CancelLeave::class)->handle(userWithRole(RoleName::Superadmin), $past);
 
     expect($past->refresh()->status)->toBe(LeaveStatus::Cancelled);
-})->group('D-44');
+})->group('D-44', 'D-71');

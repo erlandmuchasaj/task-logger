@@ -9,6 +9,7 @@ use App\Domain\Expenses\Models\Expense;
 use App\Domain\Exports\Models\Export;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Permissions;
+use App\Domain\Leave\Models\LeaveRequest;
 use App\Domain\People\Models\Offboarding;
 use App\Domain\People\Models\Performance;
 use App\Domain\People\Models\Salary;
@@ -28,7 +29,8 @@ use Spatie\Activitylog\Models\Activity;
  *  - salary history is append-only (BR-29);
  *  - users and clients are never hard-deleted, they are deactivated (SPEC 5.0, BR-31);
  *  - an export file belongs to the person who requested it (BR-33);
- *  - performance reviews are never edited or deleted, and offboardings are cancelled, not deleted (D-45).
+ *  - performance reviews are never edited or deleted, and offboardings are cancelled, not deleted (D-45);
+ *  - a pending leave request that has already started cannot be cancelled, even by root (D-71).
  */
 final class RootAccess
 {
@@ -42,6 +44,7 @@ final class RootAccess
         Performance::class => ['update', 'delete', 'restore', 'forceDelete'],
         Offboarding::class => ['delete', 'restore', 'forceDelete'],
         Expense::class => ['restore', 'forceDelete'],
+        LeaveRequest::class => ['cancel'],
     ];
 
     /**

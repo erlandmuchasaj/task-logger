@@ -6,6 +6,7 @@ use App\Domain\Exports\Actions\PruneExports;
 use App\Domain\Leave\Actions\ExpireCarryOver;
 use App\Domain\Leave\Actions\GrantAnnualLeave;
 use App\Domain\Leave\Actions\MarkLeaveTaken;
+use App\Domain\Leave\Actions\SendLeaveReminders;
 use App\Domain\People\Actions\ActivateDueSalaries;
 use App\Domain\People\Actions\AnonymizeDueEmployees;
 use Illuminate\Foundation\Inspiring;
@@ -31,6 +32,13 @@ Schedule::call(fn () => resolve(ExpireCarryOver::class)->handle())
 Schedule::call(fn () => resolve(MarkLeaveTaken::class)->handle())
     ->name('leave.mark-taken')
     ->hourly()
+    ->withoutOverlapping();
+
+// D-72: remind the approver, then escalate to HR and the superadmins, about leave nobody has decided. Idempotent.
+Schedule::call(fn () => resolve(SendLeaveReminders::class)->handle())
+    ->name('leave.remind-pending')
+    ->dailyAt((string) config('task-logger.leave_reminder.run_at'))
+    ->timezone((string) config('task-logger.leave_reminder.timezone'))
     ->withoutOverlapping();
 
 Schedule::call(fn () => resolve(ActivateDueSalaries::class)->handle())

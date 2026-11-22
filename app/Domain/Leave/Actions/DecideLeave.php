@@ -13,6 +13,7 @@ use App\Domain\Leave\Models\LeaveLedgerEntry;
 use App\Domain\Leave\Models\LeaveRequest;
 use App\Domain\Leave\Models\LeaveRequestApproval;
 use App\Domain\Leave\Support\Days;
+use App\Domain\Leave\Support\LeaveApprovers;
 use App\Domain\Leave\Support\NotifyLeaveDecision;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -57,6 +58,10 @@ final class DecideLeave
                 throw ValidationException::withMessages(['stage' => 'This employee has no manager, so there is no manager stage.']);
             }
 
+            if ($stage === ApprovalStage::Hr && LeaveApprovers::skipsHrStage($employee)) {
+                throw ValidationException::withMessages(['stage' => "An HR user's leave has no HR stage: their manager decides it."]);
+            }
+
             if ($request->stageDecision($stage) !== null) {
                 throw ValidationException::withMessages(['stage' => 'This stage has already been decided.']);
             }
@@ -78,8 +83,8 @@ final class DecideLeave
                 return $this->finish($request, $actor, LeaveStatus::Rejected, $note);
             }
 
-            // The manager stage never completes the request; HR is the last stage and the manager already approved (checked above).
-            if ($stage === ApprovalStage::Manager) {
+            // The manager stage completes the request only when there is no HR stage (an HR user's own leave, D-70); otherwise HR is the last stage.
+            if ($stage === ApprovalStage::Manager && ! LeaveApprovers::skipsHrStage($employee)) {
                 return $request->refresh();
             }
 

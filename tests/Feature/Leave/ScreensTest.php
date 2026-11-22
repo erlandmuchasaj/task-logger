@@ -107,6 +107,7 @@ it('BR-21 rejecting from the screen needs a note', function (): void {
 })->group('BR-21');
 
 it('BR-20 nobody gets decision buttons on their own request', function (): void {
+    Date::setTestNow('2026-05-25'); // before the factory's first day of 2026-06-01, so the request can still be cancelled (D-71)
     $world = leaveWorld();
     $request = LeaveRequest::factory()->create([
         'user_id' => $world['hr']->id, 'created_by' => $world['hr']->id, 'leave_type_id' => $world['annual']->id,

@@ -8,16 +8,20 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Permissions;
 use App\Domain\Leave\Actions\CancelLeave;
 use App\Domain\Leave\Actions\DecideLeave;
+use App\Domain\Leave\Actions\ReturnFromLeave;
 use App\Domain\Leave\Enums\ApprovalDecision;
 use App\Domain\Leave\Enums\ApprovalStage;
 use App\Domain\Leave\Enums\DayPart;
 use App\Domain\Leave\Enums\LeaveStatus;
 use App\Domain\Leave\Models\LeaveRequest;
 use App\Domain\Leave\Models\LeaveRequestApproval;
+use App\Domain\Leave\Support\LeaveApprovers;
 use App\Domain\MasterData\Models\LeaveType;
+use App\Domain\Work\Support\WorkCalendar;
 use App\Filament\Resources\LeaveRequests\Pages\ManageLeaveRequests;
 use App\Filament\Support\ActionErrors;
 use BackedEnum;
+use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\DatePicker;
@@ -27,14 +31,17 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Schema;
+use Filament\Support\Exceptions\Halt;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Livewire\Component as LivewireComponent;
 use UnitEnum;
 
 /**
@@ -130,12 +137,17 @@ final class LeaveRequestResource extends Resource
                 TextColumn::make('period')->label('Dates')->state(fn (LeaveRequest $record): string => self::period($record)),
                 TextColumn::make('days_requested')->label('Days'),
                 TextColumn::make('status')->badge(), // colour and icon come from LeaveStatus
+                // D-72: a computed state, not a status, so it has no enum: pending and the first day has come.
+                TextColumn::make('overdue')->label('Overdue')->badge()->color('danger')
+                    ->state(fn (LeaveRequest $record): ?string => $record->isOverdue(WorkCalendar::today($record->user)) ? 'Overdue' : null),
                 TextColumn::make('stages')->label('Approvals')->state(fn (LeaveRequest $record): string => self::stages($record)),
                 TextColumn::make('reason')->limit(40)->toggleable(),
                 TextColumn::make('review_note')->label('Decision note')->limit(40)->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('status')->options(LeaveStatus::class),
+                Filter::make('overdue')->label('Overdue')->toggle()
+                    ->query(fn (Builder $query): Builder => $query->scopes(['overdue' => [WorkCalendar::today(auth()->user())]])),
                 SelectFilter::make('user_id')->label('Employee')->relationship('user', 'name')->visible($seesOthers),
             ])
             ->recordActions([ActionGroup::make(self::recordActions())])
@@ -169,6 +181,7 @@ final class LeaveRequestResource extends Resource
                         ActionErrors::notify($validationException);
                     }
                 }),
+            self::returnEarly(),
         ];
 
         return $inModal ? array_map(fn (Action $action): Action => $action->cancelParentActions(), $actions) : $actions;
@@ -190,9 +203,44 @@ final class LeaveRequestResource extends Resource
     /** "Manager: Approved / HR: waiting": where the request stands in the two approval stages (D-07). */
     public static function stages(LeaveRequest $record): string
     {
+        if ($record->wasSelfApproved()) {
+            return 'Approved by the requester (no manager)';
+        }
+
         return collect(ApprovalStage::cases())
-            ->map(fn (ApprovalStage $stage): string => $stage->getLabel().': '.($record->stageDecision($stage)?->decision->getLabel() ?? (($stage === ApprovalStage::Manager && $record->user->manager_id === null) ? 'n/a' : 'waiting')))
+            ->map(fn (ApprovalStage $stage): string => $stage->getLabel().': '.($record->stageDecision($stage)?->decision->getLabel() ?? (self::stageNotApplicable($record, $stage) ? 'n/a' : 'waiting')))
             ->implode(' / ');
+    }
+
+    /** No manager means no manager stage (D-07); an HR user's own leave has no HR stage (D-70). */
+    private static function stageNotApplicable(LeaveRequest $record, ApprovalStage $stage): bool
+    {
+        return $stage === ApprovalStage::Manager
+            ? $record->user->manager_id === null
+            : LeaveApprovers::skipsHrStage($record->user);
+    }
+
+    /** D-73: HR and the superadmin shorten approved leave when the employee came back early; the unused days return to the balance. */
+    private static function returnEarly(): Action
+    {
+        return Action::make('returnEarly')->label('Back at work earlier')->icon(Heroicon::OutlinedArrowUturnLeft)->color('warning')
+            ->modalDescription('The leave ends the day before this date and the days after it go back to the balance. This cannot be undone.')
+            ->modalSubmitActionLabel('Shorten leave')
+            ->schema([
+                DatePicker::make('back_at')->label('Back at work on')->required()
+                    ->helperText('The first working day after the leave. It must fall after the first day and on or before the last day.'),
+            ])
+            ->visible(fn (LeaveRequest $record): bool => $record->status === LeaveStatus::Approved && (bool) auth()->user()?->can('returnEarly', $record))
+            ->action(function (LeaveRequest $record, array $data, LivewireComponent $livewire): void {
+                try {
+                    resolve(ReturnFromLeave::class)->handle(auth()->user(), $record, CarbonImmutable::parse((string) $data['back_at']));
+                    Notification::make()->title('Leave shortened')->success()->send();
+                } catch (ValidationException $validationException) {
+                    ActionErrors::report($livewire, $validationException, 'mountedActions.0.data.', ['back_at' => 'back_at']);
+
+                    throw new Halt;
+                }
+            });
     }
 
     private static function part(DayPart $part): string
@@ -216,7 +264,7 @@ final class LeaveRequestResource extends Resource
                     && $record->status === LeaveStatus::Pending
                     && $record->user_id !== $user->getKey()
                     && ! $record->stageDecision($stage) instanceof LeaveRequestApproval
-                    && ($stage === ApprovalStage::Manager ? $record->user->manager_id !== null : ($managerDone || $record->user->manager_id === null))
+                    && ($stage === ApprovalStage::Manager ? $record->user->manager_id !== null : (! LeaveApprovers::skipsHrStage($record->user) && ($managerDone || $record->user->manager_id === null)))
                     && $user->can($stage === ApprovalStage::Manager ? 'approveManagerStage' : 'approveHrStage', $record);
             })
             ->action(function (LeaveRequest $record, array $data) use ($stage, $decision): void {

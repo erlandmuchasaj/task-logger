@@ -27,6 +27,8 @@ return new class extends Migration
             $table->foreignId('reviewed_by')->nullable()->constrained('users');
             $table->dateTime('reviewed_at')->nullable();
             $table->text('review_note')->nullable();                         // required when rejected (BR-21)
+            $table->dateTime('reminder_sent_at')->nullable();                // D-72: the approver was reminded; makes the daily job idempotent
+            $table->dateTime('escalated_at')->nullable();                    // D-72: HR and superadmins were told it is still pending on the start date
             $table->softDeletes();
             $table->timestamps();
 

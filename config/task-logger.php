@@ -17,6 +17,13 @@ return [
     // D-08: default working week (ISO weekdays, 1 = Monday), configurable per country.
     'default_working_days' => [1, 2, 3, 4, 5],
 
+    // D-72: the daily job that reminds the approver and escalates a request still pending near its start date.
+    'leave_reminder' => [
+        'days_before' => 2,         // remind the approver when a request is still pending this many days before it starts
+        'run_at' => '09:00',        // time of the daily run, in the timezone below
+        'timezone' => 'Europe/Tirane',
+    ],
+
     // D-42: longest span (in calendar days) one leave request may cover; a guard against typos such as a wrong year.
     'leave_max_request_days' => 366,
 

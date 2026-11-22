@@ -21,6 +21,7 @@ $employee = [
 
     Permissions::LEAVE_REQUESTS_CREATE_OWN,
     Permissions::LEAVE_REQUESTS_VIEW_OWN,
+    Permissions::LEAVE_REQUESTS_APPROVE_DIRECT_REPORTS, // D-69: "manager" is only the parent link, so anyone can be one
 
     Permissions::BANK_HOLIDAYS_VIEW_CALENDAR,
 ];
@@ -176,7 +177,6 @@ return [
             Permissions::LOGS_EDIT_LOCKED,
 
             Permissions::LEAVE_REQUESTS_VIEW_ANY, // D-56: admin reads every leave request (owner, 2026-11-13)
-            Permissions::LEAVE_REQUESTS_APPROVE_DIRECT_REPORTS,
         ],
         RoleName::Hr->value => [
             ...$employee,
@@ -198,7 +198,6 @@ return [
 
             Permissions::LEAVE_REQUESTS_VIEW_ANY,
             Permissions::LEAVE_REQUESTS_APPROVE,
-            Permissions::LEAVE_REQUESTS_APPROVE_DIRECT_REPORTS,
 
             Permissions::BANK_HOLIDAYS_MANAGE,
         ],

@@ -53,22 +53,38 @@ final class LeaveRequestPolicy
     }
 
     /**
-     * D-44 (confirmed by the owner): people cancel the requests they made themselves; HR (leave_requests.approve)
-     * and the superadmin (leave_requests.create_for_others) cancel any, including an approved one or a direct day off.
+     * D-44, D-71 (the owner's rules of 2026-11-22). "Taken" means today has reached the first day, in the employee's
+     * calendar. Up to then the requester (for a request they made themselves), HR and the superadmin cancel a pending
+     * or an approved request; from then on only the superadmin may cancel an approved one, and nobody a pending one.
+     * `cancel` stays under this policy for root (RootAccess::POLICY_ONLY), because a pending request that has started
+     * is not the superadmin's to cancel either: it is decided or rejected.
      */
     public function cancel(User $user, LeaveRequest $request): bool
     {
-        return $user->can(Permissions::LEAVE_REQUESTS_CREATE_FOR_OTHERS)
-            || $user->can(Permissions::LEAVE_REQUESTS_APPROVE)
-            || ($request->created_by === $user->getKey() && $request->user_id === $user->getKey() && $user->can(Permissions::LEAVE_REQUESTS_CREATE_OWN)
-                && ! $this->hasBegunAndWasApproved($request));
+        $started = $this->hasStarted($request);
+
+        if ($user->holdsRootAccess()) {
+            return ! $started || $request->status !== LeaveStatus::Pending;
+        }
+
+        $mayCancel = $user->can(Permissions::LEAVE_REQUESTS_APPROVE)
+            || ($request->created_by === $user->getKey() && $request->user_id === $user->getKey() && $user->can(Permissions::LEAVE_REQUESTS_CREATE_OWN));
+
+        return $mayCancel && ! $started;
     }
 
-    /** Approved leave that has already started is history: only HR and the superadmin may take it back. */
-    private function hasBegunAndWasApproved(LeaveRequest $request): bool
+    /** D-73: shortening approved leave, once the employee is back, is HR's and the superadmin's call, never for one's own leave. The action checks the status. */
+    public function returnEarly(User $user, LeaveRequest $request): bool
     {
-        return $request->status === LeaveStatus::Approved
-            && $request->start_date->toDateString() < WorkCalendar::today($request->user()->firstOrFail())->toDateString();
+        return $request->user_id !== $user->getKey()
+            && ($user->can(Permissions::LEAVE_REQUESTS_APPROVE) || $user->can(Permissions::LEAVE_REQUESTS_CREATE_FOR_OTHERS));
+    }
+
+    /** Pending or approved leave whose first day has come: the action itself explains why any other status cannot be cancelled. */
+    private function hasStarted(LeaveRequest $request): bool
+    {
+        return in_array($request->status, [LeaveStatus::Pending, LeaveStatus::Approved], true)
+            && $request->hasStarted(WorkCalendar::today($request->relationLoaded('user') ? $request->user : $request->user()->firstOrFail()));
     }
 
     private function isManagerOf(User $user, LeaveRequest $request): bool

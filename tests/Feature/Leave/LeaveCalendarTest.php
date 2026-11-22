@@ -642,7 +642,7 @@ it('D-07 BR-20 BR-21 decides and cancels from the details with the same rules as
 it('BR-20 offers no decision on your own request, and D-44 no cancel once the leave is taken', function (): void {
     $world = lcWorld();
     $hr = lcPerson($world, 'Hana', 'Hr', role: RoleName::Hr);
-    $own = lcLeave($hr, $world['annual'], '2026-06-10', status: LeaveStatus::Pending);
+    $own = lcLeave($hr, $world['annual'], '2026-06-22', status: LeaveStatus::Pending);
     $taken = lcLeave($world['employee'], $world['annual'], '2026-06-02', status: LeaveStatus::Taken);
 
     lcPage($hr)->assertActionHidden([TestAction::make('leaveDetails')->arguments(['id' => $own->id]), 'hrApprove'])

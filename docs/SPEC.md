@@ -139,7 +139,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 **D-07 — Leave approval chain.**
 
 - Source: leave is approved by the direct manager and HR. LeaveRequest has a single reviewer. Superadmin can approve.
-- Default: two stages, direct manager then HR, recorded in `leave_request_approvals`. The request becomes `approved` when both approve. Any rejection sets `rejected` and requires a note. Superadmin may decide at any stage. A requester with no manager skips the manager stage. `reviewed_by`, `reviewed_at`, `review_note` on `leave_requests` hold the final decision.
+- Default: two stages, direct manager then HR, recorded in `leave_request_approvals`. The request becomes `approved` when both approve. Any rejection sets `rejected` and requires a note. Superadmin may decide at any stage. A requester with no manager skips the manager stage. `reviewed_by`, `reviewed_at`, `review_note` on `leave_requests` hold the final decision. Who the approver is, who is told and the superadmin's own leave: D-70.
 - Confirm: no. The owner confirmed that both the direct manager and HR must approve.
 
 **D-08 — Leave policy vocabulary.**
@@ -358,7 +358,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 **D-44 — Who cancels and who sees leave. Decided by the owner (2026-11-12).**
 
 - Source: the grid has no cancel permission and no permission for a manager to see their reports' requests.
-- Default: a person cancels the requests they made for themselves while pending or approved (not taken). HR (`leave_requests.approve`) and the superadmin (`leave_requests.create_for_others`) cancel any request, including an approved one or a direct day off; a cancelled approved request writes a reversal. A direct manager sees their reports' requests through the `manager_id` relationship plus `leave_requests.approve_direct_reports` (D-28); `view_any` is superadmin and HR as in the grid. The Leave Calendar (the Calendar tab of Leave Requests) shows everybody's approved and taken leave to everybody (colleagues see each other's leave) and pending requests only to those who may see the request; holidays are the viewer's own country's (every country for people who see all leave).
+- Default: a person cancels the requests they made for themselves while pending or approved (not taken). HR (`leave_requests.approve`) and the superadmin (`leave_requests.create_for_others`) cancel any request, including an approved one or a direct day off, **until it is taken; from the first day on only the superadmin cancels (D-71)**; a cancelled approved request writes a reversal. A direct manager sees their reports' requests through the `manager_id` relationship plus `leave_requests.approve_direct_reports` (D-28); `view_any` is superadmin and HR as in the grid. The Leave Calendar (the Calendar tab of Leave Requests) shows everybody's approved and taken leave to everybody (colleagues see each other's leave) and pending requests only to those who may see the request; holidays are the viewer's own country's (every country for people who see all leave).
 - Confirm: no.
 
 **D-45 — Offboarding transitions and review immutability `[ASSUMED]`.**
@@ -504,6 +504,36 @@ Each entry: what the source says, the default this spec implements, and whether 
 - Source: the owner answered "keep as is this one, do not change it" about the employee Users list, and also asked that the Hierarchy is visible to everyone.
 - Default: D-54 stays, and employees get no Users list. The Hierarchy page of the later phase is a separate screen open to everyone, showing only name, avatar and job title.
 - Confirm: yes. Is that reading right, or should the Hierarchy live inside a Users screen for employees?
+
+**D-69 — Anyone can be a manager. Asked by the owner (2026-11-22).**
+
+- Source: the owner said "manager" is only the parent link (`manager_id`), not a role. The Manager select offers every active user, but only superadmin, admin and HR held `leave_requests.approve_direct_reports`, so a manager with another role could not act on the manager stage.
+- Default: `leave_requests.approve_direct_reports` joins the employee baseline, so every role holds it. It still only works for the people whose `manager_id` is the holder (D-28). The grid rows for admin and HR keep it through the baseline.
+- Confirm: no. The owner confirmed (2026-11-22).
+
+**D-70 — Who approves leave and who is told. Decided by the owner (2026-11-22).**
+
+- Source: the owner's brief for the leave workflow, and his answers about requesters without a manager.
+- Default: the approver of a request is the requester's manager, an HR user's included. With no manager, or a manager who is deactivated or anonymised, the approvers are the superadmins. When a request is made, the approver and all HR users (holders of `leave_requests.approve` who are not root) get an email and an in-app notification at once, after the commit. The requester is never told about their own request. D-07 stays: two stages, manager then HR (nobody decides their own, BR-20), except that an HR user's own leave has no HR stage: only their manager is told when it is made, and the manager's approval completes it (`LeaveApprovers::skipsHrStage`; with no manager the HR stage stays, so somebody can still decide it). A requester who has no manager and holds root access (the superadmin) is approved when they make the request, with the balance check and a deduction entry, and nobody is notified. A person without a manager who is not a superadmin goes through the normal flow: only the manager stage is skipped (D-07).
+- Confirm: no. The owner answered (2026-11-22): HR need not be told about a superadmin's own leave, and an HR user's leave skips the HR stage but their manager must still approve it.
+
+**D-71 — Cancelling leave. Decided by the owner (2026-11-22), amends D-44 and BR-19.**
+
+- Source: the owner's brief. "Taken" means today (the employee's calendar day, in Europe/Tirane for Albania) has reached the first day.
+- Default: a pending or approved request can be cancelled until it is taken by its requester (for a request they made themselves, D-44), by HR and by the superadmin. From the first day on, only the superadmin may cancel an approved request, at any time. Nobody cancels a pending request that has started; HR decides it or rejects it (D-72). The rule is in `LeaveRequestPolicy::cancel`, and `cancel` on a leave request is in `RootAccess::POLICY_ONLY` so root cannot cancel a started pending request either. The Cancel button is hidden by the same ability.
+- Confirm: yes. May the requester still cancel their own approved leave before it starts (kept from D-44)?
+
+**D-72 — Reminders, escalation and overdue requests. Decided by the owner (2026-11-22).**
+
+- Source: the owner's brief: never auto-approve.
+- Default: a daily job (`leave.remind-pending`, 09:00 Europe/Tirane, `task-logger.leave_reminder`) sends the approver one reminder when a request is still pending `days_before` (2) days before its first day; with no manager the reminder goes to HR and the superadmins. On the first day, if it is still pending, HR and the superadmins are told once. Both are claimed with a conditional update on `reminder_sent_at` and `escalated_at`, so running the job twice sends nothing twice. After the first day a pending request shows an "Overdue" badge and has an "Overdue" filter on Leave Requests; the status never changes. A run that was missed escalates on the next run.
+- Confirm: no. The owner accepted (2026-11-22) that a request made after its first day escalates on the next run.
+
+**D-73 — Back at work earlier. Asked by the owner (2026-11-22).**
+
+- Source: the owner asked that someone who requested five days and returns on the third day gets the remaining days back.
+- Default: HR (`leave_requests.approve`) and the superadmin (`leave_requests.create_for_others`) can use "Back at work earlier" on an approved request, but never on their own leave. It ends the leave on the day before the chosen return date, which must fall after the first day and on or before the last day, recomputes `days_requested` and writes a reversal entry for the working days no longer taken. The status stays approved, and taken leave is final (BR-19). A request with no working day left is cancelled instead.
+- Confirm: no. The owner confirmed (2026-11-22) that HR can do it too.
 
 ### 3.2 Confirm before coding
 
@@ -884,8 +914,8 @@ Each rule has an ID for traceability and testing (operating rule 6).
 - **BR-16** Day counting: `days_requested` counts working days only between start and end inclusive. Skip the country’s weekend days and the employee’s country bank holidays. A half day (am or pm) counts 0.5. Computed on the server, never trusted from input. A holiday that falls on a weekend has no effect on the count, except in a country that moves weekend holidays, where the working day that observes it is not charged either (D-62).
 - **BR-17** Half days: the first and last day can each be full, am or pm. A single-day request carries one part.
 - **BR-18** Entitlement: on 1 January (country timezone) a grant ledger entry is written per user and balance-affecting leave type from the active country policy, prorated by start date. For an employee who joins during the year, the grant for that year is written on the start date, prorated by remaining days. `[ASSUMED]` Policies have effective dates. Carry-over and expiry follow the country policy; carry-over is off by default (setting). Prorated values round to the nearest 0.5 day. `[ASSUMED D-08]`
-- **BR-19** Status flow: pending to approved, rejected or cancelled. Approved to taken or cancelled. Rejected, taken and cancelled are final. A scheduled job moves approved to taken after the end date. Cancelling an approved request that is not yet taken writes a reversal ledger entry.
-- **BR-20** Approvals follow D-07. An approver may not approve their own request. Superadmin may decide at any stage.
+- **BR-19** Status flow (cancelling: D-71; shortening approved leave: D-73): pending to approved, rejected or cancelled. Approved to taken or cancelled. Rejected, taken and cancelled are final. A scheduled job moves approved to taken after the end date. Cancelling an approved request that is not yet taken writes a reversal ledger entry.
+- **BR-20** Approvals follow D-07. An approver may not approve their own request. Superadmin may decide at any stage. Who approves and who is told: D-70; a superadmin has no manager, so their own request is approved when made (D-70).
 - **BR-21** Rejection requires `review_note`.
 - **BR-22** Direct day off: the superadmin can create a leave request for an employee (created\_by = superadmin) that skips approval, is stored as approved and is deducted from PTO or sick leave. Use case: the employee did not come to work and has no platform access.
 - **BR-23** No two active (pending or approved) requests for the same user may overlap. `[DERIVED]`
@@ -940,7 +970,7 @@ Each workflow names the actor, the steps and the rules that apply.
 **W-05 Leave request** (employee or admin for themselves)
 
 1. Create the request: type, start and end date, day parts, reason. The server computes `days_requested` (BR-16), checks overlap (BR-23) and balance (BR-24).
-2. The direct manager approves or rejects (BR-20). Rejection needs a note (BR-21).
+2. The direct manager (D-70) is told with HR, then approves or rejects (BR-20). Rejection needs a note (BR-21). A request still pending near its first day is reminded and escalated (D-72).
 3. HR approves or rejects.
 4. On final approval a deduction ledger entry is written and the leave shows on the calendar.
 5. After the end date a job sets the status to `taken` (BR-19).

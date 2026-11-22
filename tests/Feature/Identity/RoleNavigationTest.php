@@ -93,3 +93,29 @@ it('D-63 the employee still sees bank holidays on the Leave Requests calendar', 
     expect($holidays)->toContain('Founders Day');
     $this->get('/app/bank-holidays')->assertForbidden();
 })->group('D-63');
+
+/**
+ * @return array<string, list<string>> navigation group label => item labels, for the signed-in user
+ */
+function navigationGroupsFor(RoleName $role): array
+{
+    test()->actingAs(userWithRole($role));
+    Filament::setCurrentPanel('app');
+
+    return collect(Filament::getNavigation())
+        ->mapWithKeys(fn ($group): array => [(string) $group->getLabel() => collect($group->getItems())
+            ->map(fn ($item): string => (string) $item->getLabel())->values()->all()])
+        ->all();
+}
+
+it('the Tasks menu sits under Clients & projects for those who create tasks, and under Work for the rest', function (RoleName $role, string $group, string $other): void {
+    $groups = navigationGroupsFor($role);
+
+    expect($groups[$group])->toContain('Tasks')
+        ->and($groups[$other] ?? [])->not->toContain('Tasks');
+})->with([
+    'superadmin' => [RoleName::Superadmin, 'Clients & projects', 'Work'],
+    'admin' => [RoleName::Admin, 'Clients & projects', 'Work'],
+    'assistant' => [RoleName::Assistant, 'Work', 'Clients & projects'],
+    'employee' => [RoleName::Employee, 'Work', 'Clients & projects'],
+]);

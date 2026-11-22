@@ -54,6 +54,20 @@ final class TaskResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
+    /**
+     * People who create tasks (superadmin, admin) get Tasks under Clients & projects, so the
+     * client, project, task flow sits in one place. Everyone else keeps it under Work.
+     */
+    public static function getNavigationGroup(): string
+    {
+        return auth()->user()?->can(Permissions::TASKS_CREATE) ? 'Clients & projects' : 'Work';
+    }
+
+    public static function getNavigationSort(): int
+    {
+        return auth()->user()?->can(Permissions::TASKS_CREATE) ? 30 : 10;
+    }
+
     /** @return Builder<Model> */
     public static function getEloquentQuery(): Builder
     {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\People\Support;
 
+use App\Domain\Identity\Models\User;
 use Illuminate\Validation\ValidationException;
 use libphonenumber\PhoneNumberFormat;
 use libphonenumber\PhoneNumberType;
@@ -55,6 +56,29 @@ final class Phones
         }
 
         return new PhoneNumber($input, $countryCode)->formatE164();
+    }
+
+    /**
+     * The phone to store for a person's profile (D-60): a mobile of their country. A number that is already stored
+     * stays as it is, so an older landline never blocks an edit of another field.
+     *
+     * @throws ValidationException
+     */
+    public static function forProfile(User $employee, ?string $input, ?string $countryCode, string $field = 'phone'): ?string
+    {
+        $input = $input === null ? null : mb_trim($input);
+
+        if ($input === null || $input === '') {
+            return null;
+        }
+
+        $stored = $employee->profile()->value('phone');
+
+        if (is_string($stored) && self::isValid($input, $countryCode) && self::toE164($input, $countryCode) === $stored) {
+            return $stored;
+        }
+
+        return self::mobileToE164($input, $countryCode, $employee->country()->value('name'), $field);
     }
 
     public static function mobileMessage(?string $countryName, ?string $countryCode = null): string

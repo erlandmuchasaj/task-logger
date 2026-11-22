@@ -293,6 +293,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 
 - Default: on their own Profile page a user changes their password and two-factor setup; name and email are shown but only the superadmin changes them (they are HR data). Users have no right over their own HR record.
 - Confirm: yes. Should employees edit their own name, phone or emergency contacts?
+- Superseded by D-77 (2026-11-22): the owner allows self-editing of the listed fields.
 
 **D-34 — Minor units follow ISO 4217, not ICU.**
 
@@ -552,6 +553,14 @@ Each entry: what the source says, the default this spec implements, and whether 
 - Source: the owner's brief: on the last working day, around 09:00 Europe/Tirane, send the person a thank-you email; handle a changed last day and a cancellation; never send it twice.
 - Default: the daily job `people.offboarding-thanks` (`task-logger.offboarding_thanks`, 09:00 Europe/Tirane) emails a person whose offboarding is not cancelled and whose last day is today in their own calendar (BR-34). The email only, no in-app message, because the login may be switched off. Because the job reads the date and status when it runs, a last day moved earlier or later sends on the day it holds then, and a cancelled offboarding sends nothing. A completed offboarding still sends (the ban stops the login, not the address); an anonymised person has no address and gets nothing. The send is claimed with a conditional update on `offboardings.thanks_sent_at` before the mail goes, including a re-check of date and status, so two runs, or a run racing an edit or a cancel, send at most once. The claim is never undone: if the last day moves after the email went out, no second one is sent, and a person already thanked for an earlier offboarding that was cancelled is not thanked for a later one. A day on which the job did not run is not made up, and an offboarding created on its own last day after 09:00, or for a date in the past, sends nothing.
 - Confirm: no. The owner confirmed (2026-11-22) that a missed run is not repaired and that nothing is sent when the date changes after the email. Still open, not asked: a person offboarded with a last day in the past gets nothing (the default above).
+
+**D-77 — Employees edit their own details; leave dates are inclusive; the estimate report starts unfiltered. Asked by the owner (2026-11-22). Replaces D-33.**
+
+- Source: the owner's brief (Phase 4) and the answer to the open question on self-service editing: name, email, phone, date of birth, university, address, gender and marital status.
+- Default: every role holds `profile.update_own` through the employee baseline. The Profile page saves through `UpdateOwnProfile`, which only ever acts on the signed-in person (policy ability `updateOwnProfile`, kept under the policy for the superadmin too, so nobody edits someone else this way), and is refused while someone is impersonating (D-47). It writes the user's name, surname and email and the profile row's phone, date of birth, university, address, gender and marital status, and nothing else. Role, manager, position and employment type are shown and read-only. The phone must be a mobile of the person's country (D-60). A changed email needs the current password and must be unique; there is no verification email, because the login address is not confirmed anywhere else in the app either. **Deviation to confirm:** email editing contradicts D-14 and D-33, which kept the login address with the superadmin. Surname is editable with the name because the app shows both as one name. The profile page also has a "Back to dashboard" button.
+- Leave: a request keeps an inclusive start and end date (BR-16). The calendar is the app's own grid, not FullCalendar, so there is no exclusive end to convert; the calendar legend and the end-date field say "Selected dates are inclusive: the first and last day are both days off."
+- Estimated vs Logged: the project-status filter starts at "Any status" instead of Active. The filter itself stays.
+- Confirm: yes. Should an employee be able to change the login email without HR, and should a changed email be verified first?
 
 ### 3.2 Confirm before coding
 

@@ -28,6 +28,9 @@ final class Permissions
     /** D-65: change the HR record and skills of a user who holds root access. Without it only the HR record of everyone else can be changed. */
     public const string EMPLOYEES_EDIT_ROOT_PROFILE = 'employees.edit_root_profile';
 
+    /** D-77: change your own name, email, phone, date of birth, university, address, gender and marital status. Every role holds it through the employee baseline. */
+    public const string PROFILE_UPDATE_OWN = 'profile.update_own';
+
     /** [OPTIONAL] Act as another user (D-47). Superadmin only. */
     public const string EMPLOYEES_IMPERSONATE = 'employees.impersonate';
 

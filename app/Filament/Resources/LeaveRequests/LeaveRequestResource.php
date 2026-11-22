@@ -51,6 +51,9 @@ use UnitEnum;
  */
 final class LeaveRequestResource extends Resource
 {
+    /** D-77: both the first and the last chosen day are days off. */
+    public const string INCLUSIVE_NOTE = 'Selected dates are inclusive: the first and last day are both days off.';
+
     protected static ?string $model = LeaveRequest::class;
 
     protected static ?string $slug = 'leave-requests';
@@ -116,7 +119,8 @@ final class LeaveRequestResource extends Resource
                     ->mapWithKeys(fn (LeaveType $type): array => [$type->getKey() => $type->label()])->all()),
             DatePicker::make('start_date')->required()->live(condition: $live),
             Select::make('start_day_part')->label('First day')->options(DayPart::class)->default(DayPart::Full->value)->required()->native(false)->live(condition: $live),
-            DatePicker::make('end_date')->required()->afterOrEqual('start_date')->live(condition: $live),
+            DatePicker::make('end_date')->required()->afterOrEqual('start_date')->live(condition: $live)
+                ->helperText(self::INCLUSIVE_NOTE),
             Select::make('end_day_part')->label('Last day')->options(DayPart::class)->default(DayPart::Full->value)->required()->native(false)->live(condition: $live)
                 ->helperText('Ignored for a single-day request.'),
             Textarea::make('reason')->label($note ? 'Note' : 'Reason')->required($note)->rows(3)->columnSpanFull(),

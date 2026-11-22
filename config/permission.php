@@ -24,6 +24,8 @@ $employee = [
     Permissions::LEAVE_REQUESTS_APPROVE_DIRECT_REPORTS, // D-69: "manager" is only the parent link, so anyone can be one
 
     Permissions::BANK_HOLIDAYS_VIEW_CALENDAR,
+
+    Permissions::PROFILE_UPDATE_OWN,
 ];
 
 return [
@@ -112,6 +114,8 @@ return [
             Permissions::BANK_HOLIDAYS_MANAGE,
             Permissions::BANK_HOLIDAYS_VIEW,
             Permissions::BANK_HOLIDAYS_VIEW_CALENDAR,
+
+            Permissions::PROFILE_UPDATE_OWN,
 
             Permissions::COUNTRIES_CREATE,
             Permissions::COUNTRIES_MANAGE,

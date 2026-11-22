@@ -137,7 +137,7 @@ it('W-01 the set-password link stays valid for 72 hours', function (): void {
     expect(config('auth.passwords.users.expire'))->toBe(4320);
 });
 
-it('D-14 a user cannot change their own name or email on the profile page', function (): void {
+it('D-77 a user changes their own name on the profile page, and the email only with the current password', function (): void {
     $employee = userWithRole(RoleName::Employee);
     $employee->update(['name' => 'Original', 'email' => 'original@example.test']);
     Filament::setCurrentPanel('app');
@@ -145,11 +145,20 @@ it('D-14 a user cannot change their own name or email on the profile page', func
 
     Livewire::test(EditProfile::class)
         ->fillForm(['name' => 'Renamed', 'email' => 'renamed@example.test'])
-        ->call('save');
+        ->call('save')
+        ->assertHasFormErrors(['currentPassword']);
 
     expect($employee->fresh()->name)->toBe('Original')
         ->and($employee->fresh()->email)->toBe('original@example.test');
-});
+
+    Livewire::test(EditProfile::class)
+        ->fillForm(['name' => 'Renamed', 'email' => 'renamed@example.test', 'currentPassword' => 'password'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($employee->fresh()->name)->toBe('Renamed')
+        ->and($employee->fresh()->email)->toBe('renamed@example.test');
+})->group('D-77', 'D-14');
 
 it('FR-01 the employee list actions follow permissions', function (): void {
     $employee = userWithRole(RoleName::Employee);

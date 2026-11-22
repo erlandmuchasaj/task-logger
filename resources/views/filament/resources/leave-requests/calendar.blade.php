@@ -165,6 +165,7 @@
         <span class="flex items-center gap-1"><span class="inline-block size-3 rounded bg-sky-100 ring-1 ring-sky-600 dark:bg-sky-500/20 dark:ring-sky-400"></span> Yours</span>
         @if ($canRequest)
             <span>Click a day, or drag across days, to request leave.</span>
+            <span>{{ \App\Filament\Resources\LeaveRequests\LeaveRequestResource::INCLUSIVE_NOTE }}</span>
         @endif
     </p>
 

@@ -15,6 +15,7 @@ use App\Domain\MasterData\Enums\WeekendHolidayRule;
 use App\Domain\MasterData\Models\BankHoliday;
 use App\Domain\MasterData\Models\Country;
 use App\Domain\MasterData\Models\LeaveType;
+use App\Filament\Resources\LeaveRequests\LeaveRequestResource;
 use App\Filament\Resources\LeaveRequests\Pages\ManageLeaveRequests;
 use App\Filament\Resources\LeaveRequests\Support\LeaveCalendar;
 use Carbon\CarbonImmutable;
@@ -760,3 +761,22 @@ it('D-62 shows an observed day in the month after its holiday, and nothing obser
     expect(lcDay($page, '2026-06-01')['holidays'])->toBe(['Spring Day (observed)'])
         ->and(lcDay($page, '2026-06-02')['holidays'])->toBe([]);
 })->group('D-62');
+
+it('D-77 BR-16 a dragged range is stored and counted with both the first and the last day, and the page says so', function (): void {
+    $world = lcWorld();
+    $page = lcPage($world['employee']);
+
+    $page->assertSee(LeaveRequestResource::INCLUSIVE_NOTE);
+
+    // Wednesday to Friday, picked on the calendar.
+    $page->mountAction('request', ['start' => '2026-06-10', 'end' => '2026-06-12'])
+        ->setActionData(['leave_type_id' => $world['annual']->id])
+        ->callMountedAction()
+        ->assertHasNoActionErrors();
+
+    $request = LeaveRequest::query()->where('user_id', $world['employee']->id)->sole();
+
+    expect($request->start_date->toDateString())->toBe('2026-06-10')
+        ->and($request->end_date->toDateString())->toBe('2026-06-12')
+        ->and($request->days_requested)->toBe('3.0');
+})->group('D-77', 'BR-16');

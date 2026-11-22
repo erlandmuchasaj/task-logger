@@ -38,7 +38,7 @@ final class RootAccess
     private const array POLICY_ONLY = [
         Activity::class => ['create', 'update', 'delete', 'restore', 'forceDelete'],
         Salary::class => ['update', 'delete', 'restore', 'forceDelete'],
-        User::class => ['delete', 'restore', 'forceDelete'],
+        User::class => ['delete', 'restore', 'forceDelete', 'updateOwnProfile'],
         Customer::class => ['delete', 'restore', 'forceDelete'],
         Export::class => ['view', 'download', 'create', 'update', 'delete'],
         Performance::class => ['update', 'delete', 'restore', 'forceDelete'],

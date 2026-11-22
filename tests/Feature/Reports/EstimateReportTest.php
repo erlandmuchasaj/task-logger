@@ -175,3 +175,14 @@ it('M7 the page shows hours to everyone allowed and prices only to rate holders'
     $this->actingAs(userWithRole(RoleName::Assistant));
     Livewire::test(EstimateVsLogged::class)->assertSee('1.50')->assertDontSee('EUR 30.00')->assertDontSee('Logged value');
 })->group('M7', 'D-05');
+
+it('D-77 the page opens with every project status, not only Active', function (): void {
+    [$project] = reportProject();
+    $project->update(['status' => ProjectStatus::Completed]);
+
+    $this->actingAs(userWithRole(RoleName::Admin));
+
+    Livewire::test(EstimateVsLogged::class)
+        ->assertSet('data.status', null)
+        ->assertSee($project->name);
+})->group('D-77');

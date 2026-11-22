@@ -51,7 +51,7 @@ final class EstimateVsLogged extends Page
     {
         abort_unless(self::canAccess(), 403);
 
-        $this->getSchema('form')?->fill(['status' => ProjectStatus::Active->value]);
+        $this->getSchema('form')?->fill();
     }
 
     public function form(Schema $schema): Schema

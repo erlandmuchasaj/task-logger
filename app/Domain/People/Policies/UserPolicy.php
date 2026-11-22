@@ -54,6 +54,12 @@ final class UserPolicy
         return $user->can(Permissions::EMPLOYEES_UPDATE_HR_RECORD) && $this->mayTouchProfileOf($user, $employee);
     }
 
+    /** D-77: only the person themselves, and only with the profile.update_own permission. */
+    public function updateOwnProfile(User $user, User $employee): bool
+    {
+        return $user->is($employee) && $user->can(Permissions::PROFILE_UPDATE_OWN);
+    }
+
     /** D-65: skills follow the HR record, or the account right for those who hold it. */
     public function updateSkills(User $user, User $employee): bool
     {

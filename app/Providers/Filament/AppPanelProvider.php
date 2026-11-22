@@ -42,7 +42,7 @@ final class AppPanelProvider extends PanelProvider
             ->viteTheme('resources/css/filament/app/theme.css')
             ->login()
             ->passwordReset()
-            ->profile(EditProfile::class)
+            ->profile(EditProfile::class, isSimple: false)
             ->databaseNotifications()
             ->databaseNotificationsPolling('30s')
             ->globalSearch(LockedGlobalSearchProvider::class)

@@ -8,6 +8,8 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Permissions;
 use App\Domain\Leave\Enums\LeaveStatus;
 use App\Domain\MasterData\Models\LeaveType;
+use App\Filament\Resources\LeaveRequests\LeaveRequestResource;
+use Filament\Actions\ActionGroup;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -17,8 +19,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 /**
- * The person's leave requests on their employee page (read-only; decisions stay on the Leave Requests
- * screen). Visible with leave_requests.view_any, or to the person's direct manager (as LeaveRequestPolicy).
+ * The person's leave requests on their employee page. The list is read-only; the decision buttons are the
+ * Leave Requests screen's own row actions (approve, reject, cancel, back at work earlier), so each one shows
+ * only to a viewer the LeaveRequestPolicy lets act and goes through DecideLeave, CancelLeave or ReturnFromLeave.
+ * Visible with leave_requests.view_any, or to the person's direct manager (as LeaveRequestPolicy).
  */
 final class LeaveRequestsRelationManager extends RelationManager
 {
@@ -43,7 +47,7 @@ final class LeaveRequestsRelationManager extends RelationManager
     {
         return $table
             ->heading('Leave requests')
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('leaveType'))
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['user', 'leaveType', 'approvals']))
             ->columns([
                 TextColumn::make('leaveType.name')->label('Type')->badge()->color('info')
                     ->formatStateUsing(fn (string $state): string => Str::headline($state)),
@@ -59,6 +63,7 @@ final class LeaveRequestsRelationManager extends RelationManager
                 SelectFilter::make('leave_type')->label('Type')->relationship('leaveType', 'name')
                     ->getOptionLabelFromRecordUsing(fn (LeaveType $record): string => $record->label()),
             ])
+            ->recordActions([ActionGroup::make(LeaveRequestResource::recordActions())])
             ->defaultSort('start_date', 'desc')
             ->emptyStateHeading('No leave requests yet');
     }

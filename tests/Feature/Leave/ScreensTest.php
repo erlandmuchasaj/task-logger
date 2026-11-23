@@ -10,6 +10,8 @@ use App\Domain\Leave\Enums\ApprovalStage;
 use App\Domain\Leave\Enums\LeaveStatus;
 use App\Domain\Leave\Models\LeaveRequest;
 use App\Domain\MasterData\Models\BankHoliday;
+use App\Filament\Resources\Employees\Pages\EditEmployee;
+use App\Filament\Resources\Employees\RelationManagers\LeaveRequestsRelationManager;
 use App\Filament\Resources\LeaveRequests\LeaveRequestResource;
 use App\Filament\Resources\LeaveRequests\Pages\ManageLeaveRequests;
 use Illuminate\Support\Facades\Date;
@@ -199,3 +201,62 @@ it('M5 the leave screens render for every role without N+1 queries', function (R
 
     $this->get('/app/my-leave')->assertOk();
 })->with([RoleName::Superadmin, RoleName::Admin, RoleName::Hr, RoleName::Assistant, RoleName::Employee])->group('NFR-09');
+
+it('D-07 D-28 the employee page Leave requests tab gives the manager and HR their decision buttons', function (): void {
+    Date::setTestNow('2026-05-25');
+    $world = leaveWorld();
+    $request = LeaveRequest::factory()->create([
+        'user_id' => $world['employee']->id, 'created_by' => $world['employee']->id, 'leave_type_id' => $world['annual']->id,
+        'start_date' => '2026-06-01', 'end_date' => '2026-06-02', 'days_requested' => '2.0',
+    ]);
+    $tab = fn () => Livewire::test(LeaveRequestsRelationManager::class, ['ownerRecord' => $world['employee'], 'pageClass' => EditEmployee::class]);
+
+    $this->actingAs($world['manager']);
+    $tab()->assertCanSeeTableRecords([$request])
+        ->assertTableActionVisible('managerApprove', $request)
+        ->assertTableActionHidden('hrApprove', $request)
+        ->callTableAction('managerApprove', $request);
+
+    expect($request->refresh()->stageDecision(ApprovalStage::Manager)?->decision)->toBe(ApprovalDecision::Approved);
+
+    $this->actingAs($world['hr']);
+    $tab()->assertTableActionHidden('managerApprove', $request)
+        ->assertTableActionVisible('hrApprove', $request)
+        ->callTableAction('hrApprove', $request);
+
+    expect($request->refresh()->status)->toBe(LeaveStatus::Approved);
+
+    $this->actingAs($world['hr']);
+    $tab()->assertTableActionVisible('cancel', $request);
+})->group('D-07', 'D-28');
+
+it('BR-20 D-07 the employee page Leave requests tab shows the superadmin both stages and gives nobody buttons on their own request', function (): void {
+    Date::setTestNow('2026-05-25');
+    $world = leaveWorld();
+    $request = LeaveRequest::factory()->create([
+        'user_id' => $world['employee']->id, 'created_by' => $world['employee']->id, 'leave_type_id' => $world['annual']->id,
+    ]);
+    $own = LeaveRequest::factory()->create([
+        'user_id' => $world['hr']->id, 'created_by' => $world['hr']->id, 'leave_type_id' => $world['annual']->id,
+    ]);
+    $tab = fn (User $owner) => Livewire::test(LeaveRequestsRelationManager::class, ['ownerRecord' => $owner, 'pageClass' => EditEmployee::class]);
+
+    $this->actingAs(userWithRole(RoleName::Superadmin));
+    $tab($world['employee'])->assertTableActionVisible('managerApprove', $request)->assertTableActionVisible('cancel', $request);
+
+    $this->actingAs($world['hr']);
+    $tab($world['hr'])->assertCanSeeTableRecords([$own])
+        ->assertTableActionHidden('hrApprove', $own)
+        ->assertTableActionHidden('managerApprove', $own);
+})->group('BR-20', 'D-07');
+
+it('D-28 only the direct manager, HR and the superadmin get the Leave requests tab and its buttons', function (): void {
+    $world = leaveWorld();
+    $page = EditEmployee::class;
+
+    $this->actingAs($world['colleague']); // an employee who does not manage this person
+    expect(LeaveRequestsRelationManager::canViewForRecord($world['employee'], $page))->toBeFalse();
+
+    $this->actingAs($world['manager']);
+    expect(LeaveRequestsRelationManager::canViewForRecord($world['employee'], $page))->toBeTrue();
+})->group('D-28');

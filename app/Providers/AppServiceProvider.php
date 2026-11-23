@@ -150,8 +150,9 @@ final class AppServiceProvider extends ServiceProvider
 
         // NFR-05 / D-50: passwords of 12 or more characters, mixed case and a number (and not found in known
         // breaches in production). HTTPS is forced outside local and testing by nunomaduro/essentials (ForceScheme).
-        Password::defaults(fn (): Password => $this->app->isProduction()
-            ? Password::min(12)->mixedCase()->numbers()->uncompromised()
+        Password::defaults(fn (): ?Password => app()->isProduction()
+            ? Password::min(12)->letters()->mixedCase()->numbers()->symbols()->max(255)->uncompromised()
             : Password::min(12)->mixedCase()->numbers());
+
     }
 }

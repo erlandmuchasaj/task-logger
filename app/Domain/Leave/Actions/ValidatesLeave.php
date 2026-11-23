@@ -7,6 +7,8 @@ namespace App\Domain\Leave\Actions;
 use App\Domain\Identity\Models\User;
 use App\Domain\Leave\Data\LeaveRequestData;
 use App\Domain\Leave\Enums\LeaveStatus;
+use App\Domain\Leave\Enums\LedgerEntryType;
+use App\Domain\Leave\Models\LeaveLedgerEntry;
 use App\Domain\Leave\Models\LeaveRequest;
 use App\Domain\Leave\Support\Days;
 use App\Domain\Leave\Support\LeaveBalance;
@@ -88,6 +90,34 @@ trait ValidatesLeave
             throw ValidationException::withMessages(['days' => 'Not enough balance: '.Days::format($tenths).' days requested, '
                 .Days::format(max($available, 0)).' available.']);
         }
+    }
+
+    /**
+     * Final approval of a balance-affecting request (BR-24 checked again): the deduction is dated the first day.
+     * The request's own days are no longer "pending" once approved, so they are excluded from the reservation.
+     *
+     * @throws ValidationException
+     */
+    protected function writeDeduction(LeaveRequest $request, User $employee, LeaveType $type, ?User $actor): void
+    {
+        if (! $type->affects_balance) {
+            return;
+        }
+
+        $tenths = Days::tenths((string) $request->days_requested);
+
+        $this->assertBalance($employee, $type, $tenths, (int) $request->getKey());
+
+        LeaveLedgerEntry::query()->create([
+            'user_id' => $request->user_id,
+            'leave_type_id' => $request->leave_type_id,
+            'entry_type' => LedgerEntryType::Deduction,
+            'days' => Days::format(-$tenths),
+            'effective_on' => $request->start_date->toDateString(),
+            'leave_request_id' => $request->getKey(),
+            'note' => $actor instanceof User ? 'Approved leave' : 'Approved leave (automatically, D-84)',
+            'created_by' => $actor?->getKey(),
+        ]);
     }
 
     /** Serialises everything that touches one person's balance, like the daily log cap does for logs. */

@@ -356,5 +356,5 @@ it('D-56 an admin sees every leave request, including on the employee page tab',
 
     $this->actingAs($admin);
     expect(LeaveRequestsRelationManager::canViewForRecord($employee, EditEmployee::class))->toBeTrue();
-    Livewire::test(ManageLeaveRequests::class)->assertCanSeeTableRecords([$leave]);
+    Livewire::test(ManageLeaveRequests::class)->set('activeTab', 'table')->assertCanSeeTableRecords([$leave]);
 });

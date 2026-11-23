@@ -26,7 +26,7 @@ use Spatie\Activitylog\Models\Activity;
  * A few abilities are NOT overridden because the spec makes them impossible on purpose or ties them to
  * their owner; root falls through to the policy for these, which denies them:
  *  - the audit trail is read-only (BR-32);
- *  - salary history is append-only (BR-29);
+ *  - salary rows are never deleted (BR-29); a correction is allowed (D-83);
  *  - users and clients are never hard-deleted, they are deactivated (SPEC 5.0, BR-31);
  *  - an export file belongs to the person who requested it (BR-33);
  *  - performance reviews are never edited or deleted, and offboardings are cancelled, not deleted (D-45);
@@ -37,7 +37,7 @@ final class RootAccess
     /** @var array<class-string, list<string>> model => abilities that stay under their policy */
     private const array POLICY_ONLY = [
         Activity::class => ['create', 'update', 'delete', 'restore', 'forceDelete'],
-        Salary::class => ['update', 'delete', 'restore', 'forceDelete'],
+        Salary::class => ['delete', 'restore', 'forceDelete'],
         User::class => ['delete', 'restore', 'forceDelete', 'updateOwnProfile'],
         Customer::class => ['delete', 'restore', 'forceDelete'],
         Export::class => ['view', 'download', 'create', 'update', 'delete'],

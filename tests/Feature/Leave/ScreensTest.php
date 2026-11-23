@@ -37,7 +37,7 @@ it('FR-29 an employee requests leave from the Leave Requests page and sees only 
 
     $this->actingAs($world['employee']);
 
-    Livewire::test(ManageLeaveRequests::class)
+    Livewire::test(ManageLeaveRequests::class)->set('activeTab', 'table')
         ->callAction('request', [
             'leave_type_id' => $world['annual']->id, 'start_date' => '2026-06-01', 'end_date' => '2026-06-03',
             'start_day_part' => 'full', 'end_day_part' => 'full', 'reason' => 'Holiday',
@@ -46,7 +46,7 @@ it('FR-29 an employee requests leave from the Leave Requests page and sees only 
 
     $mine = LeaveRequest::query()->where('user_id', $world['employee']->id)->sole();
 
-    Livewire::test(ManageLeaveRequests::class)
+    Livewire::test(ManageLeaveRequests::class)->set('activeTab', 'table')
         ->assertCanSeeTableRecords([$mine])
         ->assertCanNotSeeTableRecords([$theirs]);
 
@@ -57,7 +57,7 @@ it('FR-29 shows the reason when a request is refused', function (): void {
     $world = leaveWorld();
     $this->actingAs($world['employee']);
 
-    Livewire::test(ManageLeaveRequests::class)
+    Livewire::test(ManageLeaveRequests::class)->set('activeTab', 'table')
         ->callAction('request', [
             'leave_type_id' => $world['annual']->id, 'start_date' => '2026-06-06', 'end_date' => '2026-06-07',
             'start_day_part' => 'full', 'end_day_part' => 'full',
@@ -67,28 +67,51 @@ it('FR-29 shows the reason when a request is refused', function (): void {
     expect(LeaveRequest::query()->count())->toBe(0);
 })->group('FR-29');
 
-it("D-07 D-28 FR-30 the manager sees reports' requests and the stage buttons appear in order", function (): void {
+it("D-07 D-28 D-85 FR-30 the manager sees reports' requests, each person has their own stage button, and either may decide first", function (): void {
     $world = leaveWorld();
     $request = LeaveRequest::factory()->create([
         'user_id' => $world['employee']->id, 'created_by' => $world['employee']->id, 'leave_type_id' => $world['annual']->id,
         'start_date' => '2026-06-01', 'end_date' => '2026-06-02', 'days_requested' => '2.0',
     ]);
 
+    $this->actingAs($world['hr']);
+    Livewire::test(ManageLeaveRequests::class)->set('activeTab', 'table')
+        ->assertTableActionHidden('managerApprove', $request)
+        ->assertTableActionVisible('hrApprove', $request)
+        ->callTableAction('hrApprove', $request);
+
+    expect($request->refresh()->status)->toBe(LeaveStatus::Pending);
+
     $this->actingAs($world['manager']);
-    Livewire::test(ManageLeaveRequests::class)
+    Livewire::test(ManageLeaveRequests::class)->set('activeTab', 'table')
         ->assertCanSeeTableRecords([$request])
         ->assertTableActionVisible('managerApprove', $request)
         ->assertTableActionHidden('hrApprove', $request)
         ->callTableAction('managerApprove', $request);
 
-    $this->actingAs($world['hr']);
-    Livewire::test(ManageLeaveRequests::class)
-        ->assertTableActionHidden('managerApprove', $request)
-        ->assertTableActionVisible('hrApprove', $request)
-        ->callTableAction('hrApprove', $request);
-
     expect($request->refresh()->status)->toBe(LeaveStatus::Approved);
-})->group('D-07', 'D-28', 'FR-30');
+})->group('D-07', 'D-28', 'D-85', 'FR-30');
+
+it('D-86 a manager who is also HR or the superadmin sees only the manager buttons, and one approval completes both stages', function (): void {
+    foreach ([RoleName::Hr, RoleName::Superadmin] as $role) {
+        $manager = User::factory()->withRole($role)->create();
+        $world = leaveSetup(manager: $manager);
+        grantDays($world['employee'], $world['annual'], '10.0');
+        $request = LeaveRequest::factory()->create([
+            'user_id' => $world['employee']->id, 'created_by' => $world['employee']->id, 'leave_type_id' => $world['annual']->id,
+        ]);
+
+        $this->actingAs($manager);
+        Livewire::test(ManageLeaveRequests::class)->set('activeTab', 'table')
+            ->assertTableActionVisible('managerApprove', $request)
+            ->assertTableActionVisible('managerReject', $request)
+            ->assertTableActionHidden('hrApprove', $request)
+            ->assertTableActionHidden('hrReject', $request)
+            ->callTableAction('managerApprove', $request);
+
+        expect($request->refresh()->status)->toBe(LeaveStatus::Approved);
+    }
+})->group('D-86');
 
 it('BR-21 rejecting from the screen needs a note', function (): void {
     $world = leaveWorld();
@@ -97,13 +120,13 @@ it('BR-21 rejecting from the screen needs a note', function (): void {
     ]);
 
     $this->actingAs($world['manager']);
-    Livewire::test(ManageLeaveRequests::class)
+    Livewire::test(ManageLeaveRequests::class)->set('activeTab', 'table')
         ->callTableAction('managerReject', $request, ['note' => ''])
         ->assertHasTableActionErrors(['note' => 'required']);
 
     expect($request->refresh()->status)->toBe(LeaveStatus::Pending);
 
-    Livewire::test(ManageLeaveRequests::class)->callTableAction('managerReject', $request, ['note' => 'Release week']);
+    Livewire::test(ManageLeaveRequests::class)->set('activeTab', 'table')->callTableAction('managerReject', $request, ['note' => 'Release week']);
 
     expect($request->refresh())->status->toBe(LeaveStatus::Rejected)->review_note->toBe('Release week');
 })->group('BR-21');
@@ -116,7 +139,7 @@ it('BR-20 nobody gets decision buttons on their own request', function (): void 
     ]);
 
     $this->actingAs($world['hr']);
-    Livewire::test(ManageLeaveRequests::class)
+    Livewire::test(ManageLeaveRequests::class)->set('activeTab', 'table')
         ->assertCanSeeTableRecords([$request])
         ->assertTableActionHidden('hrApprove', $request)
         ->assertTableActionVisible('cancel', $request);
@@ -127,10 +150,10 @@ it('W-06 BR-22 only the superadmin sees Record a day off, and it deducts the bal
     grantDays($world['employee'], $world['sick'], '3.0');
 
     $this->actingAs($world['hr']);
-    Livewire::test(ManageLeaveRequests::class)->assertActionHidden('dayOff');
+    Livewire::test(ManageLeaveRequests::class)->set('activeTab', 'table')->assertActionHidden('dayOff');
 
     $this->actingAs(userWithRole(RoleName::Superadmin));
-    Livewire::test(ManageLeaveRequests::class)
+    Livewire::test(ManageLeaveRequests::class)->set('activeTab', 'table')
         ->assertActionVisible('dayOff')
         ->callAction('dayOff', [
             'user_id' => $world['employee']->id, 'leave_type_id' => $world['sick']->id, 'start_date' => '2026-06-01', 'end_date' => '2026-06-01',

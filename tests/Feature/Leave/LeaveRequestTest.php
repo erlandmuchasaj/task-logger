@@ -79,7 +79,7 @@ it('BR-24 FR-29 cannot exceed the balance minus pending, and non-balance types a
         ->and(resolve(RequestLeave::class)->handle($setup['employee'], leaveData($setup['unpaid'], '2026-07-01', '2026-07-31')))->status->toBe(LeaveStatus::Pending);
 })->group('BR-24', 'FR-29');
 
-it('D-07 BR-20 FR-30 needs the manager and then HR; final approval deducts the balance', function (): void {
+it('D-07 BR-20 FR-30 needs the manager and HR; final approval deducts the balance', function (): void {
     $setup = approvalSetup();
     $request = pendingRequest($setup);
 
@@ -113,12 +113,106 @@ it('D-07 skips the manager stage when the employee has no manager', function ():
     expect($request->refresh()->status)->toBe(LeaveStatus::Approved);
 })->group('D-07', 'FR-30');
 
-it('D-07 HR cannot decide before the manager', function (): void {
+it('D-85 HR may approve before the manager: the request waits, the manager completes it and the deduction is written once', function (): void {
     $setup = approvalSetup();
+    $request = pendingRequest($setup);
 
-    expect(fn () => resolve(DecideLeave::class)->handle($setup['hr'], pendingRequest($setup), ApprovalStage::Hr, ApprovalDecision::Approved))
-        ->toThrow(ValidationException::class, 'manager must decide');
-})->group('D-07');
+    resolve(DecideLeave::class)->handle($setup['hr'], $request, ApprovalStage::Hr, ApprovalDecision::Approved);
+
+    expect($request->refresh()->status)->toBe(LeaveStatus::Pending)
+        ->and(LeaveBalance::balance($setup['employee'], $setup['annual']->id))->toBe(100)
+        ->and(LeaveLedgerEntry::query()->where('leave_request_id', $request->id)->count())->toBe(0);
+
+    resolve(DecideLeave::class)->handle($setup['manager'], $request, ApprovalStage::Manager, ApprovalDecision::Approved);
+
+    expect($request->refresh())->status->toBe(LeaveStatus::Approved)->reviewed_by->toBe($setup['manager']->id)
+        ->and($request->approvals)->toHaveCount(2)
+        ->and(LeaveLedgerEntry::query()->where('leave_request_id', $request->id)->where('entry_type', LedgerEntryType::Deduction)->count())->toBe(1)
+        ->and(LeaveBalance::balance($setup['employee'], $setup['annual']->id))->toBe(80);
+})->group('D-85', 'D-07');
+
+it('D-85 a rejection ends the request at either stage, whichever decided first', function (): void {
+    $setup = approvalSetup();
+    $hrApproved = pendingRequest($setup);
+    resolve(DecideLeave::class)->handle($setup['hr'], $hrApproved, ApprovalStage::Hr, ApprovalDecision::Approved);
+    resolve(DecideLeave::class)->handle($setup['manager'], $hrApproved, ApprovalStage::Manager, ApprovalDecision::Rejected, 'Release week');
+
+    $hrRejected = pendingRequest($setup, '2026-06-08', '2026-06-09');
+    resolve(DecideLeave::class)->handle($setup['hr'], $hrRejected, ApprovalStage::Hr, ApprovalDecision::Rejected, 'Not this week');
+
+    expect($hrApproved->refresh())->status->toBe(LeaveStatus::Rejected)
+        ->and($hrRejected->refresh())->status->toBe(LeaveStatus::Rejected)->review_note->toBe('Not this week')
+        ->and(LeaveBalance::balance($setup['employee'], $setup['annual']->id))->toBe(100)
+        ->and(fn () => resolve(DecideLeave::class)->handle($setup['manager'], $hrRejected, ApprovalStage::Manager, ApprovalDecision::Approved))->toThrow(ValidationException::class, 'pending');
+})->group('D-85', 'BR-21');
+
+it("D-85 each stage is decided once, and the manager stage stays the manager's", function (): void {
+    $setup = approvalSetup();
+    $request = pendingRequest($setup);
+    resolve(DecideLeave::class)->handle($setup['hr'], $request, ApprovalStage::Hr, ApprovalDecision::Approved);
+
+    expect(fn () => resolve(DecideLeave::class)->handle($setup['hr'], $request, ApprovalStage::Hr, ApprovalDecision::Approved))->toThrow(ValidationException::class, 'already been decided')
+        ->and(fn () => resolve(DecideLeave::class)->handle($setup['hr'], $request, ApprovalStage::Manager, ApprovalDecision::Approved))->toThrow(AuthorizationException::class)
+        ->and($request->refresh()->status)->toBe(LeaveStatus::Pending);
+})->group('D-85');
+
+it('D-86 a manager who is also HR or the superadmin completes both stages with one approval', function (): void {
+    foreach ([[RoleName::Hr, ApprovalStage::Manager], [RoleName::Hr, ApprovalStage::Hr], [RoleName::Superadmin, ApprovalStage::Manager]] as [$role, $stage]) {
+        $manager = User::factory()->withRole($role)->create();
+        $setup = leaveSetup(manager: $manager);
+        grantDays($setup['employee'], $setup['annual'], '10.0');
+        $request = pendingRequest($setup);
+
+        resolve(DecideLeave::class)->handle($manager, $request, $stage, ApprovalDecision::Approved);
+
+        expect($request->refresh())->status->toBe(LeaveStatus::Approved)->reviewed_by->toBe($manager->id)
+            ->and($request->approvals)->toHaveCount(2)
+            ->and(LeaveLedgerEntry::query()->where('user_id', $setup['employee']->id)->where('entry_type', LedgerEntryType::Deduction)->count())->toBe(1);
+    }
+})->group('D-86');
+
+it('D-86 a manager without the HR stage still waits for HR, and a manager who is HR can reject with a note', function (): void {
+    $setup = approvalSetup();
+    $request = pendingRequest($setup);
+
+    resolve(DecideLeave::class)->handle($setup['manager'], $request, ApprovalStage::Manager, ApprovalDecision::Approved);
+
+    expect($request->refresh()->status)->toBe(LeaveStatus::Pending)
+        ->and(fn () => resolve(DecideLeave::class)->handle($setup['manager'], $request, ApprovalStage::Hr, ApprovalDecision::Approved))->toThrow(AuthorizationException::class);
+
+    $hrManager = User::factory()->withRole(RoleName::Hr)->create();
+    $other = leaveSetup(manager: $hrManager);
+    grantDays($other['employee'], $other['annual'], '10.0');
+    $rejected = pendingRequest($other);
+
+    expect(fn () => resolve(DecideLeave::class)->handle($hrManager, $rejected, ApprovalStage::Manager, ApprovalDecision::Rejected))->toThrow(ValidationException::class);
+
+    resolve(DecideLeave::class)->handle($hrManager, $rejected, ApprovalStage::Manager, ApprovalDecision::Rejected, 'No cover');
+
+    expect($rejected->refresh()->status)->toBe(LeaveStatus::Rejected);
+})->group('D-86');
+
+it('D-86 an employee without a manager needs only the HR stage', function (): void {
+    $setup = leaveSetup();
+    grantDays($setup['employee'], $setup['annual'], '10.0');
+    $hr = User::factory()->withRole(RoleName::Hr)->create();
+    $request = pendingRequest($setup);
+
+    resolve(DecideLeave::class)->handle($hr, $request, ApprovalStage::Hr, ApprovalDecision::Approved);
+
+    expect($request->refresh())->status->toBe(LeaveStatus::Approved)->and($request->approvals)->toHaveCount(1);
+})->group('D-86', 'D-07');
+
+it('D-86 the superadmin who is not the manager still decides either stage', function (): void {
+    $setup = approvalSetup();
+    $root = User::factory()->withRole(RoleName::Superadmin)->create();
+    $request = pendingRequest($setup);
+
+    resolve(DecideLeave::class)->handle($root, $request, ApprovalStage::Hr, ApprovalDecision::Approved);
+    resolve(DecideLeave::class)->handle($root, $request, ApprovalStage::Manager, ApprovalDecision::Approved);
+
+    expect($request->refresh()->status)->toBe(LeaveStatus::Approved);
+})->group('D-86');
 
 it('BR-21 a rejection needs a note and ends the request without touching the balance', function (): void {
     $setup = approvalSetup();

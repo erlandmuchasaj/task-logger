@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Exports\Actions\PruneExports;
+use App\Domain\Leave\Actions\AutoApproveOverdueLeave;
 use App\Domain\Leave\Actions\ExpireCarryOver;
 use App\Domain\Leave\Actions\GrantAnnualLeave;
 use App\Domain\Leave\Actions\MarkLeaveTaken;
@@ -41,6 +42,13 @@ Schedule::call(fn () => resolve(SendLeaveReminders::class)->handle())
     ->name('leave.remind-pending')
     ->dailyAt((string) config('task-logger.leave_reminder.run_at'))
     ->timezone((string) config('task-logger.leave_reminder.timezone'))
+    ->withoutOverlapping();
+
+// D-84: leave nobody decided before its first day passed is approved, twice a day. Idempotent, and a run never overlaps the last.
+Schedule::call(fn () => resolve(AutoApproveOverdueLeave::class)->handle())
+    ->name('leave.auto-approve')
+    ->cron(sprintf('0 %d,%d * * *', config('task-logger.leave_auto_approve.first_run_hour'), config('task-logger.leave_auto_approve.second_run_hour')))
+    ->timezone((string) config('task-logger.leave_auto_approve.timezone'))
     ->withoutOverlapping();
 
 Schedule::call(fn () => resolve(ActivateDueSalaries::class)->handle())

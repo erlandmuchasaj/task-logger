@@ -101,7 +101,7 @@ it('NFR-08 NFR-09 NFR-10 stays inside the targets at volume', function (): void 
     $admin = userWithRole(RoleName::Admin);
     $results = [];
 
-    foreach (['Log list (50 rows)' => [$admin, '/app/logs'], 'My Day' => [$me, '/app/my-day'], 'Estimated vs logged' => [$admin, '/app/estimate-vs-logged'], 'Own log list' => [$me, '/app/logs']] as $label => [$user, $url]) {
+    foreach (['Log list (50 rows)' => [$admin, '/app/logs?tab=table'], 'My Day' => [$me, '/app/my-day'], 'Estimated vs logged' => [$admin, '/app/estimate-vs-logged'], 'Own log list' => [$me, '/app/logs?tab=table']] as $label => [$user, $url]) {
         $this->actingAs($user);
         timeRequest($this, $url);   // warm-up: opcache, route and view compilation
         $runs = array_map(fn (): array => timeRequest($this, $url), range(1, 15));

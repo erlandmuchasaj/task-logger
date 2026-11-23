@@ -32,7 +32,8 @@ it('D-78 the stats show my own figures and nothing of a colleague', function ():
         ->assertSee('Active tasks')
         ->assertSee('2:30')
         ->assertDontSee('16:40')
-        ->assertSee('20.0 days');
+        ->assertSee('20.0 days')
+        ->assertSee('of 20.0 total');
 })->group('D-78');
 
 it('D-78 the leave stat shows a dash when the leave type does not exist', function (): void {

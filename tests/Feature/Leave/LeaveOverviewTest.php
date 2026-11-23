@@ -6,6 +6,8 @@ use App\Domain\Leave\Enums\LeaveStatus;
 use App\Domain\Leave\Models\LeaveRequest;
 use App\Domain\Leave\Support\LeaveBalance;
 use App\Domain\Leave\Support\LeaveOverview;
+use App\Filament\Pages\MyLeave;
+use Livewire\Livewire;
 
 beforeEach(function (): void {
     $this->travelTo('2026-06-10 12:00:00');
@@ -55,3 +57,28 @@ it('D-78 shows no figure when the dashboard leave type is missing or inactive', 
 
     expect(LeaveOverview::remaining($employee))->toBeNull();
 })->group('D-78');
+
+it('D-88 the total is the balance plus the days taken this year, and pending requests do not change it', function (): void {
+    ['employee' => $employee, 'annual' => $annual] = leaveSetup();
+    grantDays($employee, $annual, '19.0');
+
+    LeaveRequest::factory()->create(['user_id' => $employee->id, 'leave_type_id' => $annual->id, 'days_requested' => '2.0', 'status' => LeaveStatus::Approved, 'start_date' => '2026-02-02', 'end_date' => '2026-02-03']);
+    LeaveRequest::factory()->create(['user_id' => $employee->id, 'leave_type_id' => $annual->id, 'days_requested' => '3.0', 'status' => LeaveStatus::Pending, 'start_date' => '2026-04-06', 'end_date' => '2026-04-08']);
+
+    expect(LeaveOverview::total($employee, $annual->id))->toBe(210)
+        ->and(LeaveOverview::dashboardTotal($employee))->toBe(210);
+
+    $annual->update(['is_active' => false]);
+
+    expect(LeaveOverview::dashboardTotal($employee))->toBeNull();
+})->group('D-88');
+
+it('D-88 My Leave shows balance, pending and total under each leave type', function (): void {
+    ['employee' => $employee, 'annual' => $annual] = leaveSetup();
+    grantDays($employee, $annual, '21.0');
+    LeaveRequest::factory()->create(['user_id' => $employee->id, 'leave_type_id' => $annual->id, 'days_requested' => '2.0', 'status' => LeaveStatus::Pending]);
+
+    $this->actingAs($employee);
+
+    Livewire::test(MyLeave::class)->assertSee('Balance 21.0 · pending 2.0 · total 21.0');
+})->group('D-88');

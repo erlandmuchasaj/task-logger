@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Clients\Models\Customer;
 use App\Domain\Clients\Models\Project;
 use App\Domain\Identity\Enums\RoleName;
+use App\Domain\Work\Actions\LockMonth;
 use App\Domain\Work\Enums\TaskStatus;
 use App\Domain\Work\Models\Log;
 use App\Domain\Work\Models\Task;
@@ -197,6 +198,29 @@ it('BR-04 My Day shows the day total and the logs of the chosen day', function (
         ->assertCanSeeTableRecords([$elsewhere]);
 })->group('BR-04');
 
+it('BR-07 My Day warns when the chosen month is locked, the same way the Logs calendar does', function (): void {
+    ['employee' => $me] = loggingSetup();
+    resolve(LockMonth::class)->handle(userWithRole(RoleName::Superadmin), Date::parse('2026-01-01'));
+    $this->actingAs($me);
+
+    Livewire::test(MyDay::class)
+        ->set('data.date', '2026-02-05')
+        ->assertDontSee('This month is locked')
+        ->set('data.date', '2026-01-05')
+        ->assertSee("This month is locked, so time can't be logged or changed here.")
+        ->assertDontSee('because you may edit locked months');
+})->group('BR-07');
+
+it('BR-07 My Day tells someone who may edit locked months that they still can', function (): void {
+    $admin = userWithRole(RoleName::Admin);
+    resolve(LockMonth::class)->handle(userWithRole(RoleName::Superadmin), Date::parse('2026-01-01'));
+    $this->actingAs($admin);
+
+    Livewire::test(MyDay::class)
+        ->set('data.date', '2026-01-05')
+        ->assertSee('You can still log and edit time in it because you may edit locked months.');
+})->group('BR-07');
+
 it('FR-25 every role can open My Day, because logging time is own-time', function (RoleName $role): void {
     $this->actingAs(userWithRole($role))->get('/app/my-day')->assertOk();
 })->with(RoleName::cases());
@@ -207,15 +231,15 @@ it("FR-26 the Logs list shows everyone's logs to superadmin, admin and assistant
     $theirs = Log::factory()->create(['user_id' => userWithRole(RoleName::Employee)->id, 'project_id' => $task->project_id, 'technology_id' => $task->technology_id, 'description' => 'theirs']);
 
     $this->actingAs($me);
-    Livewire::test(ListLogs::class)->assertCanSeeTableRecords([$mine])->assertCanNotSeeTableRecords([$theirs]);
+    Livewire::test(ListLogs::class)->set('activeTab', 'table')->assertCanSeeTableRecords([$mine])->assertCanNotSeeTableRecords([$theirs]);
 
     foreach ([RoleName::Superadmin, RoleName::Admin, RoleName::Assistant] as $role) {
         $this->actingAs(userWithRole($role));
-        Livewire::test(ListLogs::class)->assertCanSeeTableRecords([$mine, $theirs]);
+        Livewire::test(ListLogs::class)->set('activeTab', 'table')->assertCanSeeTableRecords([$mine, $theirs]);
     }
 
     $this->actingAs(userWithRole(RoleName::Hr)); // hr holds logs.view_own only
-    Livewire::test(ListLogs::class)->assertCanNotSeeTableRecords([$mine, $theirs]);
+    Livewire::test(ListLogs::class)->set('activeTab', 'table')->assertCanNotSeeTableRecords([$mine, $theirs]);
 })->group('BR-01');
 
 it('D-05 the Logs list shows rate and amount only to people who may see rates', function (RoleName $role, bool $sees): void {
@@ -223,7 +247,7 @@ it('D-05 the Logs list shows rate and amount only to people who may see rates', 
     Log::factory()->create(['user_id' => userWithRole(RoleName::Employee)->id, 'project_id' => $task->project_id, 'technology_id' => $task->technology_id, 'rate_minor' => 3333, 'duration_minutes' => 60]);
     $this->actingAs(userWithRole($role));
 
-    $page = Livewire::test(ListLogs::class);
+    $page = Livewire::test(ListLogs::class)->set('activeTab', 'table');
     $sees ? $page->assertSee('EUR 33.33') : $page->assertDontSee('EUR 33.33')->assertDontSee('Rate/h');
 })->group('BR-06')->with([
     [RoleName::Superadmin, true], [RoleName::Admin, true], [RoleName::Assistant, false],

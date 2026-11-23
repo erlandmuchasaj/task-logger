@@ -1,12 +1,12 @@
 <x-filament-panels::page>
-    <x-filament::section heading="Balance" description="Available is your balance minus the requests still waiting for a decision.">
+    <x-filament::section heading="Balance" description="Available is your balance minus the requests still waiting for a decision. Total is your balance plus the days already taken this year.">
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             @forelse ($this->balances() as $row)
                 <div class="rounded-xl border border-gray-200 p-4 dark:border-white/10" wire:key="balance-{{ $row['type'] }}">
                     <div class="text-sm text-gray-500 dark:text-gray-400">{{ $row['type'] }}</div>
                     <div class="mt-1 text-3xl font-semibold">{{ $row['available'] }} <span class="text-base font-normal text-gray-500">days available</span></div>
                     <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                        Balance {{ $row['balance'] }} · pending {{ $row['pending'] }}
+                        Balance {{ $row['balance'] }} · pending {{ $row['pending'] }} · total {{ $row['total'] }}
                     </div>
                 </div>
             @empty
@@ -22,7 +22,7 @@
                 @can(\App\Domain\Identity\Permissions::BANK_HOLIDAYS_VIEW)
                     <x-filament::button tag="a" color="gray" :href="\App\Filament\Resources\LeaveRequests\LeaveRequestResource::getUrl('index', ['tab' => 'calendar'])">Leave calendar</x-filament::button>
                 @endcan
-                <x-filament::button tag="a" :href="\App\Filament\Resources\LeaveRequests\LeaveRequestResource::getUrl()">Leave requests</x-filament::button>
+                <x-filament::button tag="a" :href="\App\Filament\Resources\LeaveRequests\LeaveRequestResource::getUrl('index', ['tab' => 'table'])">Leave requests</x-filament::button>
             </div>
         </div>
     </x-filament::section>

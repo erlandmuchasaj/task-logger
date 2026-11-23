@@ -26,11 +26,12 @@ final class LeaveOverview
         return $type instanceof LeaveType ? LeaveBalance::available($user, (int) $type->getKey()) : null;
     }
 
-    public static function takenThisYear(User $user): int
+    /** The days taken this year, for the given leave type or, with none, the dashboard's. */
+    public static function takenThisYear(User $user, ?int $leaveTypeId = null): int
     {
-        $type = self::type();
+        $leaveTypeId ??= self::type()?->getKey();
 
-        if (! $type instanceof LeaveType) {
+        if ($leaveTypeId === null) {
             return 0;
         }
 
@@ -38,10 +39,24 @@ final class LeaveOverview
 
         return Days::tenths((string) (LeaveRequest::query()
             ->where('user_id', $user->getKey())
-            ->where('leave_type_id', $type->getKey())
+            ->where('leave_type_id', $leaveTypeId)
             ->whereIn('status', [LeaveStatus::Approved, LeaveStatus::Taken])
             ->whereBetween('start_date', [$year.'-01-01', $year.'-12-31'])
             ->sum('days_requested') ?: '0'));
+    }
+
+    /** D-88: the person's total for the year, the balance still in the ledger plus the days already taken. Pending requests change neither. */
+    public static function total(User $user, int $leaveTypeId): int
+    {
+        return LeaveBalance::balance($user, $leaveTypeId) + self::takenThisYear($user, $leaveTypeId);
+    }
+
+    /** The total for the dashboard's leave type, or null when that type does not exist or is inactive. */
+    public static function dashboardTotal(User $user): ?int
+    {
+        $type = self::type();
+
+        return $type instanceof LeaveType ? self::total($user, (int) $type->getKey()) : null;
     }
 
     public static function typeLabel(): ?string

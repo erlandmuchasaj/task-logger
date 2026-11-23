@@ -66,7 +66,7 @@ Columns follow SPEC §5.1–§5.6 exactly; this section lists constraints and in
 | employee_profiles | unique `user_id` (1:1); `phone` E.164 | — |
 | emergency_contacts | FK `user_id` | `user_id` |
 | technology_user | unique (user_id, technology_id); CHECK level 1–10 | FKs |
-| salaries | `amount_minor` unsigned bigint; no UPDATE/DELETE by app (append-only) | (user_id, effective_date) |
+| salaries | `amount_minor` unsigned bigint; no DELETE by app; UPDATE only for status and for a correction (D-83) | (user_id, effective_date) |
 | offboardings | at most one non-cancelled per user (enforced in Action + partial uniqueness via generated column `active_user_id` `[DERIVED]`) | `user_id` |
 | performances | CHECK score 1–10; `review_date` `[DERIVED]` | `user_id` |
 | customers | `currency_code` char(3); soft deletes; `is_active` | `country_id`, `payment_plan_id` |

@@ -121,28 +121,27 @@ function lcDetails(Testable $page): string
     return mb_trim((string) preg_replace('/\s+/', ' ', html_entity_decode(strip_tags((string) $page->instance()->getMountedAction()->getModalContent()))));
 }
 
-it('opens on the table, and the tabs switch between the table and the calendar', function (): void {
+it('opens on the calendar, and the tabs switch between the calendar and the table', function (): void {
     $world = lcWorld();
     $mine = lcLeave($world['employee'], $world['annual'], '2026-06-10', status: LeaveStatus::Pending, overrides: ['reason' => 'Family trip']);
     $this->actingAs($world['employee']);
 
     Livewire::test(ManageLeaveRequests::class)
-        ->assertSet('activeTab', 'table')
+        ->assertSet('activeTab', 'calendar')
+        ->assertSee('Only mine')
+        ->assertDontSee('Family trip')
+        ->set('activeTab', 'table')
         ->assertCanSeeTableRecords([$mine])
         ->assertSee('Family trip')
         ->assertDontSee('Only mine')
         ->set('activeTab', 'calendar')
-        ->assertSee('Only mine')->assertSee('June 2026')
-        ->assertDontSee('Family trip')
-        ->set('activeTab', 'table')
-        ->assertSee('Family trip')
-        ->assertDontSee('Only mine');
+        ->assertSee('Only mine')->assertDontSee('Family trip');
 
-    // The tab, the month and the filter live in the URL, so a calendar link can be shared or reloaded.
+    // The tab, the month and the filter live in the URL, so a calendar or table link can be shared or reloaded.
     Livewire::withQueryParams(['tab' => 'calendar', 'month' => '2026-05', 'mine' => '1'])->test(ManageLeaveRequests::class)
         ->assertSee('May 2026')->assertSet('onlyMine', true)->assertDontSee('Family trip');
-    $this->get('/app/leave-requests?tab=calendar')->assertOk()->assertSee('Only mine');
-    $this->get('/app/leave-requests')->assertOk()->assertDontSee('Only mine');
+    $this->get('/app/leave-requests')->assertOk()->assertSee('Only mine');
+    $this->get('/app/leave-requests?tab=table')->assertOk()->assertDontSee('Only mine');
 });
 
 it('renders the action modals on both tabs, because the request and details modals open from the calendar', function (): void {
@@ -614,8 +613,8 @@ it('D-07 BR-20 BR-21 decides and cancels from the details with the same rules as
     $request = lcLeave($world['employee'], $world['annual'], '2026-06-22', '2026-06-23', LeaveStatus::Pending, overrides: ['days_requested' => '2.0']);
     $open = TestAction::make('leaveDetails')->arguments(['id' => $request->id]);
 
-    // The manager decides first: HR has nothing to press yet, and the manager no HR button.
-    lcPage($hr)->assertActionHidden([$open, 'hrApprove'])->assertActionHidden([$open, 'managerApprove']);
+    // D-85: each has only their own stage, and either may decide first: HR has no manager button, the manager no HR button.
+    lcPage($hr)->assertActionVisible([$open, 'hrApprove'])->assertActionHidden([$open, 'managerApprove']);
     $page = lcPage($manager)->assertActionVisible([$open, 'managerApprove'])->assertActionHidden([$open, 'hrApprove']);
 
     // BR-21: a rejection needs its note.

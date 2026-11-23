@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Identity\Enums\RoleName;
 use App\Domain\Identity\Models\User;
 use App\Domain\People\Actions\ActivateDueSalaries;
+use App\Domain\People\Actions\CorrectSalary;
 use App\Domain\People\Actions\RecordSalary;
 use App\Domain\People\Data\SalaryData;
 use App\Domain\People\Enums\SalaryStatus;
@@ -17,6 +18,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
+use Spatie\Activitylog\Models\Activity;
 
 function salary(User $actor, User $employee, int $minor, string $date, string $currency = 'EUR'): Salary
 {
@@ -81,7 +83,7 @@ it('BR-29 a back-dated correction lands in history without replacing the current
         ->and(Salary::query()->currentOn($employee->id, now())->sole()->amount_minor)->toBe(120000);
 })->group('BR-29');
 
-it('BR-29 salary history is append-only: amount, currency, date and note never change', function (string $attribute, mixed $value): void {
+it('BR-29 D-83 a plain update cannot change amount, currency, date or note; only a correction can', function (string $attribute, mixed $value): void {
     $salary = Salary::factory()->create();
 
     $salary->update([$attribute => $value]);
@@ -115,7 +117,7 @@ it('BR-29 only superadmin, admin and hr record salaries', function (RoleName $ro
     [RoleName::Assistant, false], [RoleName::Employee, false],
 ]);
 
-it('BR-29 salaries are visible only to superadmin, admin and hr', function (RoleName $role, bool $visible): void {
+it('BR-29 D-83 salaries are visible to superadmin, admin and hr, corrected by superadmin and hr, and deleted by nobody', function (RoleName $role, bool $visible, bool $corrects): void {
     $employee = userWithRole(RoleName::Employee);
     $salary = Salary::factory()->create(['user_id' => $employee->id]);
     $user = userWithRole($role);
@@ -123,14 +125,88 @@ it('BR-29 salaries are visible only to superadmin, admin and hr', function (Role
     expect($user->can('viewAny', Salary::class))->toBe($visible)
         ->and($user->can('view', $salary))->toBe($visible)
         ->and($user->can('viewSalaries', $employee))->toBe($visible)
-        ->and($user->can('update', $salary))->toBeFalse()
+        ->and($user->can('update', $salary))->toBe($corrects)
         ->and($user->can('delete', $salary))->toBeFalse();
-})->group('BR-29')->with([
-    [RoleName::Superadmin, true], [RoleName::Admin, true], [RoleName::Hr, true],
-    [RoleName::Assistant, false], [RoleName::Employee, false],
+})->group('BR-29', 'D-83')->with([
+    [RoleName::Superadmin, true, true], [RoleName::Admin, true, false], [RoleName::Hr, true, true],
+    [RoleName::Assistant, false, false], [RoleName::Employee, false, false],
 ]);
 
-it('BR-29 the Salaries tab lists history and adds a row for HR, with no edit or delete', function (): void {
+function correction(int $minor, string $date, string $currency = 'EUR', ?string $note = null): SalaryData
+{
+    return new SalaryData(Money::of($minor, $currency), Date::parse($date), $note);
+}
+
+it('D-83 HR corrects the amount, currency, date and note of a row and the audit keeps both values', function (): void {
+    $hr = userWithRole(RoleName::Hr);
+    $employee = userWithRole(RoleName::Employee);
+    $row = salary($hr, $employee, 1500000, '2026-01-01');
+
+    $corrected = resolve(CorrectSalary::class)->handle($hr, $row, correction(150000, '2026-02-01', 'ALL', 'Typo fixed'));
+
+    expect($corrected->amount_minor)->toBe(150000)
+        ->and($corrected->currency_code)->toBe('ALL')
+        ->and($corrected->effective_date->toDateString())->toBe('2026-02-01')
+        ->and($corrected->description)->toBe('Typo fixed')
+        ->and($corrected->created_by)->toBe($hr->id)
+        ->and($corrected->user_id)->toBe($employee->id)
+        ->and($employee->salaries()->count())->toBe(1);
+
+    $entry = Activity::query()->where('subject_type', $row->getMorphClass())->where('subject_id', $row->id)->where('event', 'updated')->latest('id')->first();
+
+    expect($entry)->not->toBeNull()
+        ->and($entry->causer_id)->toBe($hr->id)
+        ->and($entry->attribute_changes['old']['amount_minor'])->toBe(1500000)
+        ->and($entry->attribute_changes['attributes']['amount_minor'])->toBe(150000);
+})->group('D-83', 'BR-29');
+
+it('D-83 a correction settles the statuses again when the date moves', function (): void {
+    $actor = userWithRole(RoleName::Superadmin);
+    $employee = userWithRole(RoleName::Employee);
+    salary($actor, $employee, 100000, '2025-01-01');
+    $latest = salary($actor, $employee, 120000, '2026-01-01');
+
+    expect(statuses($employee))->toBe(['superseded', 'active']);
+
+    resolve(CorrectSalary::class)->handle($actor, $latest, correction(120000, now()->addMonths(2)->toDateString()));
+
+    expect(statuses($employee))->toBe(['active', 'pending'])
+        ->and(Salary::query()->currentOn($employee->id, now())->sole()->amount_minor)->toBe(100000);
+})->group('D-83', 'BR-29');
+
+it('D-83 only superadmin and hr correct a salary', function (RoleName $role, bool $allowed): void {
+    $employee = userWithRole(RoleName::Employee);
+    $row = Salary::factory()->create(['user_id' => $employee->id, 'amount_minor' => 100000, 'currency_code' => 'EUR']);
+    $correct = fn (): Salary => resolve(CorrectSalary::class)->handle(userWithRole($role), $row, correction(90000, '2026-03-01'));
+
+    $allowed ? expect($correct()->amount_minor)->toBe(90000) : expect($correct)->toThrow(AuthorizationException::class);
+
+    expect($row->fresh()->amount_minor)->toBe($allowed ? 90000 : 100000);
+})->group('D-83')->with([
+    [RoleName::Superadmin, true], [RoleName::Hr, true],
+    [RoleName::Admin, false], [RoleName::Assistant, false], [RoleName::Employee, false],
+]);
+
+it('D-83 a corrected salary must still be greater than zero', function (): void {
+    $hr = userWithRole(RoleName::Hr);
+    $row = salary($hr, userWithRole(RoleName::Employee), 100000, '2026-01-01');
+
+    expect(fn () => resolve(CorrectSalary::class)->handle($hr, $row, correction(0, '2026-01-01')))->toThrow(ValidationException::class)
+        ->and($row->fresh()->amount_minor)->toBe(100000);
+})->group('D-83', 'BR-29');
+
+it('D-83 a salary is still never deleted, not by HR and not by root', function (): void {
+    $salary = Salary::factory()->create();
+
+    foreach ([RoleName::Hr, RoleName::Superadmin] as $role) {
+        expect(userWithRole($role)->can('delete', $salary))->toBeFalse($role->value);
+    }
+
+    expect(fn () => $salary->delete())->toThrow(LogicException::class)
+        ->and(Salary::query()->whereKey($salary->id)->exists())->toBeTrue();
+})->group('D-83', 'BR-29');
+
+it('BR-29 the Salaries tab lists history and adds a row for HR, with no delete', function (): void {
     $hr = userWithRole(RoleName::Hr);
     $employee = userWithRole(RoleName::Employee);
     $existing = Salary::factory()->create(['user_id' => $employee->id, 'created_by' => $hr->id]);
@@ -138,7 +214,6 @@ it('BR-29 the Salaries tab lists history and adds a row for HR, with no edit or 
 
     Livewire::test(SalariesRelationManager::class, ['ownerRecord' => $employee, 'pageClass' => EditEmployee::class])
         ->assertCanSeeTableRecords([$existing])
-        ->assertTableActionDoesNotExist('edit')
         ->assertTableActionDoesNotExist('delete')
         ->callAction(TestAction::make('create')->table(), ['amount' => '1800.00', 'currency' => 'eur', 'effective_date' => '2026-06-01', 'description' => 'Promotion'])
         ->assertHasNoFormErrors();
@@ -146,6 +221,37 @@ it('BR-29 the Salaries tab lists history and adds a row for HR, with no edit or 
     expect($employee->salaries()->count())->toBe(2)
         ->and($employee->salaries()->where('description', 'Promotion')->sole()->amount_minor)->toBe(180000);
 })->group('BR-29');
+
+it('D-83 HR corrects a row on the Salaries tab with the form filled from the row, and there is no delete', function (): void {
+    $hr = userWithRole(RoleName::Hr);
+    $employee = userWithRole(RoleName::Employee);
+    $row = Salary::factory()->create(['user_id' => $employee->id, 'created_by' => $hr->id, 'amount_minor' => 150050, 'currency_code' => 'EUR']);
+    $this->actingAs($hr);
+
+    Livewire::test(SalariesRelationManager::class, ['ownerRecord' => $employee, 'pageClass' => EditEmployee::class])
+        ->assertTableActionVisible('edit', $row)
+        ->assertTableActionDoesNotExist('delete')
+        ->mountTableAction('edit', $row)
+        ->assertTableActionDataSet(['amount' => '1500.50', 'currency' => 'EUR'])
+        ->setTableActionData(['amount' => '1600.00', 'currency' => 'eur', 'effective_date' => '2026-05-01', 'description' => 'Fixed'])
+        ->callMountedTableAction()
+        ->assertHasNoFormErrors();
+
+    expect($row->fresh()->amount_minor)->toBe(160000)
+        ->and($row->fresh()->description)->toBe('Fixed')
+        ->and($employee->salaries()->count())->toBe(1);
+})->group('D-83');
+
+it('D-83 admin sees the Salaries tab but not the Correct action', function (): void {
+    $admin = userWithRole(RoleName::Admin);
+    $employee = userWithRole(RoleName::Employee);
+    $row = Salary::factory()->create(['user_id' => $employee->id]);
+    $this->actingAs($admin);
+
+    Livewire::test(SalariesRelationManager::class, ['ownerRecord' => $employee, 'pageClass' => EditEmployee::class])
+        ->assertCanSeeTableRecords([$row])
+        ->assertTableActionHidden('edit', $row);
+})->group('D-83');
 
 it('BR-29 an employee cannot see the Salaries tab', function (): void {
     $employee = userWithRole(RoleName::Employee);

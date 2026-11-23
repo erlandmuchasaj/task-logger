@@ -52,7 +52,7 @@ final class LeaveNeedsAttention extends Notification
 
     private function url(): string
     {
-        return LeaveRequestResource::getUrl('index', panel: 'app');
+        return LeaveRequestResource::getUrl('index', ['tab' => 'table'], panel: 'app');
     }
 
     private function summary(): string

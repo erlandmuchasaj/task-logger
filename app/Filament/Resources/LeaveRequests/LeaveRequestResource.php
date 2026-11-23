@@ -215,6 +215,10 @@ final class LeaveRequestResource extends Resource
             return 'Approved by the requester (no manager)';
         }
 
+        if ($record->wasAutoApproved()) {
+            return 'Approved automatically (nobody decided in time)';
+        }
+
         return collect(ApprovalStage::cases())
             ->map(fn (ApprovalStage $stage): string => $stage->getLabel().': '.($record->stageDecision($stage)?->decision->getLabel() ?? (self::stageNotApplicable($record, $stage) ? 'n/a' : 'waiting')))
             ->implode(' / ');
@@ -256,7 +260,7 @@ final class LeaveRequestResource extends Resource
         return $part === DayPart::Full ? '' : ' ('.$part->value.')';
     }
 
-    /** One approval-stage button. Visible only when the stage is open and the viewer may decide it (D-07, BR-20). */
+    /** One approval-stage button. Visible only when the stage is open and the viewer may decide it, in any order (D-07, D-85, BR-20). */
     private static function decision(string $name, string $label, ApprovalStage $stage, ApprovalDecision $decision): Action
     {
         $approving = $decision === ApprovalDecision::Approved;
@@ -266,14 +270,14 @@ final class LeaveRequestResource extends Resource
             ->color($approving ? 'success' : 'danger')
             ->visible(function (LeaveRequest $record) use ($stage): bool {
                 $user = auth()->user();
-                $managerDone = $record->stageDecision(ApprovalStage::Manager)?->decision === ApprovalDecision::Approved;
 
                 return $user !== null
                     && $record->status === LeaveStatus::Pending
                     && $record->user_id !== $user->getKey()
                     && ! $record->stageDecision($stage) instanceof LeaveRequestApproval
-                    && ($stage === ApprovalStage::Manager ? $record->user->manager_id !== null : (! LeaveApprovers::skipsHrStage($record->user) && ($managerDone || $record->user->manager_id === null)))
-                    && $user->can($stage === ApprovalStage::Manager ? 'approveManagerStage' : 'approveHrStage', $record);
+                    && ($stage === ApprovalStage::Manager ? $record->user->manager_id !== null : ! LeaveApprovers::skipsHrStage($record->user))
+                    && $user->can($stage === ApprovalStage::Manager ? 'approveManagerStage' : 'approveHrStage', $record)
+                    && ! ($stage === ApprovalStage::Hr && $record->user->manager_id === $user->getKey() && $user->can('approveManagerStage', $record));
             })
             ->action(function (LeaveRequest $record, array $data) use ($stage, $decision): void {
                 try {

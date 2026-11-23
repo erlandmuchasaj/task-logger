@@ -49,9 +49,10 @@ final class MyWorkStats extends StatsOverviewWidget
 
         if ($user->can(Permissions::LEAVE_REQUESTS_VIEW_OWN)) {
             $remaining = LeaveOverview::remaining($user);
+            $total = LeaveOverview::dashboardTotal($user);
 
             $stats[] = Stat::make('Leave remaining', $remaining === null ? '—' : Days::format($remaining).' days')
-                ->description(LeaveOverview::typeLabel() ?? 'No leave type set up')
+                ->description($total === null ? 'No leave type set up' : 'of '.Days::format($total).' total · '.LeaveOverview::typeLabel())
                 ->icon('heroicon-o-sun');
         }
 

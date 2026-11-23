@@ -8,13 +8,14 @@ use App\Domain\Identity\Permissions;
 use App\Domain\Leave\Models\LeaveRequest;
 use App\Domain\Leave\Support\Days;
 use App\Domain\Leave\Support\LeaveBalance;
+use App\Domain\Leave\Support\LeaveOverview;
 use App\Domain\MasterData\Models\LeaveType;
 use BackedEnum;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use UnitEnum;
 
-/** FR-34 My Leave: the balance per leave type (granted, used, pending, available) and the shortcut to requests. */
+/** FR-34 My Leave: the balance per leave type (balance, pending, available, total) and the shortcut to requests. */
 final class MyLeave extends Page
 {
     protected string $view = 'filament.pages.my-leave';
@@ -32,7 +33,7 @@ final class MyLeave extends Page
         return (bool) auth()->user()?->can(Permissions::LEAVE_REQUESTS_VIEW_OWN);
     }
 
-    /** @return list<array{type: string, balance: string, pending: string, available: string}> */
+    /** @return list<array{type: string, balance: string, pending: string, available: string, total: string}> */
     public function balances(): array
     {
         $user = auth()->user();
@@ -43,6 +44,7 @@ final class MyLeave extends Page
                 'balance' => Days::format(LeaveBalance::balance($user, (int) $type->getKey())),
                 'pending' => Days::format(LeaveBalance::pending($user, (int) $type->getKey())),
                 'available' => Days::format(LeaveBalance::available($user, (int) $type->getKey())),
+                'total' => Days::format(LeaveOverview::total($user, (int) $type->getKey())),
             ])->all());
     }
 

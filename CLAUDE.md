@@ -25,31 +25,9 @@ Four version facts change how code is written here, so trust them over memory: F
 - Where the spec says nothing, do not fill the gap unannounced. Choose the narrowest default, keep it behind config, an enum or a policy, record it as the next D-xx in `docs/SPEC.md` §3.1 marked "Confirm: yes", and name it in your report. Then build: the D-xx carries the question to the owner. Ask first only when the choice cannot be undone, such as removing or rewriting stored data.
 - A new or changed business or access rule gets its D-xx in the same change, and an ADR in `docs/adr/` when it changes the architecture. A screen-only change needs neither.
 
-## Folder map
+## Modules
 
-```
-app/Domain/<Module>/        business code, one folder per module
-  Actions/                  use cases (one class, one handle()) and their Validates*/Manages* traits
-  Data/                     final readonly input objects handed to Actions
-  Enums/  Models/  Policies/
-  Support/                  calculators, lookups and helpers (LeaveSpan, BudgetCalculator, TimesheetLocks)
-  Notifications/ Settings/ Contracts/ Jobs/ Exporters/    only in the modules that need them
-app/Filament/Resources/<Plural>/   <Name>Resource.php, Pages/, RelationManagers/, Support/<Name>Form.php
-app/Filament/Pages/         custom pages: MyDay, MyLeave, EstimateVsLogged, the settings pages, Auth/
-app/Filament/Support/       shared screen helpers: ActionErrors, ExportAction, CalendarInput
-app/Http/                   three middleware and one controller; the app does not grow through controllers
-app/Providers/              AppServiceProvider (policies, root gate, date formats) and Filament/AppPanelProvider
-config/permission.php       role => permissions          config/task-logger.php    every tunable default
-database/migrations/        one create_*_tables file per module      database/settings/    spatie settings migrations
-database/factories/  database/seeders/
-resources/views/filament/{pages,resources,hooks}/    Blade for custom pages, calendars and banners
-resources/css/filament/app/theme.css                 the panel theme: imports and @source lines only
-routes/console.php          the schedule                 routes/web.php    the welcome page and one POST route
-tests/Feature/<Module>/  tests/Unit/  tests/Architecture/  tests/Performance/  tests/Pest.php (shared helpers)
-docs/                       SPEC.md, the numbered design docs, adr/
-```
-
-Modules: **Identity** (the User model, permissions, roles, root access, 2FA, impersonation, audit context), **MasterData** (countries and leave policies, bank holidays, departments, technologies, labels, leave types, payment plans, settings), **People** (employee lifecycle, HR record, salaries, reviews, offboarding, anonymisation), **Clients** (customers, rates, projects, fixed costs, budget), **Work** (tasks, logs, month locks), **Leave** (requests, approvals, ledger, day counting), **Expenses**, **Exports** (queued CSV), **Reports**, **Shared** (`Money`, `Priority`, `IsoCurrency`, `LogsBusinessActivity`).
+Business code is `app/Domain/<Module>/` (Actions, Data, Enums, Models, Policies, Support). Modules: **Identity** (the User model, permissions, roles, root access, 2FA, impersonation, audit context), **MasterData** (countries and leave policies, bank holidays, departments, technologies, labels, leave types, payment plans, settings), **People** (employee lifecycle, HR record, salaries, reviews, offboarding, anonymisation), **Clients** (customers, rates, projects, fixed costs, budget), **Work** (tasks, logs, month locks), **Leave** (requests, approvals, ledger, day counting), **Expenses**, **Exports** (queued CSV), **Reports**, **Shared** (`Money`, `Priority`, `IsoCurrency`, `LogsBusinessActivity`).
 
 To change another module's data, call its Action (`CreateEmployee` calls `AssignUserRole` and `GrantAnnualLeave`). The `users` table is shared: Identity owns the model and People writes it. Domain code does not use `App\Filament`, except notifications that link to a screen.
 
@@ -115,20 +93,9 @@ Write new code by copying the nearest sibling. These are the decisions the sibli
 - Type every parameter and return, closures included: `fn (Builder $query, string $from): Builder`. Type coverage sits at 97.3% against a floor of 97%, so a handful of untyped closure parameters fails the gate.
 - Pint here goes beyond the Laravel preset. It adds `final` and `declare(strict_types=1)`, and it rewrites `==` to `===`, `strlen()` to `mb_strlen()` and `DateTime` to `DateTimeImmutable`. Write code that way from the start, and run the tests after Pint, because those rewrites change behaviour.
 
-### Tests
+### Tests and Filament 5
 
-- A Feature test calls the Action itself: `resolve(CreateLog::class)->handle($actor, logData([...]))`. Build the world with the helpers in `tests/Pest.php` (`userWithRole`, `loggingSetup`, `leaveSetup`, `clientWithRates`, `projectData`, `logData`, `leaveData`, `grantDays`, `employeeData`). Roles and permissions are seeded before every Feature test.
-- Name a test after the rule it proves and group it: `it('BR-06 keeps the snapshot when the rate changes', ...)->group('BR-06')`. Every BR-xx needs at least one test.
-- Factories insert raw rows and skip every rule. Use them to arrange, and the Action for the behaviour under test.
-- A browser test (`tests/Browser`) proves only what needs a real browser: Alpine, Livewire round trips, modals, calendars, responsive layout. The rule itself stays proven by a Feature test. Sign in with `$this->actingAs($user)` before `visit()`; use `signInThroughBrowser()` only where the login form is under test. Filament ids contain dots, so select with `[id="form.email"]`, and never `press('Sign in')` or `click('Log time')` when the same text is a heading: it hits the heading and does nothing.- A new screen joins the role-by-URL list in its module's `ScreensTest.php`, which catches a 403, a 500 and lazy loading.
-- A new business model joins the `$models` list in `tests/Feature/Audit/BusinessActivityTest.php`.
-
-### Filament 5
-
-- Forms and infolists are a `Filament\Schemas\Schema` built with `->components([...])`, and layout pieces come from `Filament\Schemas\Components`. Every action, row actions included, is `Filament\Actions\*`. Tables use `->recordActions()`, a filter with fields uses `->schema()`, and icons are the `Filament\Support\Icons\Heroicon` enum.
-- A screen with rules hands its input to the Action. A page overrides `handleRecordCreation()` or `handleRecordUpdate()` (`app/Filament/Resources/Logs/Pages/CreateLog.php`); a relation manager passes `->using(...)` to the built-in action (`FixedCostsRelationManager`). The form lives in `Support/<Name>Form.php`, whose `fill()` and `data()` map between the record, the form state and the `Data` object (`LogForm`).
-- A select backed by an enum can return the case or its string value, so mapping code accepts both (`LogForm::data()`).
-- A relation manager on a View page is read-only unless `isReadOnly()` is overridden.
+The test conventions are in `tests/CLAUDE.md` and the Filament 5 conventions in `app/Filament/CLAUDE.md`. Each loads when you work in that folder; read the file first if you are about to write a test or a screen from elsewhere.
 
 ## Design rules (the interface)
 

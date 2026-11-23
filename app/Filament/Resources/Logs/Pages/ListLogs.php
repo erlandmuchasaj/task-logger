@@ -35,8 +35,8 @@ use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Url;
 
 /**
- * The Logs list has two views of the same data: the table (the default) and, for people who can see their
- * own logs, a month calendar of their own logs, bank holidays and leave. A click on a calendar day opens
+ * The Logs list has two views of the same data: a month calendar of their own logs, bank holidays and leave
+ * (the default, for people who can see their own logs) and the table. A click on a calendar day opens
  * the log modal with that date chosen; saving goes through the same CreateLog action as every other screen.
  *
  * @phpstan-import-type CalendarMonth from LogCalendar
@@ -57,8 +57,8 @@ final class ListLogs extends ListRecords
         }
 
         return [
-            'table' => Tab::make('Table')->icon(Heroicon::OutlinedTableCells),
             'calendar' => Tab::make('Calendar')->icon(Heroicon::OutlinedCalendarDays),
+            'table' => Tab::make('Table')->icon(Heroicon::OutlinedTableCells),
         ];
     }
 

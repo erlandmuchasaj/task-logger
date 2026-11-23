@@ -173,7 +173,7 @@ Built: logs (task and direct), the client rate snapshot, My Day with pinned task
 
 - `Permissions::SYSTEM_ROOT` (`system.root`) is in the superadmin's list in `config/permission.php`; the grid had 66 permissions then, 67 after `employees.impersonate` (M6).
 - `AppServiceProvider` registers `Gate::before(RootAccess::check(...))`. `RootAccess` calls `hasPermissionTo` directly (not `can`), so the gate cannot recurse, and returns `true` or `null` (never `false`), so other roles are untouched and Spatie's own gate keeps working.
-- `RootAccess::POLICY_ONLY` lists the abilities that stay under their policy: activity log create/update/delete, salary update/delete, user and client delete/restore/forceDelete, export view/download/create/update/delete. Add to it whenever a policy deliberately returns `false` for everyone.
+- `RootAccess::POLICY_ONLY` lists the abilities that stay under their policy: activity log create/update/delete, salary delete, user and client delete/restore/forceDelete, export view/download/create/update/delete. Add to it whenever a policy deliberately returns `false` for everyone.
 - Data rules are not authorisation and still apply to root (validation in the actions).
 
 ## 15. M5 outcome (2026-11-12)

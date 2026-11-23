@@ -109,15 +109,15 @@ it('D-41 the audit trail stays read-only for root (BR-32)', function (): void {
         ->and($superadmin->can('delete', $entry))->toBeFalse();
 })->group('D-41', 'BR-32');
 
-it('D-41 salary history stays append-only for root (BR-29)', function (): void {
+it('D-41 D-83 root may correct a salary row but never delete one (BR-29)', function (): void {
     $superadmin = userWithRole(RoleName::Superadmin);
     $salary = Salary::factory()->create();
 
     expect($superadmin->can('create', Salary::class))->toBeTrue()
         ->and($superadmin->can('view', $salary))->toBeTrue()
-        ->and($superadmin->can('update', $salary))->toBeFalse()
+        ->and($superadmin->can('update', $salary))->toBeTrue()
         ->and($superadmin->can('delete', $salary))->toBeFalse();
-})->group('D-41', 'BR-29');
+})->group('D-41', 'D-83', 'BR-29');
 
 it('D-41 users and clients are still never hard-deleted, not even by root', function (): void {
     $superadmin = userWithRole(RoleName::Superadmin);

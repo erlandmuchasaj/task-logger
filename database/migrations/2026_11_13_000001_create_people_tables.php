@@ -52,7 +52,7 @@ return new class extends Migration
             'ALTER TABLE technology_user ADD CONSTRAINT technology_user_level_check CHECK (level BETWEEN 1 AND 10)'
         );
 
-        // Append-only history (BR-29): rows are never edited or deleted, only their status moves.
+        // Salary timeline (BR-29, D-83): rows are never deleted; only status moves, and a correction may fix amount, currency, date or note.
         Schema::create('salaries', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();

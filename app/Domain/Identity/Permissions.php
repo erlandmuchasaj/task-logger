@@ -42,6 +42,9 @@ final class Permissions
 
     public const string SALARIES_MANAGE = 'salaries.manage';
 
+    /** D-83: correct the amount, currency, date or note of a salary row that was entered by mistake. Rows are still never deleted. */
+    public const string SALARIES_CORRECT = 'salaries.correct';
+
     /** Offboardings */
     public const string OFFBOARDINGS_VIEW = 'offboardings.view';
 

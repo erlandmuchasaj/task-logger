@@ -11,10 +11,12 @@ use App\Domain\Work\Actions\DeleteLog;
 use App\Domain\Work\Models\Log;
 use App\Domain\Work\Models\Task;
 use App\Domain\Work\Support\LogChoices;
+use App\Domain\Work\Support\TimesheetLocks;
 use App\Domain\Work\Support\WorkCalendar;
 use App\Filament\Resources\Logs\LogResource;
 use App\Filament\Resources\Logs\Support\LogForm;
 use App\Filament\Support\ActionErrors;
+use App\Filament\Support\CalendarInput;
 use BackedEnum;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
@@ -110,6 +112,23 @@ final class MyDay extends Page implements HasTable
     public function selectedDate(): string
     {
         return (string) ($this->data['date'] ?? $this->today()->toDateString());
+    }
+
+    /**
+     * The same warning the Logs calendar shows for a locked month, for the date chosen in the form. The date comes
+     * from the browser, so it is only read through CalendarInput; a date that is not real shows nothing.
+     */
+    public function lockNotice(): ?string
+    {
+        $date = CalendarInput::parseDate(mb_substr($this->selectedDate(), 0, 10));
+
+        if (! $date instanceof CarbonImmutable || ! TimesheetLocks::isLocked($date)) {
+            return null;
+        }
+
+        return $this->user()->can(Permissions::LOGS_EDIT_LOCKED)
+            ? 'This month is locked. You can still log and edit time in it because you may edit locked months.'
+            : "This month is locked, so time can't be logged or changed here.";
     }
 
     public function table(Table $table): Table

@@ -1,6 +1,7 @@
 @php
     $pinned = $this->pinnedTasks();
     $total = $this->dayTotalMinutes();
+    $lockNotice = $this->lockNotice();
 @endphp
 
 <x-filament-panels::page>
@@ -17,6 +18,12 @@
     @endif
 
     <x-filament::section heading="Log time">
+        @if ($lockNotice)
+            <div class="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-200 dark:ring-amber-500/30">
+                {{ $lockNotice }}
+            </div>
+        @endif
+
         <form wire:submit="save">
             {{ $this->form }}
 

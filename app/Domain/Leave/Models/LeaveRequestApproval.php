@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/** One stage decision on a leave request (D-07): manager, then HR. */
+/** One stage decision on a leave request (D-07): manager or HR, in any order (D-85). */
 #[Fillable(['leave_request_id', 'stage', 'reviewer_id', 'decision', 'decided_at', 'note'])]
 final class LeaveRequestApproval extends Model
 {

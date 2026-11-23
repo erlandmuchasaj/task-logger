@@ -53,6 +53,9 @@
                     @endif
                 </div>
             @endforeach
+            @if ($request->wasAutoApproved())
+                <span class="text-gray-500 dark:text-gray-400">Approved automatically: nobody decided before the first day had passed.</span>
+            @endif
         </dd>
     </div>
 

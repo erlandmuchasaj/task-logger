@@ -6,6 +6,9 @@ namespace App\Domain\Leave\Support;
 
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Permissions;
+use App\Domain\Leave\Enums\ApprovalStage;
+use App\Domain\Leave\Models\LeaveRequest;
+use App\Domain\Leave\Models\LeaveRequestApproval;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -75,6 +78,35 @@ final class LeaveApprovers
             ->permission(Permissions::SYSTEM_ROOT)
             ->whereKeyNot($employee->getKey())
             ->get();
+    }
+
+    /**
+     * D-87: who is reminded about a pending request: whoever still has a stage to decide. The approver when the manager
+     * stage is open, HR when the HR stage is open. With no manager, or when nothing is open, HR and the superadmins.
+     *
+     * @return Collection<int, User>
+     */
+    public static function reminderRecipients(LeaveRequest $request): Collection
+    {
+        $employee = $request->user;
+        $managerOpen = $employee->manager_id !== null && ! $request->stageDecision(ApprovalStage::Manager) instanceof LeaveRequestApproval;
+        $hrOpen = ! self::skipsHrStage($employee) && ! $request->stageDecision(ApprovalStage::Hr) instanceof LeaveRequestApproval;
+
+        if ($employee->manager_id === null || (! $managerOpen && ! $hrOpen)) {
+            return self::hrAndSuperadminsOf($employee);
+        }
+
+        $recipients = new Collection;
+
+        if ($managerOpen) {
+            $recipients = $recipients->merge(self::approversOf($employee));
+        }
+
+        if ($hrOpen) {
+            $recipients = $recipients->merge(self::hrOf($employee));
+        }
+
+        return $recipients->unique(fn (User $user): int => (int) $user->getKey())->values();
     }
 
     /**

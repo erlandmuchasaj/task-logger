@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Employees\RelationManagers;
 
 use App\Domain\Identity\Models\User;
+use App\Domain\People\Actions\CorrectSalary;
 use App\Domain\People\Actions\RecordSalary;
 use App\Domain\People\Models\Salary;
 use App\Domain\Shared\IsoCurrency;
 use App\Filament\Resources\Employees\Support\FormMapper;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
+use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -22,8 +25,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Salary history (BR-29): append-only. People with salaries.view see it; salaries.manage adds a row.
- * There is no edit or delete.
+ * Salary history (BR-29, D-83): a timeline. People with salaries.view see it; salaries.manage adds a row;
+ * salaries.correct fixes a mistaken amount, currency, date or note. There is no delete.
  */
 final class SalariesRelationManager extends RelationManager
 {
@@ -83,6 +86,30 @@ final class SalariesRelationManager extends RelationManager
                             throw new Halt;
                         }
                     }),
+            ])
+            ->recordActions([
+                ActionGroup::make([
+                    EditAction::make()
+                        ->label('Correct')
+                        ->modalHeading('Correct salary')
+                        ->modalDescription('Fix a wrong amount, currency, date or note. The change is kept in the audit log, and the row cannot be deleted.')
+                        ->successNotificationTitle('Salary corrected')
+                        ->visible(fn (Salary $record): bool => (bool) auth()->user()?->can('update', $record))
+                        ->mutateRecordDataUsing(function (array $data, Salary $record): array {
+                            $data['amount'] = $record->money()->toMajorString();
+                            $data['currency'] = $record->currency_code;
+
+                            return $data;
+                        })
+                        ->using(function (Salary $record, array $data): Salary {
+                            try {
+                                return resolve(CorrectSalary::class)->handle(auth()->user(), $record, FormMapper::salary($data));
+                            } catch (ValidationException $validationException) {
+                                FormMapper::report($this, $validationException, prefix: 'mountedActions.0.data.');
+                                throw new Halt;
+                            }
+                        }),
+                ]),
             ]);
     }
 }

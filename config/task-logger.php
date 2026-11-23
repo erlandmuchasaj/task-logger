@@ -24,6 +24,14 @@ return [
         'timezone' => 'Europe/Tirane',
     ],
 
+    // D-84: the twice-daily job that approves leave nobody decided before its first day passed.
+    'leave_auto_approve' => [
+        'enabled' => true,          // false brings back D-72: a request nobody decides stays pending and overdue
+        'first_run_hour' => 1,      // the two daily runs, in the timezone below (hour 0-23), 12 hours apart
+        'second_run_hour' => 13,
+        'timezone' => 'Europe/Tirane',
+    ],
+
     // D-81: the daily job that reminds an assignee of a task that is almost due.
     'task_due_reminder' => [
         'days_before' => 1,         // remind this many days before the due date (the leave reminder uses 2, D-72)

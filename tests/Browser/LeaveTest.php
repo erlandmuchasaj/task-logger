@@ -119,14 +119,14 @@ it('FR-29 FR-34 BR-16 a drag across three weekdays opens the form for the range 
         ->and($request->end_date->toDateString())->toBe('2026-03-19');
 })->group('browser', 'FR-29', 'FR-34', 'BR-16');
 
-it('D-07 D-28 FR-30 the manager approves first, then HR, and the request ends approved', function (): void {
+it('D-07 D-28 D-85 FR-30 the manager and HR each approve their own stage, and the request ends approved', function (): void {
     $setup = employeeWithManager();
     $hr = userWithRole(RoleName::Hr);
     $request = pendingLeave($setup['employee'], $setup['annual']->id, '2026-03-17', '2026-03-18');
 
     $this->actingAs($setup['manager']);
 
-    visit('/app/leave-requests')
+    visit('/app/leave-requests?tab=table')
         ->assertSee('Manager: waiting / HR: waiting')
         ->assertNotPresent(rowAction('hrApprove'))
         ->click(ROW_ACTIONS)
@@ -140,7 +140,7 @@ it('D-07 D-28 FR-30 the manager approves first, then HR, and the request ends ap
     // HR is a second person: a fresh page, signed in as them. The manager stage is closed, the HR stage is open.
     $this->actingAs($hr);
 
-    visit('/app/leave-requests')
+    visit('/app/leave-requests?tab=table')
         ->assertSee('Manager: Approved / HR: waiting')
         ->assertNotPresent(rowAction('managerApprove'))
         ->click(ROW_ACTIONS)
@@ -159,7 +159,7 @@ it('BR-21 the manager cannot reject without a note, and a note rejects the reque
     $this->actingAs($setup['manager']);
 
     // The empty note is stopped by the browser's own required check, so the modal stays open and nothing is sent.
-    $page = visit('/app/leave-requests')
+    $page = visit('/app/leave-requests?tab=table')
         ->click(ROW_ACTIONS)
         ->click(rowAction('managerReject'))
         ->assertSee('Why is it rejected?')
@@ -191,7 +191,7 @@ it("BR-20 an employee has no decision buttons on their own request and does not 
 
     $this->actingAs($setup['employee']);
 
-    visit('/app/leave-requests')
+    visit('/app/leave-requests?tab=table')
         ->assertSee('My own trip')
         ->assertDontSee('Colleague secret trip')
         ->click(ROW_ACTIONS)

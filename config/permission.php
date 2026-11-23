@@ -52,6 +52,7 @@ return [
 
             Permissions::SALARIES_VIEW,
             Permissions::SALARIES_MANAGE,
+            Permissions::SALARIES_CORRECT,
 
             Permissions::OFFBOARDINGS_VIEW,
             Permissions::OFFBOARDINGS_MANAGE,
@@ -196,6 +197,7 @@ return [
 
             Permissions::SALARIES_VIEW,
             Permissions::SALARIES_MANAGE,
+            Permissions::SALARIES_CORRECT,
 
             Permissions::OFFBOARDINGS_VIEW,
             Permissions::OFFBOARDINGS_MANAGE,

@@ -200,7 +200,7 @@ it("D-71 an employee cannot cancel somebody else's leave", function (): void {
     resolve(CancelLeave::class)->handle(userWithRole(RoleName::Employee), $request);
 })->group('D-71')->throws(AuthorizationException::class);
 
-it('D-72 the approver is reminded N days before the first day, once', function (): void {
+it('D-72 D-87 the manager and HR are reminded N days before the first day, once', function (): void {
     $setup = workflowSetup();
     $request = workflowRequest($setup, '2026-06-03', '2026-06-04');
     Notification::fake();
@@ -213,11 +213,28 @@ it('D-72 the approver is reminded N days before the first day, once', function (
         ->and(resolve(SendLeaveReminders::class)->handle())->toBe(['reminded' => 0, 'escalated' => 0]);
 
     Notification::assertSentToTimes($setup['manager'], LeaveNeedsAttention::class, 1);
+    Notification::assertSentToTimes($setup['hr'], LeaveNeedsAttention::class, 1);
     Notification::assertSentTo($setup['manager'], LeaveNeedsAttention::class, fn (LeaveNeedsAttention $n): bool => $n->alert === LeaveAlert::Reminder);
-    Notification::assertNotSentTo([$setup['hr'], $setup['root'], $setup['employee']], LeaveNeedsAttention::class);
+    Notification::assertNotSentTo([$setup['root'], $setup['employee']], LeaveNeedsAttention::class);
 
     expect($request->fresh())->reminder_sent_at->not->toBeNull()->status->toBe(LeaveStatus::Pending);
-})->group('D-72');
+})->group('D-72', 'D-87');
+
+it('D-87 the reminder goes only to the person whose stage is still open', function (): void {
+    foreach ([[ApprovalStage::Manager, 'hr', 'manager'], [ApprovalStage::Hr, 'manager', 'hr']] as [$decided, $reminded, $skipped]) {
+        $setup = workflowSetup();
+        $request = workflowRequest($setup, '2026-06-03', '2026-06-04');
+        resolve(DecideLeave::class)->handle($setup[$decided === ApprovalStage::Manager ? 'manager' : 'hr'], $request, $decided, ApprovalDecision::Approved);
+        Notification::fake();
+
+        $this->travelTo(Date::parse('2026-06-01 09:00:00'));
+        resolve(SendLeaveReminders::class)->handle();
+
+        Notification::assertSentTo($setup[$reminded], LeaveNeedsAttention::class);
+        Notification::assertNotSentTo($setup[$skipped], LeaveNeedsAttention::class);
+        $this->travelBack();
+    }
+})->group('D-87');
 
 it('D-72 without a manager the reminder goes to HR and the superadmins', function (): void {
     $setup = leaveSetup();
@@ -233,7 +250,7 @@ it('D-72 without a manager the reminder goes to HR and the superadmins', functio
     Notification::assertSentTo([$hr, $root], LeaveNeedsAttention::class);
 })->group('D-72');
 
-it('D-72 on the first day a pending request is escalated to HR and the superadmins once, never approved', function (): void {
+it('D-72 on the first day a pending request is escalated to HR and the superadmins once, and not yet approved', function (): void {
     $setup = workflowSetup();
     $request = workflowRequest($setup, '2026-06-03', '2026-06-04');
     Notification::fake();
@@ -328,7 +345,7 @@ it('D-72 the Overdue filter lists only pending requests whose first day has pass
     $this->travelTo(Date::parse('2026-06-05 10:00:00'));
     $this->actingAs($setup['hr']);
 
-    Livewire::test(ManageLeaveRequests::class)
+    Livewire::test(ManageLeaveRequests::class)->set('activeTab', 'table')
         ->filterTable('overdue', true)
         ->assertCanSeeTableRecords([$overdue])
         ->assertCanNotSeeTableRecords([$upcoming]);

@@ -8,11 +8,8 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Leave\Enums\ApprovalDecision;
 use App\Domain\Leave\Enums\ApprovalStage;
 use App\Domain\Leave\Enums\LeaveStatus;
-use App\Domain\Leave\Enums\LedgerEntryType;
-use App\Domain\Leave\Models\LeaveLedgerEntry;
 use App\Domain\Leave\Models\LeaveRequest;
 use App\Domain\Leave\Models\LeaveRequestApproval;
-use App\Domain\Leave\Support\Days;
 use App\Domain\Leave\Support\LeaveApprovers;
 use App\Domain\Leave\Support\NotifyLeaveDecision;
 use Illuminate\Support\Facades\DB;
@@ -21,9 +18,11 @@ use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\Support\CauserResolver;
 
 /**
- * W-05 steps 2 to 4 (D-07): the direct manager decides first, then HR. The request is approved when every
- * required stage has approved (the manager stage is skipped when the employee has no manager); any
- * rejection ends it and needs a note (BR-21). Nobody decides their own request, root included (BR-20).
+ * W-05 steps 2 to 4 (D-07, D-85): the direct manager and HR decide their own stages in any order. The request is
+ * approved when every required stage has approved (the manager stage is skipped when the employee has no manager,
+ * the HR stage for an HR user's own leave); whoever approves last completes it. Any rejection, at either stage, ends
+ * it at once and needs a note (BR-21). Nobody decides their own request, root included (BR-20). A direct manager who
+ * also holds the HR stage (HR or root) decides both with one approval (D-86).
  * Final approval writes the deduction to the ledger.
  */
 final class DecideLeave
@@ -66,10 +65,6 @@ final class DecideLeave
                 throw ValidationException::withMessages(['stage' => 'This stage has already been decided.']);
             }
 
-            if ($stage === ApprovalStage::Hr && $hasManager && $request->stageDecision(ApprovalStage::Manager)?->decision !== ApprovalDecision::Approved) {
-                throw ValidationException::withMessages(['stage' => 'The manager must decide before HR.']);
-            }
-
             LeaveRequestApproval::query()->create([
                 'leave_request_id' => $request->getKey(),
                 'stage' => $stage,
@@ -83,8 +78,16 @@ final class DecideLeave
                 return $this->finish($request, $actor, LeaveStatus::Rejected, $note);
             }
 
-            // The manager stage completes the request only when there is no HR stage (an HR user's own leave, D-70); otherwise HR is the last stage.
-            if ($stage === ApprovalStage::Manager && ! LeaveApprovers::skipsHrStage($employee)) {
+            // D-86: a direct manager who also holds the HR stage (HR or root) is both stages, so one approval covers both.
+            if ($employee->manager_id === $actor->getKey() && Gate::forUser($actor)->allows('approveHrStage', $request)) {
+                $this->approveOtherStageToo($request, $employee, $actor, $stage, $note);
+            }
+
+            // D-85: the other stage, when it is required, may still be open, in either direction.
+            $otherStage = $stage === ApprovalStage::Manager ? ApprovalStage::Hr : ApprovalStage::Manager;
+            $otherRequired = $stage === ApprovalStage::Manager ? ! LeaveApprovers::skipsHrStage($employee) : $hasManager;
+
+            if ($otherRequired && $request->refresh()->stageDecision($otherStage)?->decision !== ApprovalDecision::Approved) {
                 return $request->refresh();
             }
 
@@ -92,26 +95,31 @@ final class DecideLeave
         }));
     }
 
+    private function approveOtherStageToo(LeaveRequest $request, User $employee, User $actor, ApprovalStage $stage, ?string $note): void
+    {
+        $other = $stage === ApprovalStage::Manager ? ApprovalStage::Hr : ApprovalStage::Manager;
+
+        if ($other === ApprovalStage::Hr && LeaveApprovers::skipsHrStage($employee)) {
+            return;
+        }
+
+        if ($request->refresh()->stageDecision($other) instanceof LeaveRequestApproval) {
+            return;
+        }
+
+        LeaveRequestApproval::query()->create([
+            'leave_request_id' => $request->getKey(),
+            'stage' => $other,
+            'reviewer_id' => $actor->getKey(),
+            'decision' => ApprovalDecision::Approved,
+            'decided_at' => now(),
+            'note' => $note,
+        ]);
+    }
+
     private function approve(LeaveRequest $request, User $employee, User $actor, ?string $note): LeaveRequest
     {
-        $type = $request->leaveType;
-        $tenths = Days::tenths((string) $request->days_requested);
-
-        if ($type->affects_balance) {
-            // The request's own days are no longer "pending" once approved, so exclude it from the reservation.
-            $this->assertBalance($employee, $type, $tenths, (int) $request->getKey());
-
-            LeaveLedgerEntry::query()->create([
-                'user_id' => $request->user_id,
-                'leave_type_id' => $request->leave_type_id,
-                'entry_type' => LedgerEntryType::Deduction,
-                'days' => Days::format(-$tenths),
-                'effective_on' => $request->start_date->toDateString(),
-                'leave_request_id' => $request->getKey(),
-                'note' => 'Approved leave',
-                'created_by' => $actor->getKey(),
-            ]);
-        }
+        $this->writeDeduction($request, $employee, $request->leaveType, $actor);
 
         return $this->finish($request, $actor, LeaveStatus::Approved, $note);
     }

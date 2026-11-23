@@ -48,6 +48,15 @@ it('D-64 settings.manage belongs to the superadmin alone', function (): void {
     }
 })->group('D-64');
 
+it('D-83 only superadmin and hr hold salaries.correct; admin adds salaries but cannot correct them', function (): void {
+    foreach (RoleName::cases() as $role) {
+        expect(in_array(Permissions::SALARIES_CORRECT, PermissionCatalog::forRole($role), true))
+            ->toBe(in_array($role, [RoleName::Superadmin, RoleName::Hr], true), $role->value);
+    }
+
+    expect(PermissionCatalog::forRole(RoleName::Admin))->toContain(Permissions::SALARIES_MANAGE);
+})->group('D-83');
+
 it('D-63 only roles that work with clients and projects hold their view permissions', function (): void {
     foreach (RoleName::cases() as $role) {
         $held = PermissionCatalog::forRole($role);

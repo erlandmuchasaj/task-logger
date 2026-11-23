@@ -38,8 +38,8 @@ use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Url;
 
 /**
- * The Leave Requests list has two views of the same data: the table (the default) and a month calendar of
- * bank holidays and leave (FR-34, D-44). A click on a calendar day, or a drag across days, opens the request
+ * The Leave Requests list has two views of the same data: a month calendar of bank holidays and leave
+ * (the default, FR-34, D-44) and the table. A click on a calendar day, or a drag across days, opens the request
  * form with those dates filled in; saving goes through the same RequestLeave action as the header button.
  * A click on a request the person may open shows it, with the same decision and cancel buttons as the table.
  *
@@ -68,8 +68,8 @@ final class ManageLeaveRequests extends ManageRecords
         }
 
         return [
-            'table' => Tab::make('Table')->icon(Heroicon::OutlinedTableCells),
             'calendar' => Tab::make('Calendar')->icon(Heroicon::OutlinedCalendarDays),
+            'table' => Tab::make('Table')->icon(Heroicon::OutlinedTableCells),
         ];
     }
 

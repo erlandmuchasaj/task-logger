@@ -8,7 +8,7 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Permissions;
 use App\Domain\People\Models\Salary;
 
-/** BR-29: visible to salaries.view holders; created by salaries.manage; never edited or deleted. */
+/** BR-29, D-83: visible to salaries.view holders; created by salaries.manage; corrected by salaries.correct; never deleted. */
 final class SalaryPolicy
 {
     public function viewAny(User $user): bool
@@ -28,7 +28,7 @@ final class SalaryPolicy
 
     public function update(User $user, Salary $salary): bool
     {
-        return false;
+        return $user->can(Permissions::SALARIES_CORRECT);
     }
 
     public function delete(User $user, Salary $salary): bool

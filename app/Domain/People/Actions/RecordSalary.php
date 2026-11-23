@@ -10,21 +10,20 @@ use App\Domain\People\Enums\SalaryStatus;
 use App\Domain\People\Models\Salary;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\Support\CauserResolver;
 
-/** Appends a salary row (BR-29). Rows are never edited or deleted; the ledger settles statuses. */
+/** Appends a salary row (BR-29). Rows are never deleted; the ledger settles statuses. A mistake is fixed by CorrectSalary (D-83). */
 final readonly class RecordSalary
 {
+    use ValidatesSalary;
+
     public function __construct(private SalaryLedger $ledger) {}
 
     public function handle(User $actor, User $employee, SalaryData $data): Salary
     {
         Gate::forUser($actor)->authorize('manageSalaries', $employee);
 
-        if ($data->amount->minor <= 0) {
-            throw ValidationException::withMessages(['amount' => 'The salary must be greater than zero.']);
-        }
+        $this->validateSalary($data);
 
         return resolve(CauserResolver::class)->withCauser($actor, fn (): Salary => DB::transaction(function () use ($actor, $employee, $data): Salary {
             // Serialise concurrent writes for one employee so statuses settle consistently.

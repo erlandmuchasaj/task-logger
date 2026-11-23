@@ -12,14 +12,14 @@ use App\Domain\Identity\Enums\RoleName;
 // Screens every role holds (D-09: every role inherits the employee baseline).
 const SMOKE_EVERYONE = [
     '/app/my-day',
-    '/app/logs',
+    '/app/logs?tab=table',
     '/app/logs?tab=calendar',
     '/app/logs/create',
     '/app/clients',
     '/app/projects',
     '/app/tasks',
     '/app/exports',
-    '/app/leave-requests',
+    '/app/leave-requests?tab=table',
     '/app/leave-requests?tab=calendar',
     '/app/my-leave',
     '/app/bank-holidays',

@@ -9,10 +9,10 @@ use App\Domain\Leave\Models\LeaveRequest;
 use App\Domain\Leave\Notifications\LeaveDecided;
 use Illuminate\Support\Facades\DB;
 
-/** D-57: tell the employee about the final decision, after the transaction commits. */
+/** D-57: tell the employee about the final decision, after the transaction commits. A null actor is the automatic approval of D-84. */
 final class NotifyLeaveDecision
 {
-    public static function send(User $actor, LeaveRequest $request): void
+    public static function send(?User $actor, LeaveRequest $request): void
     {
         DB::afterCommit(function () use ($actor, $request): void {
             $employee = User::query()->find($request->user_id);

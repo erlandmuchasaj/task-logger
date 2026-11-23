@@ -87,13 +87,19 @@ final class LeaveRequest extends Model
         return $this->status === LeaveStatus::Approved && $this->reviewed_by !== null && $this->reviewed_by === $this->user_id;
     }
 
+    /** D-84: approved by the job because nobody decided in time: a decision time but no reviewer. Own and direct requests always name one. */
+    public function wasAutoApproved(): bool
+    {
+        return in_array($this->status, [LeaveStatus::Approved, LeaveStatus::Taken], true) && $this->reviewed_by === null && $this->reviewed_at !== null;
+    }
+
     /** D-71 / BR-19: "taken" means today has reached the first day, in the employee's own calendar. */
     public function hasStarted(CarbonImmutable $today): bool
     {
         return $this->start_date->toDateString() <= $today->toDateString();
     }
 
-    /** D-72: still pending after its first day (on the first day it is escalated, not yet overdue). A computed state, not a status: HR resolves it by deciding or cancelling. */
+    /** D-72: still pending after its first day (on the first day it is escalated, not yet overdue). A computed state, not a status: HR resolves it by deciding or cancelling, or the job of D-84 approves it on its next run. */
     public function isOverdue(CarbonImmutable $today): bool
     {
         return $this->status === LeaveStatus::Pending && $this->start_date->toDateString() < $today->toDateString();

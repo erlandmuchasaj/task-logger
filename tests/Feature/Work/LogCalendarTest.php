@@ -95,28 +95,27 @@ function calendarEntryIds(Testable $page, string $date): array
     return array_column(calendarDay($page, $date)['entries'], 'id');
 }
 
-it('opens on the table, and the tabs switch between the table and the calendar', function (): void {
+it('opens on the calendar, and the tabs switch between the calendar and the table', function (): void {
     $world = calendarWorld();
     $mine = calendarLog($world, '2026-06-10', overrides: ['description' => 'Fix login redirect']);
     $this->actingAs($world['employee']);
 
     Livewire::test(ListLogs::class)
-        ->assertSet('activeTab', 'table')
+        ->assertSet('activeTab', 'calendar')
+        ->assertSee('Month total')
+        ->assertDontSee('Fix login redirect')
+        ->set('activeTab', 'table')
         ->assertCanSeeTableRecords([$mine])
         ->assertSee('Fix login redirect')
         ->assertDontSee('Month total')
         ->set('activeTab', 'calendar')
-        ->assertSee('Month total')->assertSee('June 2026')
-        ->assertDontSee('Fix login redirect')
-        ->set('activeTab', 'table')
-        ->assertSee('Fix login redirect')
-        ->assertDontSee('Month total');
+        ->assertSee('Month total')->assertDontSee('Fix login redirect');
 
-    // The tab and the month live in the URL, so a calendar link can be shared or reloaded.
+    // The tab and the month live in the URL, so a calendar or table link can be shared or reloaded.
     Livewire::withQueryParams(['tab' => 'calendar', 'month' => '2026-05'])->test(ListLogs::class)
         ->assertSee('May 2026')->assertDontSee('Fix login redirect');
-    $this->get('/app/logs?tab=calendar')->assertOk()->assertSee('Month total');
-    $this->get('/app/logs')->assertOk()->assertDontSee('Month total');
+    $this->get('/app/logs')->assertOk()->assertSee('Month total');
+    $this->get('/app/logs?tab=table')->assertOk()->assertDontSee('Month total');
 });
 
 it('renders the action modals on both tabs, because the log modal is mounted from the calendar', function (): void {
@@ -162,7 +161,7 @@ it("shows only your own logs on the calendar even when you may see everyone's in
     $theirs = calendarLog($world, '2026-06-10');
     $this->actingAs($admin);
 
-    $page = Livewire::test(ListLogs::class)->assertCanSeeTableRecords([$mine, $theirs])->set('activeTab', 'calendar');
+    $page = Livewire::test(ListLogs::class)->set('activeTab', 'table')->assertCanSeeTableRecords([$mine, $theirs])->set('activeTab', 'calendar');
 
     expect(calendarEntryIds($page, '2026-06-10'))->toBe([$mine->id]);
 });

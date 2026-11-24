@@ -2,7 +2,7 @@
     "hooks": {
         "PreToolUse": [
             {
-                "matcher": "Write|Edit|Bash",
+                "matcher": "Write|Edit|Bash|mcp__.*__merge_pull_request|mcp__.*__merge_diff|mcp__plugin_github_github__(push_files|create_or_update_file|delete_file)",
                 "hooks": [
                     {
                         "type": "command",

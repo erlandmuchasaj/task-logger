@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Identity\Enums\RoleName;
 use App\Domain\Identity\Models\User;
+use App\Domain\MasterData\Models\Department;
 use App\Domain\People\Support\OrgNode;
 use App\Domain\People\Support\OrgTree;
 use App\Filament\Pages\Hierarchy;
@@ -118,3 +119,70 @@ it('D-79 a person with no role is refused the Hierarchy page', function (): void
 
     $this->get('/app/hierarchy')->assertForbidden();
 })->group('D-79');
+
+it('D-89 orders siblings by department, then by name, with people who have no department last', function (): void {
+    $boss = User::factory()->create(['name' => 'Boss', 'surname' => 'X']);
+    $sales = Department::factory()->create(['name' => 'Sales']);
+    $design = Department::factory()->create(['name' => 'Design']);
+    User::factory()->create(['name' => 'Zed', 'surname' => 'X', 'manager_id' => $boss->id, 'department_id' => $design->id]);
+    User::factory()->create(['name' => 'Abe', 'surname' => 'X', 'manager_id' => $boss->id]);
+    User::factory()->create(['name' => 'Cy', 'surname' => 'X', 'manager_id' => $boss->id, 'department_id' => $sales->id]);
+    User::factory()->create(['name' => 'Bo', 'surname' => 'X', 'manager_id' => $boss->id, 'department_id' => $design->id]);
+
+    expect(orgNames(OrgTree::roots()[0]->children))->toBe(['Bo X', 'Zed X', 'Cy X', 'Abe X']);
+})->group('D-89');
+
+it("D-89 gives a card the colour of its department, the parent department's when it has none, and never an unsafe value", function (): void {
+    $parent = Department::factory()->create(['color' => '#22c55e']);
+    $child = Department::factory()->create(['parent_id' => $parent->id, 'color' => null]);
+    $own = Department::factory()->create(['color' => '#abc']);
+    $unsafe = Department::factory()->create(['color' => 'red;background:url(x)']);
+
+    $boss = User::factory()->create(['name' => 'Boss', 'surname' => 'X']);
+    foreach (['A' => $child, 'B' => $own, 'C' => $unsafe, 'D' => null] as $name => $department) {
+        User::factory()->create(['name' => $name, 'surname' => 'X', 'manager_id' => $boss->id, 'department_id' => $department?->id]);
+    }
+
+    $cards = collect(OrgTree::roots()[0]->children)->keyBy('name');
+
+    expect($cards['A X']->color)->toBe('#22c55e')
+        ->and($cards['A X']->department)->toBe($child->name)
+        ->and($cards['B X']->color)->toBe('#abc')
+        ->and($cards['C X']->color)->toBeNull()
+        ->and($cards['D X']->color)->toBeNull()
+        ->and($cards['D X']->department)->toBeNull();
+})->group('D-89');
+
+it('D-89 lists each department once in the legend and opens the chart two levels below the top person', function (): void {
+    config(['task-logger.hierarchy_open_levels' => 2]);
+
+    $design = Department::factory()->create(['name' => 'Design', 'color' => '#ef4444']);
+    $top = User::factory()->create(['name' => 'Top', 'surname' => 'X', 'department_id' => $design->id]);
+    $mid = User::factory()->create(['name' => 'Mid', 'surname' => 'X', 'manager_id' => $top->id, 'department_id' => $design->id]);
+    $low = User::factory()->create(['name' => 'Low', 'surname' => 'X', 'manager_id' => $mid->id]);
+    $leaf = User::factory()->create(['name' => 'Leaf', 'surname' => 'X', 'manager_id' => $low->id]);
+    User::factory()->create(['name' => 'Tip', 'surname' => 'X', 'manager_id' => $leaf->id]);
+
+    $roots = OrgTree::roots();
+
+    expect(OrgTree::legend($roots))->toBe([['name' => 'Design', 'color' => '#ef4444']])
+        ->and(OrgTree::initiallyOpen($roots))->toBe([$top->id => true, $mid->id => true, $low->id => false, $leaf->id => false]);
+})->group('D-89');
+
+it('D-89 the chart shows departments, the legend and a profile link for each person, and a count only where people sit below', function (): void {
+    $design = Department::factory()->create(['name' => 'Design', 'color' => '#ef4444']);
+    $viewer = userWithRole(RoleName::Employee);
+    $viewer->forceFill(['department_id' => $design->id])->save();
+    $report = User::factory()->create(['name' => 'Rep', 'surname' => 'Ort', 'manager_id' => $viewer->id]);
+
+    $this->actingAs($viewer);
+
+    Livewire::test(Hierarchy::class)
+        ->assertSee('Design')
+        ->assertSee('background-color: #ef4444', false)
+        ->assertSee('border-color: #ef4444', false)
+        ->assertSee('/hierarchy/'.$viewer->id, false)
+        ->assertSee('/hierarchy/'.$report->id, false)
+        ->assertSee('Show or hide the 1 person below', false)
+        ->assertDontSee('below Rep Ort');
+})->group('D-89');

@@ -76,6 +76,9 @@ return [
     // D-79: the Hierarchy page stops this many levels below a root; a manager cycle can never run it away.
     'hierarchy_max_depth' => 20,
 
+    // D-89: the org chart opens this many levels below each top person; deeper levels open on a click.
+    'hierarchy_open_levels' => 2,
+
     // D-01: technology level scale.
     'technology_level_min' => 1,
     'technology_level_max' => 10,

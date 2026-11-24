@@ -13,8 +13,9 @@ use Filament\Support\Icons\Heroicon;
 use UnitEnum;
 
 /**
- * D-79: the company reporting tree of everyone who is active, as an expandable list. It shows name, avatar and job
- * title only (D-68 default: no role, no contact data). Every role holds hierarchy.view through the employee baseline.
+ * D-79, D-89: the company reporting tree of everyone who is active, drawn as an org chart. A card shows name, avatar,
+ * job title and department only (D-68 default: no role, no contact data); the name links to the read-only profile.
+ * Every role holds hierarchy.view through the employee baseline.
  */
 final class Hierarchy extends Page
 {

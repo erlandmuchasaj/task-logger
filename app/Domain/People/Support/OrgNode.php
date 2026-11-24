@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domain\People\Support;
 
-/** D-79: one person on the Hierarchy page. Only what the page shows: name, job title and avatar. */
+/**
+ * D-79, D-89: one person on the Hierarchy chart. Only what a card shows: name, job title, department (and its safe
+ * colour) and avatar, plus the depth below the top person.
+ */
 final readonly class OrgNode
 {
     /** @param list<OrgNode> $children */
@@ -14,6 +17,9 @@ final readonly class OrgNode
         public ?string $position,
         public ?string $avatarUrl,
         public string $initials,
+        public ?string $department = null,
+        public ?string $color = null,
+        public int $depth = 0,
         public array $children = [],
     ) {}
 

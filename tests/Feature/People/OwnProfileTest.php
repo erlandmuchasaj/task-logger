@@ -17,7 +17,9 @@ use App\Filament\Pages\Auth\EditProfile;
 use Carbon\CarbonImmutable;
 use Filament\Facades\Filament;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 use Spatie\Activitylog\Models\Activity;
@@ -174,3 +176,54 @@ it('D-77 the profile page shows a stored phone without the dial prefix the field
 
     Livewire::test(EditProfile::class)->assertFormSet(['phone' => '692123456']);
 })->group('D-77', 'D-60');
+
+it('D-90 a person sets, keeps and removes their own photo, and the top bar uses it', function (): void {
+    Storage::fake('public');
+    Storage::disk('public')->put('avatars/me.png', 'png');
+    $user = profileOwner();
+
+    expect($user->getFilamentAvatarUrl())->toBeNull();
+
+    resolve(UpdateOwnProfile::class)->handle($user, ownProfile(['avatarPath' => 'avatars/me.png']));
+    $user = $user->fresh();
+
+    expect($user->avatar_path)->toBe('avatars/me.png')
+        ->and($user->getFilamentAvatarUrl())->toBe(Storage::disk('public')->url('avatars/me.png'));
+
+    resolve(UpdateOwnProfile::class)->handle($user, ownProfile(['avatarPath' => 'avatars/me.png', 'name' => 'Renamed']));
+    expect($user->fresh()->avatar_path)->toBe('avatars/me.png');
+
+    resolve(UpdateOwnProfile::class)->handle($user->fresh(), ownProfile());
+    expect($user->fresh()->avatar_path)->toBeNull();
+})->group('D-90');
+
+it('D-90 an employee cannot take a file that is not an uploaded avatar as their photo', function (string $path): void {
+    Storage::fake('public');
+    Storage::disk('public')->put('customers/logo.png', 'png');
+    $user = profileOwner();
+
+    expect(fn () => resolve(UpdateOwnProfile::class)->handle($user, ownProfile(['avatarPath' => $path])))
+        ->toThrow(ValidationException::class);
+
+    expect($user->fresh()->avatar_path)->toBeNull();
+})->with([
+    'another folder' => 'customers/logo.png',
+    'a missing file' => 'avatars/missing.png',
+    'a path that climbs out' => 'avatars/../customers/logo.png',
+])->group('D-90');
+
+it('D-90 the profile page saves the photo through the action', function (): void {
+    Storage::fake('public');
+    Filament::setCurrentPanel('app');
+    $user = profileOwner();
+    $this->actingAs($user);
+
+    Livewire::test(EditProfile::class)
+        ->assertSee('Your role')
+        ->fillForm(['avatar_path' => [UploadedFile::fake()->image('me.png')]])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($user->fresh()->avatar_path)->toStartWith('avatars/');
+    Storage::disk('public')->assertExists($user->fresh()->avatar_path);
+})->group('D-90');

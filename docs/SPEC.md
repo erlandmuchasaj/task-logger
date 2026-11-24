@@ -637,6 +637,14 @@ Each entry: what the source says, the default this spec implements, and whether 
 - This changes D-54, D-68 and BR-26 in one place: email and manager, which BR-26 listed as private, are now visible to every role, on this page only. The chart itself already showed who reports to whom.
 - Confirm: no. The owner answered every question in this session.
 
+**D-90 — People change their own photo; the Profile page is laid out in grouped sections. Asked by the owner (2026-11-24). Amends D-77.**
+
+- Source: the owner's request to fix the Profile page and let a person update their own avatar. The owner did not say who else may change it or what happens to the old file.
+- Default, the photo: the Profile page has a Photo field (an image, up to 2 MB, stored under `avatars/` on the public disk, the same field and storage HR uses on the employee form). It saves through `UpdateOwnProfile` with no new permission (`profile.update_own`, D-77). The action accepts only the photo the person already has or a file under `avatars/` that exists; any other path is refused. Emptying the field removes the photo. The photo shows in the top bar (`User` implements Filament's `HasAvatar`, initials when there is none) as well as on the Hierarchy (D-89).
+- Default, the layout (screen only): labels sit above the fields, and the page is grouped into Photo, Contact, Personal details, Your role (shown as text, not disabled inputs), Password and Two-factor authentication.
+- A replaced or removed photo file is kept on disk, as when HR changes it (`UpdateEmployee`); anonymising a person still deletes their current file (D-46). HR keeps the right to change a person's avatar on the employee form.
+- Confirm: yes. Should a replaced photo file be deleted, and should HR's right to overwrite a person's own photo stay?
+
 ### 3.2 Confirm before coding
 
 1. D-14 and D-05: what employees and assistants may see, and whether an employee sees their own HR record. HR and admin access is now set by the owner.

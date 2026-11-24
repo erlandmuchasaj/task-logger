@@ -23,6 +23,7 @@ use Database\Factories\UserFactory;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthenticationRecovery;
 use Filament\Models\Contracts\FilamentUser;
+use Filament\Models\Contracts\HasAvatar;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -35,6 +36,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Lab404\Impersonate\Models\Impersonate;
 use SensitiveParameter;
 use Spatie\Activitylog\Models\Concerns\CausesActivity;
@@ -51,7 +53,7 @@ use Spatie\Permission\Traits\HasRoles;
 ])]
 #[Hidden(['password', 'remember_token', 'app_authentication_secret', 'app_authentication_recovery_codes'])]
 #[UseFactory(UserFactory::class)]
-final class User extends Authenticatable implements BannableContract, FilamentUser, HasAppAuthentication, HasAppAuthenticationRecovery
+final class User extends Authenticatable implements BannableContract, FilamentUser, HasAppAuthentication, HasAppAuthenticationRecovery, HasAvatar
 {
     use Bannable;
     use CausesActivity;
@@ -150,6 +152,12 @@ final class User extends Authenticatable implements BannableContract, FilamentUs
     public function getFilamentName(): string
     {
         return mb_trim($this->name.' '.$this->surname);
+    }
+
+    /** D-90: the photo in the top bar. Without one, Filament shows the initials. */
+    public function getFilamentAvatarUrl(): ?string
+    {
+        return filled($this->avatar_path) ? Storage::disk('public')->url((string) $this->avatar_path) : null;
     }
 
     /** @return BelongsTo<Country, $this> */

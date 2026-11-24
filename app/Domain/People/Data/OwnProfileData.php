@@ -9,7 +9,10 @@ use App\Domain\People\Enums\MaritalStatus;
 use Carbon\CarbonInterface;
 use SensitiveParameter;
 
-/** D-77: what a person may change about themselves. Role, manager, salary and employment fields are not here. */
+/**
+ * D-77, D-90: what a person may change about themselves. Role, manager, salary and employment fields are not here.
+ * The avatar path is the whole new state of the photo: null removes it.
+ */
 final readonly class OwnProfileData
 {
     public function __construct(
@@ -22,6 +25,7 @@ final readonly class OwnProfileData
         public ?string $address = null,
         public ?Gender $gender = null,
         public ?MaritalStatus $maritalStatus = null,
+        public ?string $avatarPath = null,
         #[SensitiveParameter] public ?string $currentPassword = null,
     ) {}
 }

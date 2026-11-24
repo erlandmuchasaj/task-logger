@@ -39,7 +39,7 @@
                     <div
                         wire:key="calendar-day-{{ $day['date'] }}"
                         @if ($day['isMissing']) title="No time logged" @endif
-                        class="relative min-h-20 p-1.5 sm:min-h-28
+                        class="relative flex min-h-20 flex-col p-1.5 sm:min-h-28
                             {{ $day['isMissing'] ? 'bg-red-50 dark:bg-red-500/10' : ($day['isWorkingDay'] ? 'bg-white dark:bg-gray-950' : 'bg-gray-50 dark:bg-gray-900') }}
                             {{ $day['isToday'] ? 'ring-2 ring-inset ring-primary-500' : '' }}
                             {{ $day['canLog'] ? '' : 'opacity-60' }}"
@@ -54,13 +54,8 @@
                         @endif
 
                         {{-- The content sits above the day button but lets clicks through to it; only links and the toggle take clicks. --}}
-                        <div class="pointer-events-none relative flex flex-col gap-0.5" x-data="{ open: false }">
-                            <div class="flex items-start justify-between gap-1">
-                                <span class="{{ $day['isToday'] ? 'font-bold text-primary-600 dark:text-primary-400' : 'text-gray-500 dark:text-gray-400' }}">{{ $day['day'] }}</span>
-                                @if ($day['totalMinutes'] > 0)
-                                    <span class="font-semibold text-gray-950 dark:text-white">{{ $day['total'] }}</span>
-                                @endif
-                            </div>
+                        <div class="pointer-events-none relative flex flex-1 flex-col gap-0.5" x-data="{ open: false }">
+                            <span class="{{ $day['isToday'] ? 'font-bold text-primary-600 dark:text-primary-400' : 'text-gray-500 dark:text-gray-400' }}">{{ $day['day'] }}</span>
 
                             @foreach ($day['holidays'] as $holiday)
                                 <div class="truncate rounded bg-amber-100 px-1 py-0.5 text-amber-900 dark:bg-amber-500/20 dark:text-amber-200" title="Bank holiday: {{ $holiday }}">{{ $holiday }}</div>
@@ -93,6 +88,11 @@
                                     <span x-show="! open">+{{ count($day['entries']) - $visibleEntries }} more</span>
                                     <span x-show="open" x-cloak>Show less</span>
                                 </button>
+                            @endif
+
+                            {{-- The day's total sits in the bottom-right corner, below however many entries the day has. It stays visible on a phone, where the entries are hidden. --}}
+                            @if ($day['totalMinutes'] > 0)
+                                <span class="mt-auto self-end pt-1 font-semibold text-gray-950 dark:text-white">{{ $day['total'] }}</span>
                             @endif
                         </div>
                     </div>

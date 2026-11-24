@@ -1,11 +1,19 @@
 {
-    "mcpServers": {
-        "laravel-boost": {
-            "command": "php",
-            "args": [
-                "artisan",
-                "boost:mcp"
-            ]
-        }
+  "mcpServers": {
+    "laravel-boost": {
+      "command": "php",
+      "args": [
+        "artisan",
+        "boost:mcp"
+      ]
+    },
+    "linear": {
+      "type": "http",
+      "url": "https://mcp.linear.app/mcp"
+    },
+    "notion": {
+      "type": "http",
+      "url": "https://mcp.notion.com/mcp"
     }
+  }
 }

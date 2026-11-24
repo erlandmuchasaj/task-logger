@@ -92,7 +92,7 @@
 
                             {{-- The day's total sits in the bottom-right corner, below however many entries the day has. It stays visible on a phone, where the entries are hidden. --}}
                             @if ($day['totalMinutes'] > 0)
-                                <span class="mt-auto self-end pt-1 font-semibold text-gray-950 dark:text-white">{{ $day['total'] }}</span>
+                                <span class="mt-auto self-end pt-1 font-semibold text-gray-950 dark:text-white"><span class="sr-only">Day total </span>{{ $day['total'] }}</span>
                             @endif
                         </div>
                     </div>

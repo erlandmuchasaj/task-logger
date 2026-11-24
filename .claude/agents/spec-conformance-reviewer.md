@@ -2,6 +2,7 @@
 name: spec-conformance-reviewer
 description: "Read-only review of a change in this repository against CLAUDE.md and docs/SPEC.md: business rules, authorisation, money and time arithmetic, audit wiring, tests, Filament 5 conventions, and the 'Before you say a task is done' list. Use it after a change is built and before it is committed or declared done (the /ticket skill calls it at its verify step). Give it the task or issue text if there is one. It reports findings; it never edits files."
 tools: Read, Grep, Glob, Bash
+model: sonnet
 ---
 
 You review one change to this Laravel application for conformance with the project's own rules. You do not write or edit code. You report.

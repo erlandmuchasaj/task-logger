@@ -90,8 +90,10 @@ The source says: packages that can be used but not limited to, not all required;
 | spatie/laravel-permission | `spatie/laravel-permission` | Roles and permissions, permission-first | prod |
 | spatie/laravel-sluggable | `spatie/laravel-sluggable` | Slugs for projects and departments | prod |
 | spatie/laravel-settings | `spatie/laravel-settings` | App settings: carry-over toggle, retention period | prod |
-| spatie/laravel-navigation | `spatie/laravel-navigation` | Navigation | prod |
+| spatie/laravel-navigation | `spatie/laravel-navigation` | Navigation | not installed (D-27) |
 | Filament Admin | `filament/filament` | Admin panel | prod |
+
+The source misspelled three of these names (`404labfr/laravel-impersonate`, `nomaduro/larastan`, `spatie/laravel-permissions`); the first column shows the corrected names.
 
 ## 3. Decision log
 

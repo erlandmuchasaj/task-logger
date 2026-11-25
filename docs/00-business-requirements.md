@@ -69,4 +69,7 @@ D-01…D-23 live in SPEC §3.1 and are not copied here. New decisions D-24 onwar
 1. Is invoicing really out of v1 (SPEC) or in scope (IDEA.md Q1)?
 2. Is an MCP server for coding agents v1 or a later milestone?
 3. May employees log on completed tasks and on dates before their start date? (SPEC allows backdating until month lock, silent on task status.)
-4. Do you want the Finance role from earlier drafts? Answered by the owner on 2026-11-12: yes, as a sixth role that manages expenses (D-51).
+
+Answered:
+
+4. Do you want the Finance role from earlier drafts? Yes, as a sixth role that manages expenses (owner, 2026-11-12, D-51).

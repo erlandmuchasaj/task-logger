@@ -5,7 +5,6 @@ Guide for agents working in this repository. `CLAUDE.md` only imports this file.
 Where the two parts disagree, the hand-written part wins. Known overrides of the Boost block:
 
 - A schema change edits the module's existing migration and does not use `php artisan make:migration` (see Schema).
-- Actions use the `Gate`, `DB` and `resolve()` helpers, not constructor injection (see Actions).
 - Comments explain WHY, and obvious docblocks are not written (see Coding rules).
 - Pint runs on changed files only: `vendor/bin/pint --dirty --format agent`.
 - The D-xx entries and ADRs this guide asks for count as requested documentation.
@@ -61,6 +60,7 @@ Write new code by copying the nearest sibling. These are the decisions the sibli
 
 - Comments explain WHY, not WHAT. No obvious docblocks and no comments that restate the code.
 - Early returns and guard clauses instead of nesting. Keep files to 80-120 lines; propose a split when one grows past that.
+- Keep controllers thin and move the work into Actions or services. Extract repeated logic (DRY), prefer iteration over recursion, and where a trait needs a contract use the trait and contract pattern with `@require-implements`.
 - Imports are alphabetical. Always `use` a class and never write a fully qualified name inline (`\Throwable`, `\Carbon\Carbon`), in signatures, `new`, `instanceof`, `catch` and anonymous classes alike.
 - Method order: public, protected, private. Within each, the caller comes before its callee.
 - Naming: Controllers `ResourceController`, Actions `VerbNoun`, Services `NounService`, Jobs `VerbNoun`, Events `NounPastTense`, Resources `ModelResource`, Requests `VerbModelRequest`. Variables, properties and parameters are camelCase; DB columns and API fields are snake_case.
@@ -203,9 +203,6 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 
 - Stick to existing directory structure; don't create new base folders without approval.
 - Do not change the application's dependencies without approval.
-- Thin controllers → action classes/services
-- Interfaces for extensibility (OCP), constructor DI over facades (DIP)
-- Extract repeated logic (DRY); iterative over recursive; trait+contract pattern with `@require-implements`
 
 ## Frontend Bundling
 

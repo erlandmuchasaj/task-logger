@@ -1,6 +1,6 @@
 # Tests
 
-Loads when you work under `tests`. The commands and the "Before you say a task is done" checklist are in the root `CLAUDE.md`.
+Loads when you work under `tests`. The commands and the "Before you say a task is done" checklist are in the root `AGENTS.md`.
 
 - A Feature test calls the Action itself: `resolve(CreateLog::class)->handle($actor, logData([...]))`. Build the world with the helpers in `tests/Pest.php` (`userWithRole`, `loggingSetup`, `leaveSetup`, `clientWithRates`, `projectData`, `logData`, `leaveData`, `grantDays`, `employeeData`). Roles and permissions are seeded before every Feature test.
 - Name a test after the rule it proves and group it: `it('BR-06 keeps the snapshot when the rate changes', ...)->group('BR-06')`. Every BR-xx needs at least one test.

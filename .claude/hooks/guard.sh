@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
 # PreToolUse (Write|Edit|Bash|merge and branch-writing MCP tools): protect the repository
-# rules in CLAUDE.md and the "never force-push, never merge" promise of the /ticket skill.
+# rules in AGENTS.md and the "never force-push, never merge" promise of the /ticket skill.
 #
 #   deny  Nobody hand-writes these, whoever asks:
-#         - a NEW file in database/migrations (Schema rule: edit the module's existing
-#           create_*_tables migration instead)
-#         - `artisan make:migration`, and `make:model` with -m / -a / --migration / --all
 #         - composer.lock and package-lock.json (composer and npm own them)
 #         - `git push` with --force, -f (or a bundle such as -fu), a +refspec or --mirror
 #         - merging a pull request: `gh pr merge`, `gh api .../merge`, a GraphQL
@@ -13,6 +10,8 @@
 #           (merge on GitHub, or let `gh pr merge --auto` do it once CI is green)
 #   ask   Allowed only when the owner says so, so the owner gets a prompt:
 #         - .env and .env.* (but not .env.example)
+#         - editing a migration that git already tracks (Schema rule: a committed
+#           migration is never edited; add a new one)
 #         - `artisan migrate:fresh|migrate:refresh|db:wipe` (erase the local database)
 #         - `composer lint` (rewrites files across the whole repository)
 #         - `git push` to main or master, named or implied (a bare `git push`, `origin`
@@ -26,7 +25,7 @@
 #           they write to main or master (they commit on GitHub without a `git push`)
 #
 # Limit: this sees the Write/Edit tools and the Bash command text. A file written from
-# inside a shell command (`cat > database/migrations/x.php`, `sed -i .env`) is not caught.
+# inside a shell command (`sed -i .env`, `cat > composer.lock`) is not caught.
 # For the git and gh rules, quoted strings are removed from the command first, so a
 # commit message or PR body that mentions `git push -f` does not trigger them. The price:
 # anything that hides in quotes is not seen either (`bash -c "git push -f"`, `eval`,
@@ -62,12 +61,11 @@ case "$tool" in
         file=$(jq -r '.tool_input.file_path // empty' <<<"$input")
         [ -n "$file" ] || exit 0
         base="${file##*/}"
-        rel="${file#"$root"/}"
 
-        case "$rel" in
-            database/migrations/*)
-                if [ ! -e "$file" ]; then
-                    decide deny "New migration files are not allowed while the schema is unreleased (CLAUDE.md, Schema). Edit the module's existing create_*_tables migration and apply the same change to the local database with SQL."
+        case "$file" in
+            */database/migrations/*)
+                if git -C "$root" ls-files --error-unmatch -- "$file" >/dev/null 2>&1; then
+                    decide ask "$base is a committed migration, and a committed migration is never edited (AGENTS.md, Schema). Add a new migration instead, or confirm that the owner asked for this edit."
                 fi
                 ;;
         esac
@@ -86,14 +84,6 @@ case "$tool" in
     Bash)
         cmd=$(jq -r '.tool_input.command // empty' <<<"$input")
         [ -n "$cmd" ] || exit 0
-
-        if grep -Eq 'artisan[[:space:]]+make:migration([[:space:]]|$)' <<<"$cmd"; then
-            decide deny "make:migration is not used here (CLAUDE.md, Schema). Edit the module's existing create_*_tables migration and apply the same change to the local database with SQL."
-        fi
-
-        if grep -Eq 'artisan[[:space:]]+make:model[^;&|]*[[:space:]](-[a-zA-Z]*[ma][a-zA-Z]*|--migration|--all)([[:space:]]|$)' <<<"$cmd"; then
-            decide deny "make:model with -m, -a, --migration or --all creates a migration file, which this repo does not use (CLAUDE.md, Schema). Run make:model without those flags."
-        fi
 
         if grep -Eq 'artisan[[:space:]]+(migrate:fresh|migrate:refresh|db:wipe)([[:space:]]|$)' <<<"$cmd"; then
             decide ask "This erases the local database. Confirm that the owner asked for it."
@@ -174,7 +164,7 @@ case "$tool" in
             elif grep -Eq "(^|${sp})--auto(${sp}|\$)" <<<"$scrubbed"; then
                 decide ask "gh pr merge --auto merges the pull request as soon as the required checks pass. Confirm that the owner asked for it."
             else
-                decide deny "Claude does not merge pull requests (CLAUDE.md, /ticket). The owner merges on GitHub, or the owner asks for: gh pr merge --auto"
+                decide deny "Claude does not merge pull requests (the /ticket skill). The owner merges on GitHub, or the owner asks for: gh pr merge --auto"
             fi
         fi
         if grep -Eq "${gh_re}api(${sp}|\$)" <<<"$scrubbed"; then
@@ -209,7 +199,7 @@ case "$tool" in
         ;;
 
     mcp__*merge_pull_request | mcp__*merge_diff)
-        decide deny "Claude does not merge pull requests (CLAUDE.md, /ticket). The owner merges on GitHub."
+        decide deny "Claude does not merge pull requests (the /ticket skill). The owner merges on GitHub."
         ;;
 
     mcp__plugin_github_github__push_files | mcp__plugin_github_github__create_or_update_file | mcp__plugin_github_github__delete_file)

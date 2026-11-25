@@ -34,7 +34,7 @@ If `git status` shows changes that clearly predate the task (the caller says whi
 
 ## 3. Find the rules the change touches
 
-Search `docs/SPEC.md` for the BR-xx (section 6), D-xx (section 3.1) and W-xx (section 7) that apply, and read the note for the module in `docs/04-architecture.md` sections 8 to 19. A later D-xx overrides earlier text. `README.md`, `IDEA.md`, `PRD.md`, `TRD.md` and `docs/archive/` are history: never cite them as the rule.
+Search `docs/SPEC.md` for the BR-xx (section 6), D-xx (section 3.1) and W-xx (section 7) that apply, and read the note for the module in `docs/04-architecture.md` sections 8 to 19. A later D-xx overrides earlier text. `README.md`, `IDEA.md`, `PRD.md` and `TRD.md` are history: never cite them as the rule.
 
 ## 4. Check
 

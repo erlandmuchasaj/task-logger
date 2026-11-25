@@ -24,7 +24,7 @@ Four version facts change how code is written here, so trust them over memory: F
 | Who may do what? | `config/permission.php` (`roles`). The grid tables in the docs are older copies. |
 
 - A later D-xx overrides any earlier text, in the spec and in the numbered docs. Known stale passages: the Directory, removed by D-54, still appears in SPEC §5.2, §6.4 and §8, in `docs/04-architecture.md` §10 and in `docs/07-security.md` §3 and §4. `docs/07-security.md` §2 says there is no `Gate::before`, which D-41 replaced. `docs/04-architecture.md` §3 lists folders and classes that do not exist.
-- `README.md`, `IDEA.md`, `PRD.md`, `TRD.md` and `docs/archive/` are history. They contradict the spec (ADR-0003), and the archive reuses BR and D numbers with other meanings. Implement nothing from them. When a doc and the code disagree, say so in your report.
+- `README.md`, `IDEA.md`, `PRD.md` and `TRD.md` are history. They contradict the spec (ADR-0003). Implement nothing from them. When a doc and the code disagree, say so in your report.
 - Where the spec says nothing, do not fill the gap unannounced, and do not invent a field, status, enum value or rule. Choose the narrowest default, keep it behind config, an enum or a policy, record it as the next D-xx in `docs/SPEC.md` §3.1 marked "Confirm: yes", and name it in your report. Then build: the D-xx carries the question to the owner. Ask first only when the choice cannot be undone, such as removing or rewriting stored data.
 - A new or changed business or access rule gets its D-xx in the same change, and an ADR in `docs/adr/` when it changes the architecture. A screen-only change needs neither.
 

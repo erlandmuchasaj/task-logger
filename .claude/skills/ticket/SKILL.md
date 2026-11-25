@@ -26,7 +26,7 @@ Typing `/ticket` is the owner's consent to: create a branch, commit, push **that
 Linear's tools come from the Linear MCP server and their names are not fixed. Find them with `ToolSearch` (query `linear issue`, then `linear comment`), then read:
 
 - title, description, acceptance criteria, labels, priority, project, parent and sub-issues, and **all comments** (decisions often hide there);
-- the issue's identifier (for example `ERL-123`) and its type: bug, feature or chore.
+- the issue's identifier (for example `ERL-123`) and its type, from the label: bug, task or feature (no label counts as feature).
 
 If no Linear tool is available, tell the user to connect it (`/mcp`, server `linear`) or to paste the issue text, and stop until they do. Never guess an issue's content from its ID.
 

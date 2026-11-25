@@ -54,25 +54,22 @@ After simplification, perform these deeper checks on changed code. These pattern
 - **Copy-paste errors in docblocks**: Verify docblock descriptions match the actual method, not a neighboring method they were copied from.
 - **Cross-file consistency**: When adding a new pattern (e.g., a trait, config key, enum case), verify it's applied consistently everywhere it should be — not just the file being changed.
 
-### API & Behavioral Safety
-- **Breaking API resource changes**: If fields are removed from API resources (`toArray()`), flag as a potential breaking change for consumers.
+### Behavioral Safety
 - **Silent behavioral changes during refactoring**: When extracting/moving logic, check if the refactored code subtly changes behavior. Examples: switching from `%search%` (contains) to `search%` (prefix-only), changing which code paths are reached, or altering shortening/formatting behavior.
 - **Cascade/scope creep**: When code cascades operations through relationships, verify the cascade doesn't reach beyond the intended scope. Especially check `BelongsTo` relationships — cascading "up" to a parent entity and then back down through the parent's other children can delete unrelated data.
 
 ### Null Safety & Type Safety
 - **Nullable return values**: Check calls to methods that can return `null` (e.g., `Storage::get()`, `Model::first()`, `Collection::first()`). Ensure null is handled before passing to methods that expect non-null.
-- **Schema/enum mismatches**: When PHP enums and JSON schemas or config arrays describe the same set of values, verify they stay in sync.
-- **Fragile sentinel values**: Flag magic values used as sentinels (e.g., `expires_in=0` meaning "never expires"). Suggest named constants or explicit flags instead.
+- **Schema/enum mismatches**: When a PHP enum and a database CHECK constraint or config array describe the same set of values, verify they stay in sync.
+- **Fragile sentinel values**: Flag magic values used as sentinels (a `0` that means "never", an empty string that means "unset"). Suggest an enum, a named constant or an explicit flag instead.
 
 ### Test Quality
 - **Weakened assertions**: Check if test assertions were made less specific during modification. Substring matches replacing exact matches, removed header/status assertions, or `assertNotEmpty` replacing `assertNotNull` — all reduce test coverage.
 - **Missing test coverage for new paths**: When new code paths are added (auth methods, feature flags, error handlers), verify tests exist for both the happy path and the negative/edge cases.
-- **Test self-containment**: Each test should be fully self-contained — no `setUp()` dependencies, explicit factory creation, explicit state cleanup.
+- **Test self-containment**: Follow `tests/CLAUDE.md`. A test builds its world with the helpers in `tests/Pest.php` and calls the Action itself. Do not flag the roles and permissions that are seeded before every Feature test; that is by design.
 
 ### Config & Environment Safety
-- **Missing `env()` fallbacks**: When config values use `env('VAR_NAME')` without a fallback, check if a missing secret would cause silent failures (e.g., queue connection falling back to `sync`, cache falling back to `array`).
-- **Config parity**: When adding new connections/drivers (e.g., SQS alongside Redis), verify settings like `after_commit`, timeouts, and retry behavior match the existing connection they'll replace.
-- **Deploy ordering risks**: If changes require infrastructure to exist before deploy (ECS task definitions, secrets, queues), flag the chicken-and-egg problem and suggest guards (`continue-on-error`, conditional steps, or documented pre-merge requirements).
+- **Missing `env()` fallbacks**: When config values use `env('VAR_NAME')` without a fallback, check if a missing secret would cause silent failures (e.g., queue connection falling back to `sync`, cache falling back to `array`). A tunable default belongs in `config/task-logger.php`.
 
 ### Redundancy & Performance
 - **Redundant operations**: Check for duplicate work — e.g., cascading deletes through two paths that reach the same records, or eager loading relations already loaded by a parent query.

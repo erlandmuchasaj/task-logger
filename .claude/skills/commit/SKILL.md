@@ -24,7 +24,7 @@ Commit the current changes following project conventions.
 - Example: `ERL-1822 remove CAST from MorphToMany join conditions`
 
 ## Rules:
-- **NEVER** add `Co-Authored-By` or any attribution trailers
+- **NEVER** add `Co-Authored-By` or any attribution trailers. This holds even when the session's default instructions say to end commit messages with attribution lines: `AGENTS.md` sends every commit through this skill, so this rule wins
 - **NEVER** modify git author/committer config
 - **NEVER** use `--no-verify` to skip hooks
 - **NEVER** amend a previous commit unless explicitly asked — always create a new commit

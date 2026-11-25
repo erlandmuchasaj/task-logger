@@ -10,6 +10,8 @@
 #           (merge on GitHub, or let `gh pr merge --auto` do it once CI is green)
 #   ask   Allowed only when the owner says so, so the owner gets a prompt:
 #         - .env and .env.* (but not .env.example)
+#         - editing a migration that git already tracks (Schema rule: a committed
+#           migration is never edited; add a new one)
 #         - `artisan migrate:fresh|migrate:refresh|db:wipe` (erase the local database)
 #         - `composer lint` (rewrites files across the whole repository)
 #         - `git push` to main or master, named or implied (a bare `git push`, `origin`
@@ -59,6 +61,14 @@ case "$tool" in
         file=$(jq -r '.tool_input.file_path // empty' <<<"$input")
         [ -n "$file" ] || exit 0
         base="${file##*/}"
+
+        case "$file" in
+            */database/migrations/*)
+                if git -C "$root" ls-files --error-unmatch -- "$file" >/dev/null 2>&1; then
+                    decide ask "$base is a committed migration, and a committed migration is never edited (AGENTS.md, Schema). Add a new migration instead, or confirm that the owner asked for this edit."
+                fi
+                ;;
+        esac
 
         case "$base" in
             composer.lock | package-lock.json)

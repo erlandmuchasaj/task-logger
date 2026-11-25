@@ -26,7 +26,7 @@ Typing `/ticket` is the owner's consent to: create a branch, commit, push **that
 Linear's tools come from the Linear MCP server and their names are not fixed. Find them with `ToolSearch` (query `linear issue`, then `linear comment`), then read:
 
 - title, description, acceptance criteria, labels, priority, project, parent and sub-issues, and **all comments** (decisions often hide there);
-- the issue's identifier (for example `TL-123`) and its type: bug, feature or chore.
+- the issue's identifier (for example `ERL-123`) and its type: bug, feature or chore.
 
 If no Linear tool is available, tell the user to connect it (`/mcp`, server `linear`) or to paste the issue text, and stop until they do. Never guess an issue's content from its ID.
 
@@ -47,7 +47,7 @@ Create the branch from up-to-date `main` and put the issue ID in it (Linear link
 - bug: `fix/<id>-<short-slug>`
 - chore, tooling, docs only: `chore/<id>-<short-slug>`
 
-The ID is lower case and the slug is a few words, for example `feature/tl-123-leave-carry-over-report`. Do not touch `.claude/settings.local.json`.
+The ID is lower case and the slug is a few words, for example `feature/erl-123-leave-carry-over-report`. Do not touch `.claude/settings.local.json`.
 
 ## 5. Build
 
@@ -70,10 +70,10 @@ If `.claude/agents/spec-conformance-reviewer.md` exists, run that agent on the d
 Only when `composer test` exited 0. If a gate is red and you cannot fix it, stop here: do not push, and report the failing output to the user.
 
 1. `git status` must show only files for this issue. Stage them by name, not with `git add -A`.
-2. Commit with a short imperative message that starts with the issue ID (`TL-123 Add leave carry-over report`), plus the attribution lines the session asks for.
+2. Commit with a short imperative message that starts with the issue ID (`ERL-123 Add leave carry-over report`), plus the attribution lines the session asks for.
 3. `git push -u origin <branch>`.
 4. `gh pr create` against `main`:
-   - title: `<ID> <summary>`;
+   - title: `<ID>: <description>`;
    - body, in this order: `Closes <ID>`; what changed; what you verified and how; what you could not verify; every D-xx you added, each with its "Confirm: yes" question; every place the spec and the code disagree. This is item 10 of the `AGENTS.md` list.
 5. Comment on the Linear issue with the PR link, the new D-xx questions and anything unverified. Do not change the issue's status.
 

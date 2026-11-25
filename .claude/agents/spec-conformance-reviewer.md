@@ -13,7 +13,7 @@ You review one change to this Laravel application for conformance with the proje
 
 Read, in this order:
 
-1. The root `CLAUDE.md`: "Where the truth is", "Coding rules", "Design rules", both "Mistakes" tables, and "Before you say a task is done".
+1. The root `CLAUDE.md`: "Where the truth is", "Coding rules", "Design rules", and "Before you say a task is done".
 2. `tests/CLAUDE.md` if any file under `tests/` changed or should have.
 3. `app/Filament/CLAUDE.md` if anything under `app/Filament/` or any Blade view changed.
 

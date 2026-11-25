@@ -243,7 +243,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 **D-24 — SPEC.md is authoritative (ADR-0003).**
 
 - Source: IDEA.md, PRD.md, TRD.md and the earlier Phase 1 draft disagree with this spec (multiple assignees, invoicing, Finance role, MCP, extra packages).
-- Default: this spec wins. The earlier draft is archived in `docs/archive/phase1-draft/`. Conflicts are listed in `docs/00-business-requirements.md` §7.
+- Default: this spec wins. The earlier draft was removed from the repository in ERL-8 and is only in git history. Conflicts are listed in `docs/00-business-requirements.md` §7.
 - Confirm: yes. Is invoicing really out, and are multiple assignees really out?
 
 **D-25 — MCP and public API deferred (ADR-0004).**

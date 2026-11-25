@@ -1,6 +1,6 @@
 # task-logger — documentation
 
-`SPEC.md` is the authoritative specification. The files below are the Phase 0 deliverables (SPEC §10). The earlier draft is in `archive/phase1-draft/` (superseded; its D-xx/BR-xx IDs differ).
+`SPEC.md` is the authoritative specification. The files below are the Phase 0 deliverables (SPEC §10). The earlier draft was removed in ERL-8 and is only in git history (it was superseded, and its D-xx/BR-xx IDs differ).
 
 | # | Document | Purpose |
 |---|---|---|

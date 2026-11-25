@@ -13,7 +13,7 @@ Analyze recently modified code and apply refinements across two categories:
 
 1. **Preserve Functionality**: Never change what the code does — only how it does it.
 
-2. **Apply Project Standards** from CLAUDE.md:
+2. **Apply Project Standards** from AGENTS.md:
    - `declare(strict_types=1)` in every PHP file
    - Always `use` import classes — never FQCN inline (`\Throwable`, `\Carbon\Carbon`, etc.)
    - `fn()` arrow functions always — never `function` closures

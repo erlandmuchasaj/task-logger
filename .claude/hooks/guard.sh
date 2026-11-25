@@ -174,7 +174,7 @@ case "$tool" in
             elif grep -Eq "(^|${sp})--auto(${sp}|\$)" <<<"$scrubbed"; then
                 decide ask "gh pr merge --auto merges the pull request as soon as the required checks pass. Confirm that the owner asked for it."
             else
-                decide deny "Claude does not merge pull requests (AGENTS.md, /ticket). The owner merges on GitHub, or the owner asks for: gh pr merge --auto"
+                decide deny "Claude does not merge pull requests (the /ticket skill). The owner merges on GitHub, or the owner asks for: gh pr merge --auto"
             fi
         fi
         if grep -Eq "${gh_re}api(${sp}|\$)" <<<"$scrubbed"; then
@@ -209,7 +209,7 @@ case "$tool" in
         ;;
 
     mcp__*merge_pull_request | mcp__*merge_diff)
-        decide deny "Claude does not merge pull requests (AGENTS.md, /ticket). The owner merges on GitHub."
+        decide deny "Claude does not merge pull requests (the /ticket skill). The owner merges on GitHub."
         ;;
 
     mcp__plugin_github_github__push_files | mcp__plugin_github_github__create_or_update_file | mcp__plugin_github_github__delete_file)

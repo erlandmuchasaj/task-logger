@@ -3,7 +3,7 @@
 #
 # Fails open: any problem (no jq, no vendor/bin/pint, odd path) exits 0 silently, so a
 # formatter hiccup never blocks the session. `composer test:lint` in CI is the real gate.
-# Per CLAUDE.md this runs `pint <file> --format agent`, never `composer lint`, which
+# Per AGENTS.md this runs `pint <file> --format agent`, never `composer lint`, which
 # rewrites the whole repository.
 
 command -v jq >/dev/null 2>&1 || exit 0

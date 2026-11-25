@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # PreToolUse (Write|Edit|Bash|merge and branch-writing MCP tools): protect the repository
-# rules in CLAUDE.md and the "never force-push, never merge" promise of the /ticket skill.
+# rules in AGENTS.md and the "never force-push, never merge" promise of the /ticket skill.
 #
 #   deny  Nobody hand-writes these, whoever asks:
 #         - a NEW file in database/migrations (Schema rule: edit the module's existing
@@ -67,7 +67,7 @@ case "$tool" in
         case "$rel" in
             database/migrations/*)
                 if [ ! -e "$file" ]; then
-                    decide deny "New migration files are not allowed while the schema is unreleased (CLAUDE.md, Schema). Edit the module's existing create_*_tables migration and apply the same change to the local database with SQL."
+                    decide deny "New migration files are not allowed while the schema is unreleased (AGENTS.md, Schema). Edit the module's existing create_*_tables migration and apply the same change to the local database with SQL."
                 fi
                 ;;
         esac
@@ -88,11 +88,11 @@ case "$tool" in
         [ -n "$cmd" ] || exit 0
 
         if grep -Eq 'artisan[[:space:]]+make:migration([[:space:]]|$)' <<<"$cmd"; then
-            decide deny "make:migration is not used here (CLAUDE.md, Schema). Edit the module's existing create_*_tables migration and apply the same change to the local database with SQL."
+            decide deny "make:migration is not used here (AGENTS.md, Schema). Edit the module's existing create_*_tables migration and apply the same change to the local database with SQL."
         fi
 
         if grep -Eq 'artisan[[:space:]]+make:model[^;&|]*[[:space:]](-[a-zA-Z]*[ma][a-zA-Z]*|--migration|--all)([[:space:]]|$)' <<<"$cmd"; then
-            decide deny "make:model with -m, -a, --migration or --all creates a migration file, which this repo does not use (CLAUDE.md, Schema). Run make:model without those flags."
+            decide deny "make:model with -m, -a, --migration or --all creates a migration file, which this repo does not use (AGENTS.md, Schema). Run make:model without those flags."
         fi
 
         if grep -Eq 'artisan[[:space:]]+(migrate:fresh|migrate:refresh|db:wipe)([[:space:]]|$)' <<<"$cmd"; then
@@ -174,7 +174,7 @@ case "$tool" in
             elif grep -Eq "(^|${sp})--auto(${sp}|\$)" <<<"$scrubbed"; then
                 decide ask "gh pr merge --auto merges the pull request as soon as the required checks pass. Confirm that the owner asked for it."
             else
-                decide deny "Claude does not merge pull requests (CLAUDE.md, /ticket). The owner merges on GitHub, or the owner asks for: gh pr merge --auto"
+                decide deny "Claude does not merge pull requests (AGENTS.md, /ticket). The owner merges on GitHub, or the owner asks for: gh pr merge --auto"
             fi
         fi
         if grep -Eq "${gh_re}api(${sp}|\$)" <<<"$scrubbed"; then
@@ -209,7 +209,7 @@ case "$tool" in
         ;;
 
     mcp__*merge_pull_request | mcp__*merge_diff)
-        decide deny "Claude does not merge pull requests (CLAUDE.md, /ticket). The owner merges on GitHub."
+        decide deny "Claude does not merge pull requests (AGENTS.md, /ticket). The owner merges on GitHub."
         ;;
 
     mcp__plugin_github_github__push_files | mcp__plugin_github_github__create_or_update_file | mcp__plugin_github_github__delete_file)

@@ -45,7 +45,9 @@ return [
     */
 
     'guidelines' => [
-        'exclude' => [],
+        'exclude' => [
+            'deployments',
+        ],
     ],
 
     /*

@@ -13,15 +13,18 @@ Analyze recently modified code and apply refinements across two categories:
 
 1. **Preserve Functionality**: Never change what the code does — only how it does it.
 
-2. **Apply Project Standards** from AGENTS.md:
-   - `declare(strict_types=1)` in every PHP file
-   - Always `use` import classes — never FQCN inline (`\Throwable`, `\Carbon\Carbon`, etc.)
-   - `fn()` arrow functions always — never `function` closures
-   - `match` over `switch`, backed enums, constructor promotion, `?->`, named args
+2. **Apply Project Standards** from AGENTS.md ("Coding rules" and "Types and style"). Where this list and AGENTS.md differ, AGENTS.md wins:
+   - `declare(strict_types=1)` and `final`: Pint adds them, so write them from the start
+   - Always `use` import classes, imports alphabetical — never FQCN inline (`\Throwable`, `\Carbon\Carbon`, etc.)
+   - Type every parameter, property and return, closures included. Avoid `mixed`; a union has two or three types at most
+   - `match` over `switch`, string-backed enums with TitleCase cases, constructor promotion, named args, first-class callables, numeric separators (`1_000_000`), property hooks for computed properties
+   - `=== null` and `!== null`, never `is_null()`. Never combine `?->` with `??`
+   - Early returns and guard clauses instead of nesting
    - Method ordering: public → protected → private; caller before callee
-   - 4 spaces, max 80 chars/line, multiline arrays one-per-line + trailing comma
+   - One item per line in a multi-item array (one or two simple items may share a line), a chain of three or more calls broken across lines, a blank line after a control structure and before `return`
    - Comments explain WHY not WHAT; no obvious docblocks
    - Files 80-120 lines; propose splits if exceeding
+   - Never `assert()` to narrow a type; use a `/** @var Type $var */` docblock
 
 3. **Enhance Clarity**:
    - Reduce unnecessary complexity and nesting

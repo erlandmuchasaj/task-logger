@@ -3,9 +3,6 @@
 # rules in AGENTS.md and the "never force-push, never merge" promise of the /ticket skill.
 #
 #   deny  Nobody hand-writes these, whoever asks:
-#         - a NEW file in database/migrations (Schema rule: edit the module's existing
-#           create_*_tables migration instead)
-#         - `artisan make:migration`, and `make:model` with -m / -a / --migration / --all
 #         - composer.lock and package-lock.json (composer and npm own them)
 #         - `git push` with --force, -f (or a bundle such as -fu), a +refspec or --mirror
 #         - merging a pull request: `gh pr merge`, `gh api .../merge`, a GraphQL
@@ -26,7 +23,7 @@
 #           they write to main or master (they commit on GitHub without a `git push`)
 #
 # Limit: this sees the Write/Edit tools and the Bash command text. A file written from
-# inside a shell command (`cat > database/migrations/x.php`, `sed -i .env`) is not caught.
+# inside a shell command (`sed -i .env`, `cat > composer.lock`) is not caught.
 # For the git and gh rules, quoted strings are removed from the command first, so a
 # commit message or PR body that mentions `git push -f` does not trigger them. The price:
 # anything that hides in quotes is not seen either (`bash -c "git push -f"`, `eval`,
@@ -62,15 +59,6 @@ case "$tool" in
         file=$(jq -r '.tool_input.file_path // empty' <<<"$input")
         [ -n "$file" ] || exit 0
         base="${file##*/}"
-        rel="${file#"$root"/}"
-
-        case "$rel" in
-            database/migrations/*)
-                if [ ! -e "$file" ]; then
-                    decide deny "New migration files are not allowed while the schema is unreleased (AGENTS.md, Schema). Edit the module's existing create_*_tables migration and apply the same change to the local database with SQL."
-                fi
-                ;;
-        esac
 
         case "$base" in
             composer.lock | package-lock.json)
@@ -86,14 +74,6 @@ case "$tool" in
     Bash)
         cmd=$(jq -r '.tool_input.command // empty' <<<"$input")
         [ -n "$cmd" ] || exit 0
-
-        if grep -Eq 'artisan[[:space:]]+make:migration([[:space:]]|$)' <<<"$cmd"; then
-            decide deny "make:migration is not used here (AGENTS.md, Schema). Edit the module's existing create_*_tables migration and apply the same change to the local database with SQL."
-        fi
-
-        if grep -Eq 'artisan[[:space:]]+make:model[^;&|]*[[:space:]](-[a-zA-Z]*[ma][a-zA-Z]*|--migration|--all)([[:space:]]|$)' <<<"$cmd"; then
-            decide deny "make:model with -m, -a, --migration or --all creates a migration file, which this repo does not use (AGENTS.md, Schema). Run make:model without those flags."
-        fi
 
         if grep -Eq 'artisan[[:space:]]+(migrate:fresh|migrate:refresh|db:wipe)([[:space:]]|$)' <<<"$cmd"; then
             decide ask "This erases the local database. Confirm that the owner asked for it."

@@ -4,7 +4,6 @@ Guide for agents working in this repository. `CLAUDE.md` only imports this file.
 
 Where the two parts disagree, the hand-written part wins. Known overrides of the Boost block:
 
-- A schema change edits the module's existing migration and does not use `php artisan make:migration` (see Schema).
 - Comments explain WHY, and obvious docblocks are not written (see Coding rules).
 - Pint runs on changed files only: `vendor/bin/pint --dirty --format agent`.
 - The D-xx entries and ADRs this guide asks for count as requested documentation.
@@ -101,13 +100,8 @@ Write new code by copying the nearest sibling. These are the decisions the sibli
 
 ### Schema
 
-- While the schema is unreleased (the owner's rule, 12 November 2026), change the module's existing `create_*_tables` migration instead of adding a migration file, and apply the same change to the local database with SQL. Tests rebuild from the migrations. A hook blocks new migration files.
+- The schema is released (the owner lifted the "edit the existing migration" rule on 25 November 2026). A schema change is a new migration made with `php artisan make:migration`; a migration that has been committed is never edited. Apply it locally with `php artisan migrate`. Tests rebuild from the migrations.
 - Where the database can enforce a rule, it enforces it a second time (a CHECK constraint, a composite foreign key, a unique generated column), beside the Action's friendly message.
-
-#### After the first release
-
-These apply once the owner lifts the rule above.
-
 - A migration is forward-only: `down()` must exist but stay empty. Name the file with `date +"%Y_%m_%d_%H%M%S"`. A data migration uses `chunkById()`, never `get()` and `foreach` on an unbounded query.
 - Safe, no table rebuild: add a column at the end (nullable, no default), add, drop or rename an index, add or drop a foreign key, rename a column or table, change a default, extend a VARCHAR within its byte threshold, add an ENUM value at the end.
 - Forbidden, because it rebuilds the table: change a column type, drop a column, reorder columns, change nullability, drop the primary key. Use several PRs instead: dual-write, backfill, cutover.
@@ -160,7 +154,7 @@ Work through every line. A line that does not apply is skipped on purpose, not b
 6. `composer test` exits 0. If a gate fails, fix it or report it with its output; do not describe a failing gate as passing.
 7. For a screen change: `npm run build` ran, and you opened the screen at `http://task-logger.test/app` as a role that is not the superadmin, in light and dark mode and at phone width, with no errors in `browser-logs`.
 8. The spec matches the change: a new D-xx for a new or changed rule, and the passages you made stale are corrected or named in your report.
-9. `git status` shows only files for this task. Changes that were already in the working tree are untouched, and there is no new migration file and no document nobody asked for.
+9. `git status` shows only files for this task. Changes that were already in the working tree are untouched, and no document nobody asked for. A schema change is a new migration, and no committed migration was edited.
 10. Your report says what changed, what you verified and how, what you could not verify, and every place where the spec and the code disagreed.
 
 ## Git and writing

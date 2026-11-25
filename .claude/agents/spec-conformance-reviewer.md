@@ -44,7 +44,7 @@ Work through the checks below. Each one that applies to the diff gets a verdict 
 - A new or changed business or access rule has its D-xx in `docs/SPEC.md` section 3.1, in the `**D-NN — Title.**` format with Source, Default and `Confirm: yes`; an ADR in `docs/adr/` if the architecture changed.
 - A gap in the spec was filled with an invented field, status, enum case or rule and no D-xx.
 - Stored data is removed or rewritten (irreversible) without the owner asking.
-- A new file under `database/migrations/` (the rule is: edit the module's existing `create_*_tables` migration). A schema rule the database could enforce but only the Action does.
+- An edited migration that is already committed (the rule is: add a new migration), or a migration that breaks the "Schema" rules in `AGENTS.md` (forward-only `down()`, no table rebuild, `chunkById()` for data). A schema rule the database could enforce but only the Action does.
 - A documentation file nobody asked for. Stale spec passages the change made wrong.
 
 **Actions and writes**
@@ -128,4 +128,4 @@ Not part of this change
 - <working-tree files that predate the task>
 ```
 
-Blockers are: a rule bypassed or unenforced, a gated value exposed, money or time arithmetic that can give a wrong number, a missing audit, a missing refusal test, a new migration file, an invented rule with no D-xx. Everything else is "Should fix" or a note. "Spec/code disagreements" and "D-xx needed" feed item 10 and item 8 of the AGENTS.md checklist directly, so keep them precise.
+Blockers are: a rule bypassed or unenforced, a gated value exposed, money or time arithmetic that can give a wrong number, a missing audit, a missing refusal test, an edited committed migration, an invented rule with no D-xx. Everything else is "Should fix" or a note. "Spec/code disagreements" and "D-xx needed" feed item 10 and item 8 of the AGENTS.md checklist directly, so keep them precise.

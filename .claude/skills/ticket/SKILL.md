@@ -43,16 +43,12 @@ If no Linear tool is available, tell the user to connect it (`/mcp`, server `lin
 
 Create the branch from up-to-date `main` and put the issue ID in it (Linear links on it):
 
-- feature: `feature/<id>-<short-slug>`
-- bug: `fix/<id>-<short-slug>`
-- chore, tooling, docs only: `chore/<id>-<short-slug>`
-
-The ID is lower case and the slug is a few words, for example `feature/erl-123-leave-carry-over-report`. Do not touch `.claude/settings.local.json`.
+The name is `{type}/{ISSUE}`, as in `AGENTS.md` and the `/commit` skill, which reads the issue ID from it. The type comes from the Linear label: `bug` is `bugfix/`, `task` is `task/`, `feature` or no label is `feature/`. Keep the ID in upper case and add no slug, for example `feature/ERL-123`. Do not touch `.claude/settings.local.json`.
 
 ## 5. Build
 
 - Work test-first where a rule changes. Load the skills that match the work before writing code: `testing-best-practices` for tests, `filament-development` for screens, `laravel-permission-development` for permissions, `activitylog-development` for audited models. Read `tests/CLAUDE.md` before the first test and `app/Filament/CLAUDE.md` before the first screen.
-- Copy the nearest sibling, as `AGENTS.md` says. Schema changes edit the module's existing migration and never add a migration file (a hook blocks it).
+- Copy the nearest sibling, as `AGENTS.md` says. A schema change is a new migration under the "Schema" rules; never edit a committed one.
 - Keep the diff to what the issue asks. Note anything else you notice in the report and in a Linear comment; do not fix it here.
 
 ## 6. Verify
@@ -69,8 +65,8 @@ If `.claude/agents/spec-conformance-reviewer.md` exists, run that agent on the d
 
 Only when `composer test` exited 0. If a gate is red and you cannot fix it, stop here: do not push, and report the failing output to the user.
 
-1. `git status` must show only files for this issue. Stage them by name, not with `git add -A`.
-2. Commit with a short imperative message that starts with the issue ID (`ERL-123 Add leave carry-over report`), plus the attribution lines the session asks for.
+1. `git status` must show only files for this issue.
+2. Commit through the `/commit` skill (Skill tool, `skill: "commit"`). It holds the message format (`ERL-123 add leave carry-over report`, lower case, no attribution lines) and stages files by name. Never run `git add` or `git commit` by hand.
 3. `git push -u origin <branch>`.
 4. `gh pr create` against `main`:
    - title: `<ID>: <description>`;

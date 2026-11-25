@@ -50,7 +50,7 @@ Source scope sentence: users, user skills, roles and permissions, clients, proje
 
 ### 1.4 Actors
 
-`superadmin`, `admin`, `hr` (D-06), `assistant`, `employee`. Details in section 4.
+`superadmin`, `admin`, `hr` (D-06), `assistant`, `employee`, `finance`. Details in section 4.
 
 ## 2. Stack and infrastructure
 
@@ -81,19 +81,17 @@ The source says: packages that can be used but not limited to, not all required;
 | Source name | Package to install (verify) | Purpose here | Scope |
 | --- | --- | --- | --- |
 | barryvdh/laravel-debugbar | `barryvdh/laravel-debugbar` | Request and query debugging | dev only |
-| 404labfr/laravel-impersonate | `lab404/laravel-impersonate` | Superadmin acts as a user for support (D-20) | `[OPTIONAL]` |
+| lab404/laravel-impersonate | `lab404/laravel-impersonate` | Superadmin acts as a user for support (D-20) | `[OPTIONAL]` |
 | cybercog/laravel-ban | `cybercog/laravel-ban` | Ban or deactivate users (D-20) | prod |
-| nomaduro/larastan | `larastan/larastan` | Static analysis | dev, CI |
+| larastan/larastan | `larastan/larastan` | Static analysis | dev, CI |
 | barryvdh/laravel-ide-helper | `barryvdh/laravel-ide-helper` | IDE metadata | dev only |
 | propaganistas/laravel-phone | `propaganistas/laravel-phone` | Validate and normalise phone numbers to E.164 | prod |
 | spatie/laravel-activitylog | `spatie/laravel-activitylog` | The ActivityLog entity and audit trail | prod |
-| spatie/laravel-permissions | `spatie/laravel-permission` | Roles and permissions, permission-first | prod |
+| spatie/laravel-permission | `spatie/laravel-permission` | Roles and permissions, permission-first | prod |
 | spatie/laravel-sluggable | `spatie/laravel-sluggable` | Slugs for projects and departments | prod |
 | spatie/laravel-settings | `spatie/laravel-settings` | App settings: carry-over toggle, retention period | prod |
 | spatie/laravel-navigation | `spatie/laravel-navigation` | Navigation | prod |
 | Filament Admin | `filament/filament` | Admin panel | prod |
-
-Three source names look mistyped (`404labfr`, `nomaduro`, `laravel-permissions`). The middle column is my best reading. Verify before install.
 
 ## 3. Decision log
 

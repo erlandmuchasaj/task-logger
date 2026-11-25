@@ -1,7 +1,7 @@
 ---
 name: ticket
 description: "Take one Linear issue from ticket to an open pull request: read the issue, check it against docs/SPEC.md, branch, build it test-first, run the gates in CLAUDE.md, then commit, push the feature branch and open the PR with the issue ID so Linear links and closes it. Only run when the user types /ticket <issue ID or URL>; never start it as part of another task."
-argument-hint: "<Linear issue ID or URL, e.g. TL-123>"
+argument-hint: "<Linear issue ID or URL, e.g. ERL-123>"
 disable-model-invocation: true
 ---
 

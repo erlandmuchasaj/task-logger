@@ -44,7 +44,7 @@ D-01…D-23 live in SPEC §3.1 and are not copied here. New decisions D-24 onwar
 
 | New | Topic | ADR |
 |---|---|---|
-| D-24 | SPEC.md is authoritative over IDEA.md, PRD.md, TRD.md and the archived Phase 1 draft | 0003 |
+| D-24 | SPEC.md is authoritative over IDEA.md, PRD.md, TRD.md and the removed Phase 1 draft (git history only) | 0003 |
 | D-25 | MCP/agent API deferred out of v1 | 0004 |
 | D-26 | Authentication: password + email reset; 2FA recommended, SSO out of v1 | 0005 |
 | D-27 | Use Filament navigation, drop `spatie/laravel-navigation` | 0006 |
@@ -57,11 +57,11 @@ D-01…D-23 live in SPEC §3.1 and are not copied here. New decisions D-24 onwar
 | Topic | SPEC | Other source | Outcome |
 |---|---|---|---|
 | Assignees per task | One (BR-09) | IDEA.md Q8: "Yes" | SPEC |
-| Invoicing | Non-goal | IDEA.md Q1: "can be added"; archived draft S8 | SPEC; owner question |
-| Finance role | Not a role | Archived draft, TRD | SPEC |
+| Invoicing | Non-goal | IDEA.md Q1: "can be added"; removed draft S8 | SPEC; owner question |
+| Finance role | Not a role at first; D-51 later added it | Removed draft, TRD | SPEC (D-51) |
 | MCP | Out of v1 (D-22) | IDEA.md Q10: "IMPORTANT" | Deferred, ADR-0004, owner question |
-| Log on cancelled/closed tasks, 15-min steps | Not specified; BR-04 allows any minute | IDEA.md Q7, archived draft | SPEC (minute granularity); owner question |
-| Roles additive | One role per user (D-09) | Archived draft D-01 | SPEC |
+| Log on cancelled/closed tasks, 15-min steps | Not specified; BR-04 allows any minute | IDEA.md Q7, removed draft | SPEC (minute granularity); owner question |
+| Roles additive | One role per user (D-09) | Removed draft D-01 | SPEC |
 | Stack versions | "Latest stable" | TRD: Laravel 13, Filament 5, Shield, medialibrary, backup | Verified on Packagist (04-architecture §6); Shield/medialibrary/backup not in SPEC package list, not installed unless owner agrees |
 
 ## Open questions for the owner
@@ -69,4 +69,4 @@ D-01…D-23 live in SPEC §3.1 and are not copied here. New decisions D-24 onwar
 1. Is invoicing really out of v1 (SPEC) or in scope (IDEA.md Q1)?
 2. Is an MCP server for coding agents v1 or a later milestone?
 3. May employees log on completed tasks and on dates before their start date? (SPEC allows backdating until month lock, silent on task status.)
-4. Do you want the Finance role from earlier drafts? SPEC has none; finance work maps to the assistant plus `logs.export`.
+4. Do you want the Finance role from earlier drafts? Answered by the owner on 2026-11-12: yes, as a sixth role that manages expenses (D-51).

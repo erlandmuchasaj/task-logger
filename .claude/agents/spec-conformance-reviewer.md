@@ -15,7 +15,9 @@ Read, in this order:
 
 1. The root `AGENTS.md`: "Where the truth is", "Coding rules", "Design rules", and "Before you say a task is done".
 2. `tests/CLAUDE.md` if any file under `tests/` changed or should have.
-3. `app/Filament/CLAUDE.md` if anything under `app/Filament/` or any Blade view changed.
+3. `app/Filament/CLAUDE.md` if anything under `app/Filament/` or any Blade view changed. It holds the screen "Design rules".
+4. `app/Domain/CLAUDE.md` if anything under `app/Domain/` changed. It holds the rules for Actions, models, enums, money and dates.
+5. `database/CLAUDE.md` if anything under `database/` changed. It holds the migration-safety rules.
 
 ## 2. Get the whole change
 
@@ -34,7 +36,7 @@ If `git status` shows changes that clearly predate the task (the caller says whi
 
 ## 3. Find the rules the change touches
 
-Search `docs/SPEC.md` for the BR-xx (section 6), D-xx (section 3.1) and W-xx (section 7) that apply, and read the note for the module in `docs/04-architecture.md` sections 8 to 19. A later D-xx overrides earlier text. `README.md`, `IDEA.md`, `PRD.md` and `TRD.md` are history: never cite them as the rule.
+Search `docs/SPEC.md` for the BR-xx (section 6), D-xx (section 3.1) and W-xx (section 7) that apply, and read the note for the module in `docs/04-architecture.md` sections 8 to 19. A later D-xx overrides earlier text.
 
 ## 4. Check
 

@@ -244,13 +244,12 @@ Each entry: what the source says, the default this spec implements, and whether 
 
 **D-24 — SPEC.md is authoritative (ADR-0003).**
 
-- Source: IDEA.md, PRD.md, TRD.md and the earlier Phase 1 draft disagree with this spec (multiple assignees, invoicing, Finance role, MCP, extra packages).
 - Default: this spec wins. The earlier draft was removed from the repository in ERL-8 and is only in git history. Conflicts are listed in `docs/00-business-requirements.md` §7.
 - Confirm: yes. Is invoicing really out, and are multiple assignees really out?
 
 **D-25 — MCP and public API deferred (ADR-0004).**
 
-- Source: IDEA.md calls an MCP for coding agents important; D-22 says no public API in v1.
+- Source: Add a MCP for coding agents important; D-22 says no public API in v1.
 - Default: no API or MCP in v1. Actions and DTOs stay transport-agnostic.
 - Confirm: yes.
 
@@ -377,7 +376,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 
 **D-47 — Impersonation `[OPTIONAL]` (M6). Requested by the owner (2026-11-12).**
 
-- Source: IDEA.md and the grid row `employees.impersonate`; D-38 already records `impersonator_id` on every audit entry.
+- Source: D-38 already records `impersonator_id` on every audit entry.
 - Default: the superadmin (`employees.impersonate`) can act as another user from the Employees list, using `lab404/laravel-impersonate` 1.7.8 (Laravel 13 compatible). Not allowed: yourself, a deactivated or anonymised account, another root user (`system.root`), or nesting. Starting and stopping are audited with the real person as causer; every audited write while impersonating carries `impersonator_id` (D-38). A banner with a POST-only stop button shows while impersonating; the package's own GET routes are not registered, so an impersonation can only start from the Filament action. While impersonating, the Profile page (password and two-factor setup of the person being acted as) is closed. The impersonated user's own permissions apply; root access does not carry over.
 - Confirm: no.
 
@@ -654,7 +653,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 5. (answered) D-17: expenses ship, managed by finance and superadmin only (D-51).
 6. D-10: labels and whether the assistant can edit master data.
 7. D-22: headcount and expected volume.
-8. D-24, D-25: invoicing, multiple assignees and MCP (conflicts with IDEA.md).
+8. D-24, D-25: invoicing, multiple assignees and MCP.
 9. D-28: whether employee-role managers can approve leave.
 10. D-31 and D-33: the salary status rules, and whether employees may edit any of their own data.
 11. D-39: future dates, closed tasks, and whether admin may edit others' logs in open months.
@@ -682,6 +681,7 @@ Answered by the owner and already applied: D-04 (budget includes fixed costs), D
 - `hr` `[ASSUMED D-06]` (source also allows admin plus HR department)
 - `assistant`
 - `employee` (source: employees)
+- `finance`
 
 ### 4.3 Capabilities as stated in the source
 
@@ -739,7 +739,7 @@ Answered by the owner and already applied: D-04 (budget includes fixed costs), D
 
 **Owner clarifications (after the first review)**
 
-- hr, admin and superadmin manage the private HR record, salaries, offboardings and settings. Expenses are managed by a Finance role and the superadmin only (D-51, owner answer 2026-11-12, replacing the earlier answer that gave expenses to hr and admin).
+- hr, admin and superadmin manage the private HR record, salaries, offboardings and settings. Expenses and Financials are managed by a Finance role and the superadmin only (D-51, owner answer 2026-11-12, replacing the earlier answer that gave expenses to hr and admin).
 - HR can create bank holidays. The Monday that observes a holiday on a weekend is worked out for a country that moves weekend holidays (D-62), so HR does not add it.
 - An assignee can change the status of their own tasks. The creator of a task (the manager) can change statuses of tasks they created for other users. Admin and superadmin can change any task.
 - A leave request is approved only when both the direct manager and HR approve it.

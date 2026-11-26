@@ -81,7 +81,7 @@ flowchart LR
 | settings | `spatie/laravel-settings` | 3.10.1 | database ^12\|^13 | Use |
 | navigation | `spatie/laravel-navigation` | 1.3.0 (last release 2024-09-20) | php ^8.0, no Laravel 13 declaration | **Do not install**; use Filament navigation (ADR-0006) |
 
-Not in SPEC §2.3 and therefore **not** installed: Shield, medialibrary, backup, Horizon, Boost (named by TRD.md). Adopting any needs an ADR/owner approval. Exact installed versions get pinned in `composer.json` at M0 and re-checked then; this table is a snapshot.
+Not in SPEC §2.3 and therefore **not** installed: Shield, medialibrary, backup, Horizon, Boost. Adopting any needs an ADR/owner approval. Exact installed versions get pinned in `composer.json` at M0 and re-checked then; this table is a snapshot.
 
 ## 7. ADR index
 
@@ -89,7 +89,7 @@ Not in SPEC §2.3 and therefore **not** installed: Shield, medialibrary, backup,
 
 ## Open questions for the owner
 
-1. Approve Horizon, Shield, medialibrary or backup packages (TRD.md) or stay with the SPEC list?
+1. Approve Horizon, Shield, medialibrary or backup packages or stay with the SPEC list?
 2. Confirm PHP 8.4+ as the minimum (forced by activitylog 5).
 3. Hosting target (Herd locally; Apache vs Nginx in prod) for the CI/CD doc.
 
@@ -166,7 +166,7 @@ Built: logs (task and direct), the client rate snapshot, My Day with pinned task
 - **BR-07.** `LogPolicy` decides by permission and by whether the month is locked (`TimesheetLocks`). Corrections in a locked month produce `locked_month_*` activity entries in addition to the ordinary before/after audit (D-39).
 - **BR-33.** `RequestExport` stores the request context and queues `RunExport`, which re-checks the permission, streams in chunks of 500 to a temporary stream and writes to the private disk. The `Exporter` per type chooses the columns for the requester. `PruneExports` runs daily.
 - **D-38 carry-over.** `ActivityContext::snapshot()/using()` lets a queued job write its audit entry with the IP, user agent and impersonator of the request that queued it.
-- **Not built (out of the M4 list):** budget and overdue colour warnings (an IDEA.md item, not in SPEC), estimated vs logged reports (M7), notifications.
+- **Not built (out of the M4 list):** budget and overdue colour warnings, estimated vs logged reports (M7), notifications.
 - **Known limit.** Direct logging requires the project's client to have a rate on the log date, like task logging (BR-06); there is no way to log unpriced time.
 
 ## 14. Root access (D-41, after M4)

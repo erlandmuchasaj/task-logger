@@ -2,11 +2,7 @@
 
 Guide for agents working in this repository. `CLAUDE.md` only imports this file. The Laravel Boost block at the end is generated: `php artisan boost:update` replaces it on every run (and after every `composer update`), so edit only above it.
 
-Where the two parts disagree, the hand-written part wins. Known overrides of the Boost block:
-
-- Comments explain WHY, and obvious docblocks are not written (see Coding rules).
-- Pint runs on changed files only: `vendor/bin/pint --dirty --format agent`.
-- The D-xx entries and ADRs this guide asks for count as requested documentation.
+Where the two parts disagree, the hand-written part wins. Known override of the Boost block: the D-xx entries and ADRs this guide asks for count as requested documentation.
 
 ## What this is
 
@@ -23,7 +19,6 @@ Four version facts change how code is written here, so trust them over memory: F
 | Who may do what? | `config/permission.php` (`roles`). The grid tables in the docs are older copies. |
 
 - A later D-xx overrides any earlier text, in the spec and in the numbered docs. Known stale passages: the Directory, removed by D-54, still appears in SPEC §5.2, §6.4 and §8, in `docs/04-architecture.md` §10 and in `docs/07-security.md` §3 and §4. `docs/07-security.md` §2 says there is no `Gate::before`, which D-41 replaced. `docs/04-architecture.md` §3 lists folders and classes that do not exist.
-- `README.md`, `IDEA.md`, `PRD.md` and `TRD.md` are history. They contradict the spec (ADR-0003). Implement nothing from them. When a doc and the code disagree, say so in your report.
 - Where the spec says nothing, do not fill the gap unannounced, and do not invent a field, status, enum value or rule. Choose the narrowest default, keep it behind config, an enum or a policy, record it as the next D-xx in `docs/SPEC.md` §3.1 marked "Confirm: yes", and name it in your report. Then build: the D-xx carries the question to the owner. Ask first only when the choice cannot be undone, such as removing or rewriting stored data.
 - A new or changed business or access rule gets its D-xx in the same change, and an ADR in `docs/adr/` when it changes the architecture. A screen-only change needs neither.
 
@@ -59,7 +54,7 @@ Write new code by copying the nearest sibling. These are the decisions the sibli
 
 - Comments explain WHY, not WHAT. No obvious docblocks and no comments that restate the code.
 - Early returns and guard clauses instead of nesting. Keep files to 80-120 lines; propose a split when one grows past that.
-- Keep controllers thin and move the work into Actions or services. Extract repeated logic (DRY), prefer iteration over recursion, and where a trait needs a contract use the trait and contract pattern with `@require-implements`.
+- Where a trait needs a contract, use the trait and contract pattern with `@require-implements`.
 - Imports are alphabetical. Always `use` a class and never write a fully qualified name inline (`\Throwable`, `\Carbon\Carbon`), in signatures, `new`, `instanceof`, `catch` and anonymous classes alike.
 - Method order: public, protected, private. Within each, the caller comes before its callee.
 - Naming: Controllers `ResourceController`, Actions `VerbNoun`, Services `NounService`, Jobs `VerbNoun`, Events `NounPastTense`, Resources `ModelResource`, Requests `VerbModelRequest`. Variables, properties and parameters are camelCase; DB columns and API fields are snake_case.
@@ -67,15 +62,9 @@ Write new code by copying the nearest sibling. These are the decisions the sibli
 - Use `=== null` and `!== null`, never `is_null()`. Never combine `?->` with `??`: `??` already has isset semantics and absorbs a null dereference at every level of the chain, so the nullsafe operator is redundant there.
 - Propose improvements that go beyond the task (refactors, renames, splits) and wait for approval before making them. A gap in the spec is different: follow "Where the truth is".
 
-### Actions
+### Actions, models and values
 
-- A write that carries a business rule is an Action: `app/Domain/<Module>/Actions/<VerbNoun>.php` with one public `handle()`. An Action that a person triggers takes `User $actor` first, then a `Data/` object. Inside, in this order: authorise with `Gate::forUser($actor)->authorize(...)`, validate, then write inside `resolve(CauserResolver::class)->withCauser($actor, fn () => DB::transaction(...))`, so the audit names the actor. Copy `app/Domain/Clients/Actions/AddFixedCost.php`.
-- Where an Action exists, save through it. Eloquent or a default Filament create, edit or delete action skips authorisation, validation, the rate snapshot and the audit actor.
-- A broken rule throws `ValidationException::withMessages(['field' => 'A plain sentence.'])`. Checks shared by create and update live in a `Validates<Thing>` trait beside the Actions (`ValidatesLog`).
-- A check against a running total (the 24-hour day, a leave balance) first locks the person's `users` row with `lockForUpdate()`, then repeats the check inside the transaction. Copy `app/Domain/Work/Actions/CreateLog.php`.
-- Scheduled work is an Action with a parameterless `handle()`, registered in `routes/console.php`, and safe to run twice.
-- Emails and bell notifications go out after the transaction commits (`DB::afterCommit`, see `app/Domain/Work/Support/NotifyAssignee.php`). They are sent at once, never queued (an email can carry a password), and skip deactivated and anonymised people.
-- Master data (countries, departments, technologies, labels, leave types, payment plans, bank holidays) has no Actions. It is plain Filament CRUD behind a `MasterDataPolicy` subclass; keep it that simple.
+These rules are in `app/Domain/CLAUDE.md`, which loads when you work under `app/Domain`; read it first if you are about to write a business rule, a model, an enum, or money, day, hour or date arithmetic from elsewhere (a screen, a test, a migration). In short: a write that carries a business rule is an Action, a Filament create, edit or delete action never saves around one, and money, days and hours are integers.
 
 ### Authorisation
 
@@ -88,25 +77,11 @@ Write new code by copying the nearest sibling. These are the decisions the sibli
 - Rates, budgets and amounts need `clients.view_rates`, salaries need `salaries.view`, and private HR fields need the `viewHrRecord` ability. This holds for every output: columns, infolists, exports, reports, emails and search. A gated value shown in a new place uses the same permission as the existing column, and a test asserts its absence for a role without it.
 - Never trust a value from the browser (a Livewire property, a method argument, a query string). Check the permission again in the method, parse dates and months with `CalendarInput`, and accept an id only if it is among the choices this person has (`LogChoices`).
 
-### Models, enums and values
-
-- A model is `final`, lives in `app/Domain/<Module>/Models`, declares `#[Fillable([...])]` and `#[UseFactory(...)]`, has a `casts()` method, and documents relations as `@return BelongsTo<User, $this>`. It holds relations, casts and small pure helpers. A business model has `use LogsBusinessActivity`, which audits every write, and a row in the `$models` list of `BusinessActivityTest`. Before and after values are in `attribute_changes`, not `properties`.
-- Treat N+1 as a bug. Eager load every relation read in a loop, collection or resource (`->with('relation.nested')`, `withCount()`, `loadMissing()`). Lazy loading throws outside production, and each module's `ScreensTest` catches it.
-- An enum is string-backed with TitleCase cases, is cast in `casts()`, and implements `HasLabel`, plus `HasColor` or `HasIcon` when it shows as a badge. Allowed transitions are a `next()` method on the enum (`ExpenseStatus`).
-- Money is integer minor units plus an ISO currency: `*_minor` columns and `App\Domain\Shared\Money`. Parse a typed amount with `Money::fromMajor()`, round half up with `intdiv`, and total per currency with `Money::groupByCurrency()`. Leave days are integer tenths (`app/Domain/Leave/Support/Days.php`) and time is minutes. Stored values and arithmetic are integers; a float appears only at the edge, when a value is formatted for display or an export column. No `$hours * $rate` and no `round()` on money, days or hours; the architecture test checks column types only.
-- A person's "today" is `WorkCalendar::today($user)`, in their country's timezone, never `now()` or `today()`. `date` columns are calendar dates in that timezone; `datetime` columns are UTC.
-- People and clients are deactivated, never deleted. Salaries, the leave ledger and the activity log only grow.
-- A tunable default goes in `config/task-logger.php`.
-
 ### Schema
 
 - The schema is released (the owner lifted the "edit the existing migration" rule on 25 November 2026). A schema change is a new migration made with `php artisan make:migration`; a migration that has been committed is never edited. Apply it locally with `php artisan migrate`. Tests rebuild from the migrations.
 - Where the database can enforce a rule, it enforces it a second time (a CHECK constraint, a composite foreign key, a unique generated column), beside the Action's friendly message.
-- A migration is forward-only: `down()` must exist but stay empty. `make:migration` names the file, so do not rename it by hand. A data migration uses `chunkById()`, never `get()` and `foreach` on an unbounded query.
-- The next two bullets keep a large table from being rebuilt. A required (NOT NULL) column is therefore added nullable, backfilled by a data migration, and enforced by the Action and a CHECK constraint. Making it NOT NULL afterwards is a rebuild: do it on a small table, or ask the owner first.
-- Safe, no table rebuild: add a column at the end (nullable, no default), add, drop or rename an index, add or drop a foreign key, rename a column or table, change a default, extend a VARCHAR within its byte threshold, add an ENUM value at the end.
-- Forbidden, because it rebuilds the table: change a column type, drop a column, reorder columns, change nullability, drop the primary key. Use several PRs instead: dual-write, backfill, cutover.
-- Caution: `->after()` prevents an instant change, and a non-null default may need a table scan.
+- More migration rules (forward-only `down()`, chunked data migrations, which changes rebuild a table) are in `database/CLAUDE.md`, which loads when you work under `database`.
 
 ### Types and style
 
@@ -124,18 +99,10 @@ Filament 3 or 4 code written from memory (`Filament\Forms\Form`, `Tables\Actions
 
 ## Design rules (the interface)
 
-- Build a screen from Filament components first. Use custom Blade only for what a table or form cannot show (a calendar, a report table, balance cards), and wrap it in `<x-filament-panels::page>` and `<x-filament::section>`, with `<x-filament::button>` and `<x-form-actions>` for the button row.
-- Style with Tailwind utilities only. `theme.css` holds imports and `@source` lines, and nothing else. A class that never reaches the page needs `npm run build`.
+Screen rules (colours, badges, actions, copy, dates, navigation) are in `app/Filament/CLAUDE.md`, which loads when you work under `app/Filament`; read it first if you build a screen from elsewhere. These apply to every Blade view:
+
+- Style with Tailwind utilities only. `theme.css` holds imports and `@source` lines, and nothing else.
 - Every colour utility has its `dark:` partner. The pairs in use: secondary text `text-sm text-gray-500 dark:text-gray-400`, hairlines `border-gray-200 dark:border-white/10`. The primary colour is Amber (`primary-*`).
-- Meaning is carried by Filament's colour names, the same everywhere: `success` done or approved, `warning` waiting or needs care, `danger` refused, critical or destructive, `info` a neutral middle step, `gray` not started, cancelled or inactive. On the calendars amber is a bank holiday, sky is leave (a dashed outline while it is pending), red is a working day with nothing logged, and the primary ring is today.
-- A status or type shows as a badge whose label and colour come from the enum (`getLabel()`, `getColor()`), never from the table definition.
-- Row actions sit together in one `ActionGroup`. An action that removes or cannot be undone is `danger` or `warning`, asks with `->requiresConfirmation()`, and says in `modalDescription` what will happen in plain words. No table has bulk actions.
-- Hide what a person may not use (`->visible(fn () => ...)`); do not show it disabled.
-- Dates show as `dd/mm/yyyy`, set once in `AppServiceProvider`. Use a bare `DatePicker::make()`, `->date()` or `->dateTime()` with no format of its own. Durations show as `h:mm` (`Log::duration()`), money as `EUR 1200.50` (`Money::format()`), and an empty value as `—`.
-- Success is a short notification in the past tense ("Log deleted"). A broken rule goes through `ActionErrors::report()` wherever there is a form to mark (a page, or a modal form with the prefix `mountedActions.0.data.`), followed by `throw new Halt`. An action with no form fields uses `ActionErrors::notify()`. `FixedCostsRelationManager` shows both.
-- Copy is plain English written as string literals (this codebase does not use `__()`), in sentence case, with British spelling in what people read ("Anonymised") and American spelling in identifiers (`anonymized_at`). Helper text states the rule in one sentence: "Back-dating is allowed until the month is locked."
-- Every screen joins one of the existing navigation groups: Work, Clients & projects, Leave, People, Finance, Reports, Master data, Administration.
-- A list has a `->defaultSort()`. A table that can grow large uses `PaginationMode::Simple` with page sizes 25, 50 and 100.
 - Custom Blade works at phone width: grids step up with `sm:` and `lg:`, and a wide table sits in `overflow-x-auto`.
 
 ## Before you say a task is done

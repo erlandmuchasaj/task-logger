@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 /**
- * D-91: budget, costs and profit per project, from three grouped queries whatever the number of projects. The caller
+ * D-91: budget, costs and profit per project, from grouped queries (logs, fixed costs and person-days) plus one holiday lookup per country and month. The caller
  * passes projects with their `customer` loaded. Needs `financials.view`, which is its own permission: a person
  * without `salaries.view` or `clients.view_rates` still sees these totals, never a salary or a rate.
  */

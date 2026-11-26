@@ -19,6 +19,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Enums\PaginationMode;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -73,9 +74,9 @@ final class Financials extends Page implements HasTable
                 TextColumn::make('fixed_costs')->label('Fixed costs')->toggleable()
                     ->state(fn (Project $record): string => $this->row($record)->fixedCosts->format()),
                 TextColumn::make('profit')->label('Profit')->toggleable()
-                    ->state(fn (Project $record): string => $this->money($this->row($record)->profit())),
+                    ->state(fn (Project $record): string => $this->row($record)->profitLabel() ?? '—'),
                 TextColumn::make('total_hours')->label('Total hours')->toggleable()
-                    ->state(fn (Project $record): string => $this->hours($this->row($record)->loggedMinutes)),
+                    ->state(fn (Project $record): string => $this->row($record)->hours()),
                 TextColumn::make('end_date')->label('Deadline')->date()->placeholder('—')->sortable()->toggleable(),
             ])
             ->filters([
@@ -83,6 +84,7 @@ final class Financials extends Page implements HasTable
                     ->getOptionLabelFromRecordUsing(fn (Customer $record): string => $record->displayName()),
                 SelectFilter::make('status')->options(ProjectStatus::class),
             ])
+            ->paginationMode(PaginationMode::Simple)
             ->paginated([25, 50, 100])
             ->defaultPaginationPageOption(25)
             ->defaultSort('created_at', 'desc');
@@ -108,10 +110,5 @@ final class Financials extends Page implements HasTable
     private function money(?Money $money): string
     {
         return $money?->format() ?? '—';
-    }
-
-    private function hours(int $minutes): string
-    {
-        return intdiv($minutes, 60).':'.mb_str_pad((string) ($minutes % 60), 2, '0', STR_PAD_LEFT);
     }
 }

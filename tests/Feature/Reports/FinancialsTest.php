@@ -78,7 +78,7 @@ it('D-91 prices a person-day at the monthly salary over the working time of that
     expect($row->employeeCosts->minor)->toBe(2000)
         ->and($row->fixedCosts->minor)->toBe(5000)
         ->and($row->costs()->minor)->toBe(7000)
-        ->and($row->profit()->minor)->toBe($project->budget_minor - 2000)
+        ->and($row->profitMinor())->toBe($project->budget_minor - 2000)
         ->and($row->loggedMinutes)->toBe(120);
 })->group('D-91');
 
@@ -98,9 +98,38 @@ it('D-91 shows no employee costs or profit when a salary is in another currency 
 
     $row = financialsRow($project);
 
-    expect($row->employeeCosts)->toBeNull()->and($row->costs())->toBeNull()->and($row->profit())->toBeNull()
+    expect($row->employeeCosts)->toBeNull()->and($row->costs())->toBeNull()->and($row->profitMinor())->toBeNull()
         ->and($row->budget->minor)->toBe($project->budget_minor);
 })->group('D-91', 'BR-12');
+
+it('D-91 shows a loss as a negative profit instead of failing', function (): void {
+    [$project, $employee, $tech] = financialsWorld(); // budget 200.00
+    financialLog($project, $employee, $tech->id, '2026-11-10', 780);
+    financialLog($project, $employee, $tech->id, '2026-11-11', 780); // 26 h at 10.00 = 260.00
+
+    $row = financialsRow($project);
+
+    expect($row->profitMinor())->toBe(-6000)->and($row->profitLabel())->toBe('-EUR 60.00')->and($row->profitMajor())->toBe('-60.00');
+
+    $this->actingAs(userWithRole(RoleName::Finance));
+    Livewire::test(Financials::class)->assertOk()->assertSee('-EUR 60.00');
+})->group('D-91');
+
+it('D-91 a project with no logs has zero costs and a profit equal to its budget', function (): void {
+    [$project] = financialsWorld();
+
+    $row = financialsRow($project);
+
+    expect($row->employeeCosts->minor)->toBe(0)->and($row->profitMinor())->toBe($project->budget_minor)->and($row->hours())->toBe('0:00');
+})->group('D-91');
+
+it('D-91 two salary rows on the same date: the later row prices the day', function (): void {
+    [$project, $employee, $tech] = financialsWorld();
+    Salary::factory()->create(['user_id' => $employee->id, 'amount_minor' => 304_000, 'currency_code' => 'EUR', 'effective_date' => '2026-01-01']); // same date as the first
+    financialLog($project, $employee, $tech->id, '2026-11-10', 60);
+
+    expect(financialsRow($project)->employeeCosts->minor)->toBe(2000);
+})->group('D-91');
 
 it('D-91 counts a day with no salary on record as no cost', function (): void {
     [$project, $employee, $tech] = financialsWorld();
@@ -178,7 +207,7 @@ it('D-91 the export file carries the same figures as the page', function (): voi
         'Employee costs' => $row->employeeCosts->toMajorString(),
         'Fixed costs' => '50.00',
         'Costs' => $row->costs()->toMajorString(),
-        'Profit' => $row->profit()->toMajorString(),
+        'Profit' => $row->profitMajor(),
         'Total hours' => '2:05',
     ]);
 })->group('D-91');

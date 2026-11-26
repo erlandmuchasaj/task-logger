@@ -55,8 +55,8 @@ final class FinancialsExporter implements Exporter
             'costs' => $figures->costs()?->toMajorString(),
             'employee_costs' => $figures->employeeCosts?->toMajorString(),
             'fixed_costs' => $figures->fixedCosts->toMajorString(),
-            'profit' => $figures->profit()?->toMajorString(),
-            'total_hours' => $this->hours($figures->loggedMinutes),
+            'profit' => $figures->profitMajor(),
+            'total_hours' => $figures->hours(),
             'end_date' => $project->end_date?->toDateString(),
         ];
     }
@@ -64,10 +64,5 @@ final class FinancialsExporter implements Exporter
     private function figuresFor(User $user, Project $project): FinancialsRow
     {
         return resolve(BuildFinancials::class)->handle($user, [$project])[$project->getKey()];
-    }
-
-    private function hours(int $minutes): string
-    {
-        return intdiv($minutes, 60).':'.mb_str_pad((string) ($minutes % 60), 2, '0', STR_PAD_LEFT);
     }
 }

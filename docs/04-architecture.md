@@ -231,6 +231,6 @@ Built: expenses `[OPTIONAL]` and the Finance role (D-51, D-52, ADR-0010).
 
 Built: a Financials page for finance and the superadmin, and its export.
 
-- **Domain `app/Domain/Reports`.** `BuildFinancials` returns one `FinancialsRow` per project from three grouped queries. `EmployeeCosts` prices each person-day at the salary in force that day over the working time of the month; `WorkingMinutes` counts that time per country and month from the working week and `BankHolidays`. Tunables are in `config/task-logger.php` under `financials`.
+- **Domain `app/Domain/Reports`.** `BuildFinancials` returns one `FinancialsRow` per project from grouped queries, plus one bank-holiday lookup per country and month. `EmployeeCosts` prices each person-day at the salary in force that day over the working time of the month; `WorkingMinutes` counts that time per country and month from the working week and `BankHolidays`. Tunables are in `config/task-logger.php` under `financials`.
 - **Access.** Permissions `financials.view` and `financials.export`, checked through `ProjectPolicy::viewFinancials` and `FinancialsExporter::canExport`. They are separate from `clients.view_rates` and `salaries.view`.
 - **Screen.** `app/Filament/Pages/Financials.php` in the "Clients & projects" group: a Filament table over projects, with the figures of the visible page computed once. Costs, profit and hours are not sortable, because they are computed in PHP.

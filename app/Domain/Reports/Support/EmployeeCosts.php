@@ -39,7 +39,7 @@ final readonly class EmployeeCosts
             ->groupBy('logs.project_id', 'logs.user_id', 'logs.date', 'users.country_id')
             ->get(['logs.project_id', 'logs.user_id', 'logs.date', 'users.country_id', DB::raw('SUM(logs.duration_minutes) as minutes')]);
 
-        $salaries = Salary::query()->whereIn('user_id', $days->pluck('user_id')->unique()->all())->oldest('effective_date')->get()->groupBy('user_id');
+        $salaries = Salary::query()->whereIn('user_id', $days->pluck('user_id')->unique()->all())->oldest('effective_date')->oldest('id')->get()->groupBy('user_id');
         $countries = Country::query()->whereIn('id', $days->pluck('country_id')->filter()->unique()->all())->get()->keyBy('id');
 
         $costs = [];

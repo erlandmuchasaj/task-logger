@@ -196,6 +196,11 @@ final class Permissions
 
     public const string EXPENSES_REIMBURSE = 'expenses.reimburse';
 
+    /** Financials (D-91): finance and superadmin only. */
+    public const string FINANCIALS_VIEW = 'financials.view';
+
+    public const string FINANCIALS_EXPORT = 'financials.export';
+
     /** System */
     public const string SYSTEM_ROOT = 'system.root';
 

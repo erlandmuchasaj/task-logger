@@ -222,7 +222,15 @@ Built: expenses `[OPTIONAL]` and the Finance role (D-51, D-52, ADR-0010).
 
 - **Domain `app/Domain/Expenses`.** `Expense` and `ExpenseLine` models, `ExpenseStatus::next()` for the transitions, and actions `CreateExpense`, `UpdateExpense`, `DeleteExpense`, `ChangeExpenseStatus`, `DownloadReceipt`. `ExpensePolicy::transition` maps each move to its permission; the rules a permission cannot express (draft-only edits, no self-approval, rejection reason) live in the actions, so root access (D-41) cannot skip them.
 - **Money and numbering.** Line amounts are computed on the server with `Money::fromMajor` (each currency's own exponent) and checked by a database constraint. The number is `EXP-` plus the row id, written inside the creating transaction, with a unique index. The create audit entry is written after the number is set so it never shows a placeholder.
-- **Finance role.** `RoleName::Finance` plus six permissions in `app/Domain/Identity/Permissions.php` and `config/permission.php`; the seeder and catalog pick them up automatically. Roles in tests that iterate `RoleName::cases()` now include it.
+- **Finance role.** `RoleName::Finance` plus six permissions (and the two `financials.*` ones, §20) in `app/Domain/Identity/Permissions.php` and `config/permission.php`; the seeder and catalog pick them up automatically. Roles in tests that iterate `RoleName::cases()` now include it.
 - **Receipts.** `FileUpload` on the private disk (`task-logger.expenses.disk`), images and PDF, 5 MB; read only by `DownloadReceipt`. A replaced or deleted draft removes its file.
 - **Screens.** Finance group: Expenses list (status buttons, receipt, delete) and create/edit pages with a lines repeater. Navigation is hidden for every role without `expenses.view`.
 - **Not built:** expense export, notifications, an expenses-by-project report, and employee self-service (the owner chose finance and superadmin only).
+
+## 20. Financials (D-91, ERL-5)
+
+Built: a Financials page for finance and the superadmin, and its export.
+
+- **Domain `app/Domain/Reports`.** `BuildFinancials` returns one `FinancialsRow` per project from three grouped queries. `EmployeeCosts` prices each person-day at the salary in force that day over the working time of the month; `WorkingMinutes` counts that time per country and month from the working week and `BankHolidays`. Tunables are in `config/task-logger.php` under `financials`.
+- **Access.** Permissions `financials.view` and `financials.export`, checked through `ProjectPolicy::viewFinancials` and `FinancialsExporter::canExport`. They are separate from `clients.view_rates` and `salaries.view`.
+- **Screen.** `app/Filament/Pages/Financials.php` in the "Clients & projects" group: a Filament table over projects, with the figures of the visible page computed once. Costs, profit and hours are not sortable, because they are computed in PHP.

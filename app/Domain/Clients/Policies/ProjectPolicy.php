@@ -27,6 +27,12 @@ final class ProjectPolicy
         return $user->can(Permissions::PROJECTS_VIEW) && $user->can(Permissions::LOGS_VIEW_ANY);
     }
 
+    /** D-91: the Financials page and its export; it holds its own permission, not clients.view_rates or salaries.view. */
+    public function viewFinancials(User $user): bool
+    {
+        return $user->can(Permissions::FINANCIALS_VIEW);
+    }
+
     public function create(User $user): bool
     {
         return $user->can(Permissions::PROJECTS_CREATE);

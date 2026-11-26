@@ -128,7 +128,7 @@ Each entry: what the source says, the default this spec implements, and whether 
 **D-05 — What an employee may see.**
 
 - Source: employees see only their tasks and logs, but also can view tasks, logs, projects and customers. Employees can see all employees. The FAQ splits a public profile from a private HR record.
-- Default: own tasks and own logs only. All projects and customers read-only. Colleagues’ public profile only. Hourly rates, payment plan and budget are hidden from everyone except superadmin and admin (permission `clients.view_rates`). Assistant exports omit those columns.
+- Default: own tasks and own logs only. All projects and customers read-only. Colleagues’ public profile only. Hourly rates, payment plan and budget are hidden from everyone except superadmin and admin (permission `clients.view_rates`; D-91 shows budgets to finance on the Financials page only). Assistant exports omit those columns.
 - Confirm: yes.
 
 **D-06 — HR is a role.**
@@ -401,8 +401,8 @@ Each entry: what the source says, the default this spec implements, and whether 
 **D-51 — A Finance role manages expenses. Decided by the owner (2026-11-12); ADR-0010.**
 
 - Source: D-17 asked who may use expenses. The owner answered: "finance and superadmin only manage expenses". The spec had no Finance role (D-24 and ADR-0003 listed it as a conflict with D-09's five roles); the earlier owner answer gave expenses to hr, admin and superadmin.
-- Default: a sixth role `finance` (`RoleName::Finance`). It holds the employee baseline plus every `expenses.*` permission and nothing else; one role per user still holds (D-09). hr and admin do not manage expenses. Assistant and employee have no expense access, including to their own. Superadmin keeps every permission explicitly and root access (D-41). The grid in 4.4 shows the superadmin column; the `finance` column is exactly the employee column plus the expenses row. D-63 adds `clients.view`, `projects.view` and `bank_holidays.view` to finance, because the employee column no longer has them.
-- Confirm: no. Open for the owner: should finance see anything else (clients, rates, logs)? It sees none of it today.
+- Default: a sixth role `finance` (`RoleName::Finance`). It holds the employee baseline plus every `expenses.*` permission (D-91 later adds `financials.view` and `financials.export`) and nothing else; one role per user still holds (D-09). hr and admin do not manage expenses. Assistant and employee have no expense access, including to their own. Superadmin keeps every permission explicitly and root access (D-41). The grid in 4.4 shows the superadmin column; the `finance` column is exactly the employee column plus the expenses row (and the financials row, D-91). D-63 adds `clients.view`, `projects.view` and `bank_holidays.view` to finance, because the employee column no longer has them.
+- Confirm: no. Open for the owner: should finance see anything else (clients, rates, logs)? D-91 gives it the Financials page; it sees no rate, log or salary otherwise.
 
 **D-52 — Expense rules `[ASSUMED]`.**
 
@@ -644,6 +644,14 @@ Each entry: what the source says, the default this spec implements, and whether 
 - A replaced or removed photo file is kept on disk, as when HR changes it (`UpdateEmployee`); anonymising a person still deletes their current file (D-46). HR keeps the right to change a person's avatar on the employee form.
 - Confirm: yes. Should a replaced photo file be deleted, and should HR's right to overwrite a person's own photo stay?
 
+**D-91 — Financials: budget, costs and profit per project. Asked by the owner (ERL-5, 2026-11-26). Extends D-51, amends D-05 and BR-29 for this one page.**
+
+- Source: the owner asked for a Financials page for finance and the superadmin (Project, Client, Budget, Costs, Employee costs, Fixed costs, Profit, Total hours, Deadline) and answered five questions: salary is per month; the hourly cost is the salary over the working time of the month (weekends and public holidays removed, 8 hours a day, so November 2026 in Albania is 152 hours); finance may see the salary-derived totals; a salary in another currency than the client's gives "—"; the permission is its own.
+- Default, access: new permissions `financials.view` and `financials.export`, held by `finance` and the superadmin only. They do not carry `clients.view_rates` or `salaries.view`: finance sees these totals and still no rate and no salary anywhere else. `ProjectPolicy::viewFinancials` is the gate for the page, the figures (`BuildFinancials`) and the export (`FinancialsExporter`, type `financials`, under Work > Exports). The page sits in the "Clients & projects" group, has a Client and a Status filter, a column toggle and pages of 25, 50 or 100.
+- Default, one row per project, totalled from its logs: Budget is the project's budget (D-04, fixed costs included). Fixed costs are the sum of its fixed costs. Employee costs: for each person and day, the salary in force on that day (the latest row dated on or before it, whatever its status) times the minutes logged, divided by the working minutes of that month in the person's country, rounded half up; the sum over the project's logs. Working time of a month: the days of the country's working week that are not bank holidays (including a weekend holiday moved to a working day, D-62) times `task-logger.financials.hours_per_working_day` (8). A person with no country uses `fallback_hours_per_month` (160). Costs are employee costs plus fixed costs. Profit is the budget minus the employee costs only, because the budget already includes the fixed costs (D-04). Total hours is the logged time as `h:mm`, all dates and all people.
+- Default, edge cases: a log on a day with no salary on record costs nothing. When any salary used for the project is in another currency than the client's, employee costs, costs and profit show "—" (BR-12: no conversion). A project with no logs has zero employee costs.
+- Confirm: yes. (1) The owner's "yes" to question 4 is read as costs = employee costs plus fixed costs and profit = budget minus employee costs: is that the intended Costs column? (2) Should a log on a day with no salary on record count as zero, or turn the project's figures into "—"? (3) The export has no filters and always covers every project; should it follow the table's filters? (4) Which country's working calendar prices a past log: the person's current country (built) or their country on the log date? Logs of deactivated or anonymised people count. (5) Finance now sees projects' budgets here while `clients.view_rates` stays off for it (D-51's "sees none of it" no longer holds for this page).
+
 ### 3.2 Confirm before coding
 
 1. D-14 and D-05: what employees and assistants may see, and whether an employee sees their own HR record. HR and admin access is now set by the owner.
@@ -799,6 +807,7 @@ Legend: ✔ stated in the source or by the owner after review. ✔\* derived or 
 | departments.manage | ✔ | — | — | add | — |
 | technologies.manage | ✔ | — | — | add | — |
 | expenses.\* `[OPTIONAL]` (D-51: also held by the `finance` role) | ✔ | — | — | — | — |
+| financials.view / export (D-91: also held by the `finance` role) | ✔ | — | — | — | — |
 | activity\_logs.view | ✔\* | — | — | — | — |
 | settings.manage (D-64) | ✔ | — | — | — | — |
 | two\_factor.manage (D-26) | ✔ | — | — | — | — |
@@ -1037,7 +1046,7 @@ Each rule has an ID for traceability and testing (operating rule 6).
 - **BR-26** Privacy split (D-14): the Directory exposes only public fields. A test must prove private fields never appear in any directory query, resource, export or API response for users who lack employees.view\_hr\_record (everyone except superadmin, admin and hr).
 - **BR-27** Performance reviews are visible only to superadmin, HR and the employee’s direct manager (D-21).
 - **BR-28** Offboarding and anonymisation (D-15): personal data is anonymised 2 months after the offboarding end date. `equipment_returned` only records whether the person returned the laptop or other company equipment. Completing an offboarding deactivates login.
-- **BR-29** Salary history is a timeline: rows are never deleted, and only superadmin and hr may correct one (D-83). Each salary has an ISO currency, and the history is visible only to superadmin, admin and hr (D-10).
+- **BR-29** Salary history is a timeline: rows are never deleted, and only superadmin and hr may correct one (D-83). Each salary has an ISO currency, and the history is visible only to superadmin, admin and hr (D-10; D-91 shows finance the salary-derived employee costs per project, never a salary).
 - **BR-30** A project manager must hold the role admin. Validate on save and when a role changes.
 - **BR-31** A deactivated customer cannot receive new projects, tasks or logs. Existing history stays. `[DERIVED]`
 - **BR-32** Audit: every business write is recorded in the activity log with actor, subject and before and after values.

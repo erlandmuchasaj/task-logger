@@ -77,6 +77,7 @@ Permissions are string constants in `App\Domain\Identity\Permissions` (`Permissi
 | bank_holidays.view | Y | Y | Y | Y | Y |
 | countries.manage, departments.manage, technologies.manage | Y | | | add | |
 | expenses.* `[OPTIONAL]` (the `finance` role holds these too, D-51) | Y | | | | |
+| financials.view, financials.export (the `finance` role holds these too, D-91) | Y | | | | |
 | activity_logs.view | Y | | | | |
 | settings.manage | Y | Y | Y | | |
 | two_factor.manage | Y | | | | |

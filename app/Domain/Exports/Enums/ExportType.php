@@ -6,6 +6,7 @@ namespace App\Domain\Exports\Enums;
 
 use App\Domain\Exports\Exporters\CustomersExporter;
 use App\Domain\Exports\Exporters\Exporter;
+use App\Domain\Exports\Exporters\FinancialsExporter;
 use App\Domain\Exports\Exporters\LogsExporter;
 use App\Domain\Exports\Exporters\ProjectsExporter;
 use App\Domain\Exports\Exporters\TasksExporter;
@@ -18,6 +19,7 @@ enum ExportType: string implements HasLabel
     case Projects = 'projects';
     case Clients = 'clients';
     case Tasks = 'tasks';
+    case Financials = 'financials';
 
     public function getLabel(): string
     {
@@ -31,6 +33,7 @@ enum ExportType: string implements HasLabel
             self::Projects => new ProjectsExporter,
             self::Clients => new CustomersExporter,
             self::Tasks => new TasksExporter,
+            self::Financials => new FinancialsExporter,
         };
     }
 }

@@ -141,6 +141,8 @@ return [
             Permissions::EXPENSES_DELETE,
             Permissions::EXPENSES_APPROVE,
             Permissions::EXPENSES_REIMBURSE,
+            Permissions::FINANCIALS_VIEW,
+            Permissions::FINANCIALS_EXPORT,
         ],
         RoleName::Admin->value => [
             ...$employee,
@@ -247,6 +249,8 @@ return [
             Permissions::EXPENSES_DELETE,
             Permissions::EXPENSES_APPROVE,
             Permissions::EXPENSES_REIMBURSE,
+            Permissions::FINANCIALS_VIEW,
+            Permissions::FINANCIALS_EXPORT,
         ],
     ],
 

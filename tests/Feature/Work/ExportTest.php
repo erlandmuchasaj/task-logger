@@ -87,7 +87,7 @@ it('BR-33 D-05 the assistant exports logs without any rate or amount column', fu
 })->group('BR-33');
 
 it('BR-33 only superadmin and assistant may export logs, projects, clients and tasks', function (RoleName $role, bool $allowed): void {
-    foreach (ExportType::cases() as $type) {
+    foreach (array_filter(ExportType::cases(), fn (ExportType $type): bool => $type !== ExportType::Financials) as $type) {
         $request = fn () => resolve(RequestExport::class)->handle(userWithRole($role), $type);
 
         $allowed ? expect($request()->exists)->toBeTrue() : expect($request)->toThrow(AuthorizationException::class);

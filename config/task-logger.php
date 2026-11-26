@@ -116,4 +116,11 @@ return [
         'email' => env('SUPERADMIN_EMAIL', 'superadmin@test.com'),
         'password' => env('SUPERADMIN_PASSWORD', '12345678'),
     ],
+
+    // D-91: Financials. A person's hourly cost is their monthly salary divided by the working time of the month
+    // (working days minus public holidays, times the hours below). A person with no country uses the fallback.
+    'financials' => [
+        'hours_per_working_day' => 8,
+        'fallback_hours_per_month' => 160,
+    ],
 ];

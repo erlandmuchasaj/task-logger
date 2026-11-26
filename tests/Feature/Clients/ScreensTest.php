@@ -37,10 +37,10 @@ it('M3 every clients, projects and tasks screen renders for the roles that may s
         $this->get(strtr($url, ['{client}' => $project->customer_id, '{project}' => $project->id, '{task}' => $task->id]))->assertOk();
     }
 })->with([
-    'superadmin' => [RoleName::Superadmin, ['/app/clients', '/app/clients/create', '/app/clients/{client}', '/app/clients/{client}/edit', '/app/projects', '/app/projects/create', '/app/projects/{project}', '/app/projects/{project}/edit', '/app/tasks', '/app/tasks/create', '/app/tasks/{task}', '/app/tasks/{task}/edit']],
+    'superadmin' => [RoleName::Superadmin, ['/app/clients', '/app/clients/create', '/app/clients/{client}', '/app/clients/{client}/edit', '/app/projects', '/app/projects/create', '/app/projects/{project}', '/app/projects/{project}/edit', '/app/tasks', '/app/tasks/create', '/app/tasks/{task}', '/app/tasks/{task}/edit', '/app/financials']],
     'admin' => [RoleName::Admin, ['/app/clients', '/app/clients/{client}', '/app/clients/{client}/edit', '/app/projects', '/app/projects/create', '/app/projects/{project}', '/app/projects/{project}/edit', '/app/tasks', '/app/tasks/{task}', '/app/tasks/{task}/edit']],
     'assistant' => [RoleName::Assistant, ['/app/clients', '/app/clients/{client}', '/app/projects', '/app/projects/{project}', '/app/tasks', '/app/tasks/{task}']],
     'hr' => [RoleName::Hr, ['/app/clients', '/app/clients/{client}', '/app/projects', '/app/projects/{project}', '/app/tasks']],
     'employee' => [RoleName::Employee, ['/app/tasks']],
-    'finance' => [RoleName::Finance, ['/app/clients', '/app/clients/{client}', '/app/projects', '/app/projects/{project}']],
+    'finance' => [RoleName::Finance, ['/app/clients', '/app/clients/{client}', '/app/projects', '/app/projects/{project}', '/app/financials']],
 ]);

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Identity\Enums\RoleName;
+use App\Domain\People\Models\Salary;
 use App\Domain\Work\Actions\CreateLog;
 use App\Domain\Work\Actions\DeleteLog;
 use App\Domain\Work\Actions\LockMonth;
@@ -113,6 +114,7 @@ it('BR-07 an admin can delete in a locked month, recorded with the old values', 
 it('BR-07 an admin can add their own log in a locked month, recorded', function (): void {
     ['task' => $task, 'project' => $project] = lockedMarch();
     $admin = userWithRole(RoleName::Admin);
+    Salary::factory()->create(['user_id' => $admin->id, 'created_by' => $admin->id, 'effective_date' => '2000-01-01']);
     $adminTask = Task::factory()->create(['project_id' => $project->id, 'technology_id' => $task->technology_id, 'assignee_id' => $admin->id]);
     Activity::query()->delete();
 

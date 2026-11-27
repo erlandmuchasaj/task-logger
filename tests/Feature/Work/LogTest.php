@@ -10,6 +10,7 @@ use App\Domain\Identity\Enums\RoleName;
 use App\Domain\Identity\Models\User;
 use App\Domain\MasterData\Models\Country;
 use App\Domain\MasterData\Models\Technology;
+use App\Domain\People\Models\Salary;
 use App\Domain\Work\Actions\CreateLog;
 use App\Domain\Work\Actions\DeleteLog;
 use App\Domain\Work\Actions\UpdateLog;
@@ -135,6 +136,7 @@ it('BR-04 one person can log at most 24 hours on one date, across all their logs
 it('BR-04 the 24 hour cap is per person', function (): void {
     ['employee' => $me, 'task' => $task] = loggingSetup();
     $other = userWithRole(RoleName::Employee);
+    Salary::factory()->create(['user_id' => $other->id, 'created_by' => $other->id, 'effective_date' => '2000-01-01']);
     $task2 = Task::factory()->create(['project_id' => $task->project_id, 'technology_id' => $task->technology_id, 'assignee_id' => $other->id]);
 
     resolve(CreateLog::class)->handle($me, logData(['taskId' => $task->id, 'minutes' => 24 * 60]));

@@ -23,6 +23,7 @@ use App\Domain\MasterData\Models\Department;
 use App\Domain\MasterData\Models\LeaveType;
 use App\Domain\MasterData\Models\Technology;
 use App\Domain\People\Data\EmployeeData;
+use App\Domain\People\Models\Salary;
 use App\Domain\Work\Data\LogData;
 use App\Domain\Work\Enums\LogType;
 use App\Domain\Work\Models\Task;
@@ -225,6 +226,8 @@ function latestActivity(string $event = 'created'): ActivityLog
 function loggingSetup(int $rateMinor = 2000, string $rateFrom = '2025-01-01', ?User $employee = null): array
 {
     $employee ??= User::factory()->withRole(RoleName::Employee)->create();
+    // D-92: no log without a salary on record. Dated long ago, so it never hides the rate rule (BR-06) under test.
+    Salary::factory()->create(['user_id' => $employee->id, 'created_by' => $employee->id, 'effective_date' => '2000-01-01']);
     [$client, $tech] = clientWithRates(['Angular' => $rateMinor], $rateFrom);
 
     $project = resolve(CreateProject::class)->handle(

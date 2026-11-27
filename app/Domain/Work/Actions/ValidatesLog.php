@@ -8,6 +8,7 @@ use App\Domain\Clients\Models\ClientTechnologyRate;
 use App\Domain\Clients\Models\Project;
 use App\Domain\Clients\Support\ClientRates;
 use App\Domain\Identity\Models\User;
+use App\Domain\People\Support\SalaryOnRecord;
 use App\Domain\Work\Data\LogData;
 use App\Domain\Work\Models\Log;
 use App\Domain\Work\Models\Task;
@@ -78,6 +79,14 @@ trait ValidatesLog
         // No logging for a date that has not happened yet (the user's own calendar day) [ASSUMED D-39].
         if ($data->date->toDateString() > WorkCalendar::today($owner)->toDateString()) {
             $errors['date'] = 'You cannot log time for a future date.';
+        }
+
+        // D-92: Financials prices every log with the salary in force on its date, so no log without one. Only checked
+        // when the date is new, so an old log on a day without a salary can still have its hours or note corrected.
+        $dateChanged = ! $existing instanceof Log || $existing->date->toDateString() !== $data->date->toDateString();
+
+        if ($dateChanged && ! isset($errors['date']) && ! SalaryOnRecord::covers((int) $owner->getKey(), $data->date)) {
+            $errors['date'] = "{$owner->name} has no salary on record on {$data->date->toFormattedDateString()}, so this time cannot be logged. Ask HR to record a salary effective on or before that date.";
         }
 
         // BR-31: a deactivated client gets no new logs. Editing an existing log is still fine.

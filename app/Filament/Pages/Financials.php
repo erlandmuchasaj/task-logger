@@ -40,7 +40,7 @@ final class Financials extends Page implements HasTable
 
     protected static string|UnitEnum|null $navigationGroup = 'Clients & projects';
 
-    protected static ?int $navigationSort = 20;
+    protected static ?int $navigationSort = 40;
 
     protected static ?string $title = 'Financials';
 

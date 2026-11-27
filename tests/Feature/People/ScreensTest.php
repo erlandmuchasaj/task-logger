@@ -74,10 +74,14 @@ it('D-48 source of hire and the contact relationship are dropdowns that keep an 
 
     $this->actingAs(userWithRole(RoleName::Superadmin));
 
-    Livewire::test(EditEmployee::class, ['record' => $employee->getKey()])
+    $page = Livewire::test(EditEmployee::class, ['record' => $employee->getKey()]);
+    // The repeater item has a generated key, and the dropdown no longer prints its options into the HTML.
+    $contactKey = array_key_first($page->get('data.contacts'));
+
+    $page
         ->assertFormFieldExists('profile.source_of_hire', fn (Select $field): bool => $field->getOptions()['Referral'] === 'Referral'
             && $field->getOptions()['Old fair'] === 'Old fair')
-        ->assertSee('Grandparent')   // an option of the relationship dropdown
+        ->assertFormFieldExists("contacts.{$contactKey}.relationship", fn (Select $field): bool => $field->getOptions()['Grandparent'] === 'Grandparent')
         ->assertFormSet(fn (array $state): bool => collect($state['contacts'])->first()['relationship'] === 'sister')
         ->assertFormSet(['profile.source_of_hire' => 'Old fair']);
 })->group('D-48');

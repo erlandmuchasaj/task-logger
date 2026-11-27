@@ -21,7 +21,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * A client (table `customers`, UI label Clients, D-23). Priority is per client (D-02). Currency
- * defaults to the country's and is fixed once rates or logs exist (D-18). Payment plans are metadata
+ * defaults to the country's and is fixed once rates, fixed costs or logs exist (D-18). Payment plans are metadata
  * only (BR-15).
  */
 #[Fillable([
@@ -37,11 +37,17 @@ final class Customer extends Model
     use LogsBusinessActivity;
     use SoftDeletes;
 
-    /** The currency is fixed once the client has rates or logged work (D-18). */
+    /** The currency is fixed once the client has rates, fixed costs or logged work (D-18, BR-14). */
     public function currencyIsLocked(): bool
     {
-        return $this->rates()->exists()
-            || Log::query()->withTrashed()->whereIn('project_id', $this->projects()->withTrashed()->select('id'))->exists();
+        if ($this->rates()->exists()) {
+            return true;
+        }
+
+        $projectIds = $this->projects()->withTrashed()->select('id');
+
+        return FixedCost::query()->whereIn('project_id', $projectIds)->exists()
+            || Log::query()->withTrashed()->whereIn('project_id', $projectIds)->exists();
     }
 
     public function displayName(): string

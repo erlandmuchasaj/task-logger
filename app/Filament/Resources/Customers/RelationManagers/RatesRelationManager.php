@@ -58,7 +58,9 @@ final class RatesRelationManager extends RelationManager
             Select::make('technology_id')->label('Technology')
                 ->options(fn (): array => Technology::query()->orderBy('name')->pluck('name', 'id')->all())
                 ->searchable()->required()->disabledOn('edit'),
-            TextInput::make('rate')->label('Rate per hour (major units)')->numeric()->minValue(0)->required(),
+            TextInput::make('rate')->label('Rate per hour')
+                ->prefix(fn (): string => $this->customerCurrency())
+                ->numeric()->minValue(0)->required(),
             DatePicker::make('effective_from')->required()->default(now()),
         ]);
     }
@@ -122,6 +124,14 @@ final class RatesRelationManager extends RelationManager
                         }),
                 ]),
             ]);
+    }
+
+    private function customerCurrency(): string
+    {
+        /** @var Customer $customer */
+        $customer = $this->getOwnerRecord();
+
+        return $customer->currency_code;
     }
 
     private function minor(mixed $rate, Customer $customer): int

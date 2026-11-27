@@ -7,6 +7,8 @@ use App\Domain\Clients\Actions\SetCustomerActive;
 use App\Domain\Clients\Actions\UpdateCustomer;
 use App\Domain\Clients\Data\CustomerData;
 use App\Domain\Clients\Models\Customer;
+use App\Domain\Clients\Models\FixedCost;
+use App\Domain\Clients\Models\Project;
 use App\Domain\Identity\Enums\RoleName;
 use App\Domain\MasterData\Models\Country;
 use App\Domain\MasterData\Models\PaymentPlan;
@@ -74,6 +76,15 @@ it('FR-17 the Create screen refuses a currency that is not in ISO 4217', functio
 
 it('D-18 the currency is fixed once the client has rates', function (): void {
     [$client] = clientWithRates(['Angular' => 2000]);
+
+    resolve(UpdateCustomer::class)->handle(userWithRole(RoleName::Admin), $client, customerData([
+        'countryId' => $client->country_id, 'currencyCode' => 'USD', 'email' => $client->email, 'phone' => null,
+    ]));
+})->group('D-18')->throws(ValidationException::class, 'currency cannot change');
+
+it('D-18 the currency is fixed once the client has a fixed cost', function (): void {
+    $client = Customer::factory()->create(['currency_code' => 'EUR']);
+    FixedCost::factory()->create(['project_id' => Project::factory()->create(['customer_id' => $client->id])->id]);
 
     resolve(UpdateCustomer::class)->handle(userWithRole(RoleName::Admin), $client, customerData([
         'countryId' => $client->country_id, 'currencyCode' => 'USD', 'email' => $client->email, 'phone' => null,

@@ -47,7 +47,7 @@ final class CustomerForm
                 TextInput::make('currency_code')->label('Currency (ISO 4217)')->length(3)->alpha()->rules([new IsoCurrency])->required()
                     ->dehydrateStateUsing(fn (?string $state): ?string => $state ? mb_strtoupper($state) : null)
                     ->disabled($record?->currencyIsLocked() ?? false)->dehydrated()
-                    ->helperText(($record?->currencyIsLocked() ?? false) ? 'Fixed: this client has rates or logged work.' : 'Defaults to the country currency.'),
+                    ->helperText(($record?->currencyIsLocked() ?? false) ? 'Fixed: this client has rates, fixed costs or logged work.' : 'Defaults to the country currency.'),
                 Select::make('payment_plan_id')->label('Payment plan')
                     ->options(fn (): array => PaymentPlan::query()->orderBy('name')->pluck('name', 'id')->all())
                     ->searchable()->visible($canSeeRates)

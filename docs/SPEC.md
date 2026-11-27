@@ -207,8 +207,8 @@ Each entry: what the source says, the default this spec implements, and whether 
 **D-18 — Customer country and currency.**
 
 - Source: customer has `country`. Money is stored in ISO currency per client. Currency is based on country.
-- Default: `customers.country_id` foreign key. `currency_code` defaults to the country currency and is fixed once rates or logs exist.
-- Confirm: yes.
+- Default: `customers.country_id` foreign key. `currency_code` defaults to the country currency and is fixed once rates, fixed costs or logs exist (fixed costs must use the client's currency, BR-14).
+- Confirm: answered by the owner on 2026-11-27: keep the lock.
 
 **D-19 — Enumerations with unstated values.**
 

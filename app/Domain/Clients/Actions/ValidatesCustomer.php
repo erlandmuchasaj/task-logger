@@ -31,12 +31,12 @@ trait ValidatesCustomer
             throw ValidationException::withMessages(['country_id' => 'Choose a country.']);
         }
 
-        // D-18: the currency defaults to the country's and is fixed once rates or logs exist.
+        // D-18: the currency defaults to the country's and is fixed once rates, fixed costs or logs exist.
         $currency = mb_strtoupper($data->currencyCode ?: $country->currency_code);
         if (! Money::isIsoCurrency($currency)) {
             $errors['currency_code'] = 'Use a valid ISO 4217 currency code, for example EUR.';
         } elseif ($existing instanceof Customer && $currency !== $existing->currency_code && $existing->currencyIsLocked()) {
-            $errors['currency_code'] = 'The currency cannot change once the client has rates or logged work.';
+            $errors['currency_code'] = 'The currency cannot change once the client has rates, fixed costs or logged work.';
         }
 
         $phone = null;
